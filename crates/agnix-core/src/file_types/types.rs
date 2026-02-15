@@ -101,6 +101,18 @@ impl FileType {
     pub fn is_validatable(self) -> bool {
         !matches!(self, FileType::Unknown)
     }
+
+    /// Returns `true` for catch-all file types (e.g. `GenericMarkdown`) that
+    /// are not specifically identified agent configuration files.
+    ///
+    /// The LSP uses this to skip validation for files that are only
+    /// speculatively classified - arbitrary `.md` files that do not match any
+    /// known agent file pattern. The CLI still validates these during explicit
+    /// project scans.
+    #[must_use]
+    pub fn is_generic(self) -> bool {
+        matches!(self, FileType::GenericMarkdown)
+    }
 }
 
 impl fmt::Display for FileType {
@@ -256,6 +268,64 @@ mod tests {
             !FileType::Unknown.is_validatable(),
             "Unknown should not be validatable"
         );
+    }
+
+    /// `is_generic` returns true only for GenericMarkdown.
+    #[test]
+    fn is_generic_only_for_generic_markdown() {
+        assert!(
+            FileType::GenericMarkdown.is_generic(),
+            "GenericMarkdown should be generic"
+        );
+
+        // Exhaustively verify all other variants are NOT generic
+        let non_generic = [
+            FileType::Skill,
+            FileType::ClaudeMd,
+            FileType::Agent,
+            FileType::AmpCheck,
+            FileType::Hooks,
+            FileType::Plugin,
+            FileType::Mcp,
+            FileType::Copilot,
+            FileType::CopilotScoped,
+            FileType::CopilotAgent,
+            FileType::CopilotPrompt,
+            FileType::CopilotHooks,
+            FileType::ClaudeRule,
+            FileType::CursorRule,
+            FileType::CursorHooks,
+            FileType::CursorAgent,
+            FileType::CursorEnvironment,
+            FileType::CursorRulesLegacy,
+            FileType::ClineRules,
+            FileType::ClineRulesFolder,
+            FileType::OpenCodeConfig,
+            FileType::GeminiMd,
+            FileType::GeminiSettings,
+            FileType::AmpSettings,
+            FileType::GeminiExtension,
+            FileType::GeminiIgnore,
+            FileType::CodexConfig,
+            FileType::RooRules,
+            FileType::RooModes,
+            FileType::RooIgnore,
+            FileType::RooModeRules,
+            FileType::RooMcp,
+            FileType::WindsurfRule,
+            FileType::WindsurfWorkflow,
+            FileType::WindsurfRulesLegacy,
+            FileType::KiroSteering,
+            FileType::Unknown,
+        ];
+
+        for variant in &non_generic {
+            assert!(
+                !variant.is_generic(),
+                "{} should not be generic",
+                variant
+            );
+        }
     }
 
     /// FileType must be usable as a HashMap key (requires Hash + Eq).

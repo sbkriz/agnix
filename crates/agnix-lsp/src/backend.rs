@@ -179,6 +179,21 @@ impl Backend {
             }
         }
 
+        // Skip generic markdown files in LSP to avoid false positives on
+        // developer docs, project specs, etc. Only validate files that are
+        // specifically identified as agent configuration files.
+        {
+            let config = self.config.read().await;
+            let file_type = agnix_core::resolve_file_type(&file_path, &config);
+            if file_type.is_generic() {
+                // Publish empty diagnostics to clear any stale results
+                self.client
+                    .publish_diagnostics(uri, vec![], None)
+                    .await;
+                return;
+            }
+        }
+
         // Get content from cache
         let (content, expected_content) = {
             let docs = self.documents.read().await;
@@ -208,19 +223,12 @@ impl Backend {
         let config = Arc::clone(&*self.config.read().await);
         let registry = Arc::clone(&self.registry);
         let result = tokio::task::spawn_blocking(move || {
-            let file_type = agnix_core::resolve_file_type(&file_path, &config);
-            if file_type == agnix_core::FileType::Unknown {
-                return Ok(vec![]);
-            }
-
-            let validators = registry.validators_for(file_type);
-            let mut diagnostics = Vec::new();
-
-            for validator in validators {
-                diagnostics.extend(validator.validate(&file_path, content.as_str(), &config));
-            }
-
-            Ok::<_, agnix_core::LintError>(diagnostics)
+            Ok::<_, agnix_core::LintError>(agnix_core::validate_content(
+                &file_path,
+                content.as_str(),
+                &config,
+                &registry,
+            ))
         })
         .await;
 
@@ -297,6 +305,10 @@ impl LanguageServer for Backend {
             }
         }
 
+        // Start project-level validation early so diagnostics are available
+        // as soon as files are opened. Runs asynchronously in the background.
+        self.spawn_project_validation();
+
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(
@@ -331,9 +343,6 @@ impl LanguageServer for Backend {
         self.client
             .log_message(MessageType::INFO, "agnix-lsp initialized")
             .await;
-
-        // Run project-level validation on workspace open
-        self.spawn_project_validation();
     }
 
     async fn shutdown(&self) -> Result<()> {
@@ -416,7 +425,7 @@ impl LanguageServer for Backend {
             .ok()
             .map(|path| agnix_core::resolve_file_type(&path, &config))
             .unwrap_or(agnix_core::FileType::Unknown);
-        if matches!(file_type, agnix_core::FileType::Unknown) {
+        if matches!(file_type, agnix_core::FileType::Unknown) || file_type.is_generic() {
             return Ok(None);
         }
 

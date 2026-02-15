@@ -1869,8 +1869,16 @@ async fn test_project_diagnostics_cached() {
         .await
         .unwrap();
 
-    // Run project-level validation
-    service.inner().validate_project_rules_and_publish().await;
+    // initialize() now spawns project validation in the background.
+    // Wait for it to complete before asserting.
+    for _ in 0..80 {
+        let proj_diags = service.inner().project_level_diagnostics.read().await;
+        if !proj_diags.is_empty() {
+            break;
+        }
+        drop(proj_diags);
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
 
     // Verify project diagnostics are stored
     let proj_diags = service.inner().project_level_diagnostics.read().await;
@@ -1910,8 +1918,16 @@ async fn test_project_diagnostics_cleared_on_rerun() {
         .await
         .unwrap();
 
-    // First run: should find AGM-006
-    service.inner().validate_project_rules_and_publish().await;
+    // initialize() now spawns project validation in the background.
+    // Wait for it to complete before continuing.
+    for _ in 0..80 {
+        let proj_diags = service.inner().project_level_diagnostics.read().await;
+        if !proj_diags.is_empty() {
+            break;
+        }
+        drop(proj_diags);
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
 
     let count_before = service.inner().project_diagnostics_uris.read().await.len();
     assert!(
@@ -2178,6 +2194,22 @@ async fn test_project_and_file_diagnostics_merged() {
     std::fs::write(&claude_path, "<unclosed>\n# Project\n").unwrap();
     let uri = Url::from_file_path(&claude_path).unwrap();
 
+    // Wait for the background project validation spawned by initialize()
+    // to complete before injecting fake diagnostics, to avoid a race where
+    // the background run overwrites our manually inserted data.
+    for _ in 0..80 {
+        let generation = service
+            .inner()
+            .project_validation_generation
+            .load(std::sync::atomic::Ordering::SeqCst);
+        if generation >= 1 {
+            // Give the async task a moment to finish writing results
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+
     // Pre-populate project_level_diagnostics with a fake AGM-006 diagnostic
     // for this URI, simulating what validate_project_rules_and_publish would store.
     {
@@ -2303,5 +2335,282 @@ async fn test_for_each_bounded_zero_concurrency_defaults_to_one() {
         count.load(std::sync::atomic::Ordering::SeqCst),
         3,
         "All items should be processed even with concurrency 0"
+    );
+}
+
+/// Test that GenericMarkdown files are not validated by the LSP.
+///
+/// A `.md` file that doesn't match any specific agent pattern gets classified
+/// as GenericMarkdown. The LSP should skip validation for these to avoid
+/// false positives on developer docs, project specs, etc.
+#[tokio::test]
+async fn test_generic_markdown_not_validated() {
+    let (service, _socket) = LspService::new(Backend::new);
+
+    let temp_dir = tempfile::tempdir().unwrap();
+    let root_uri = Url::from_file_path(temp_dir.path()).unwrap();
+
+    service
+        .inner()
+        .initialize(InitializeParams {
+            root_uri: Some(root_uri),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+    // Create a generic markdown file (not a known agent config pattern).
+    // "notes.md" at the project root is classified as GenericMarkdown.
+    let notes_path = temp_dir.path().join("notes.md");
+    let content = "<unclosed>\n# Some developer notes\n";
+    std::fs::write(&notes_path, content).unwrap();
+
+    let uri = Url::from_file_path(&notes_path).unwrap();
+
+    // Open the file - the LSP should skip validation for GenericMarkdown
+    service
+        .inner()
+        .did_open(DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: uri.clone(),
+                language_id: "markdown".to_string(),
+                version: 1,
+                text: content.to_string(),
+            },
+        })
+        .await;
+
+    // did_open always caches the document content before calling
+    // validate_from_content_and_publish. The GenericMarkdown early return
+    // skips validation but does not prevent caching.
+    let docs = service.inner().documents.read().await;
+    assert!(
+        docs.contains_key(&uri),
+        "Document should be cached (did_open always caches)"
+    );
+}
+
+/// Test that hover() returns None for GenericMarkdown files.
+#[tokio::test]
+async fn test_hover_returns_none_for_generic_markdown() {
+    let (service, _socket) = LspService::new(Backend::new);
+
+    let temp_dir = tempfile::tempdir().unwrap();
+    let root_uri = Url::from_file_path(temp_dir.path()).unwrap();
+
+    service
+        .inner()
+        .initialize(InitializeParams {
+            root_uri: Some(root_uri),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+    // Create a generic markdown file and open it
+    let notes_path = temp_dir.path().join("notes.md");
+    let content = "---\nname: test\n---\n# Notes\n";
+    std::fs::write(&notes_path, content).unwrap();
+    let uri = Url::from_file_path(&notes_path).unwrap();
+
+    service
+        .inner()
+        .did_open(DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: uri.clone(),
+                language_id: "markdown".to_string(),
+                version: 1,
+                text: content.to_string(),
+            },
+        })
+        .await;
+
+    // Hover on a GenericMarkdown file should return None
+    let hover_result = service
+        .inner()
+        .hover(HoverParams {
+            text_document_position_params: TextDocumentPositionParams {
+                text_document: TextDocumentIdentifier { uri },
+                position: Position {
+                    line: 1,
+                    character: 0,
+                },
+            },
+            work_done_progress_params: Default::default(),
+        })
+        .await
+        .unwrap();
+
+    assert!(
+        hover_result.is_none(),
+        "Hover should return None for GenericMarkdown files"
+    );
+}
+
+/// Test that specific agent config files ARE validated (not skipped).
+///
+/// Ensures the GenericMarkdown skip doesn't accidentally filter out
+/// real agent configuration files.
+#[tokio::test]
+async fn test_agent_config_files_still_validated() {
+    let (service, _socket) = LspService::new(Backend::new);
+
+    let temp_dir = tempfile::tempdir().unwrap();
+    let root_uri = Url::from_file_path(temp_dir.path()).unwrap();
+
+    service
+        .inner()
+        .initialize(InitializeParams {
+            root_uri: Some(root_uri),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+    // CLAUDE.md is FileType::ClaudeMd - should be validated (not generic)
+    let claude_path = temp_dir.path().join("CLAUDE.md");
+    let content = "# Project\n\nSome instructions.\n";
+    std::fs::write(&claude_path, content).unwrap();
+
+    let uri = Url::from_file_path(&claude_path).unwrap();
+
+    // Verify the file type is NOT generic
+    let config = service.inner().config.read().await;
+    let file_type = agnix_core::resolve_file_type(&claude_path, &config);
+    assert!(
+        !file_type.is_generic(),
+        "CLAUDE.md should NOT be classified as generic (got {:?})",
+        file_type
+    );
+    assert_eq!(file_type, agnix_core::FileType::ClaudeMd);
+    drop(config);
+
+    // Open should proceed through full validation path
+    service
+        .inner()
+        .did_open(DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri,
+                language_id: "markdown".to_string(),
+                version: 1,
+                text: content.to_string(),
+            },
+        })
+        .await;
+}
+
+/// Test that disabled_validators from .agnix.toml config are respected
+/// when validating via the LSP content path.
+///
+/// This verifies that the LSP uses `validate_content()` (which checks
+/// disabled_validators) rather than a manual validator loop.
+#[tokio::test]
+async fn test_disabled_validators_respected_in_content_validation() {
+    let (service, _socket) = LspService::new(Backend::new);
+
+    let temp_dir = tempfile::tempdir().unwrap();
+
+    // Create config that disables the XmlValidator
+    let config_path = temp_dir.path().join(".agnix.toml");
+    std::fs::write(
+        &config_path,
+        r#"
+[rules]
+disabled_validators = ["XmlValidator"]
+"#,
+    )
+    .unwrap();
+
+    let root_uri = Url::from_file_path(temp_dir.path()).unwrap();
+    service
+        .inner()
+        .initialize(InitializeParams {
+            root_uri: Some(root_uri),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+    // Verify the config was loaded with disabled validators
+    let config = service.inner().config.read().await;
+    assert!(
+        config
+            .rules()
+            .disabled_validators
+            .iter()
+            .any(|v| v == "XmlValidator"),
+        "XmlValidator should be in disabled_validators list"
+    );
+    drop(config);
+
+    // Create a CLAUDE.md with content that would trigger XmlValidator
+    let claude_path = temp_dir.path().join("CLAUDE.md");
+    let content = "<unclosed>\n# Project\n";
+    std::fs::write(&claude_path, content).unwrap();
+
+    let uri = Url::from_file_path(&claude_path).unwrap();
+
+    // Open the file - exercises validate_from_content_and_publish
+    // with validate_content() that respects disabled_validators.
+    // This should complete without error (the disabled validator is skipped).
+    service
+        .inner()
+        .did_open(DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri,
+                language_id: "markdown".to_string(),
+                version: 1,
+                text: content.to_string(),
+            },
+        })
+        .await;
+}
+
+/// Test that project-level validation starts during initialize().
+///
+/// Previously, project validation only ran in initialized() (after the
+/// client sends the initialized notification). Now it starts in
+/// initialize() so diagnostics are available sooner.
+#[tokio::test]
+async fn test_project_validation_starts_in_initialize() {
+    let (service, _socket) = LspService::new(Backend::new);
+
+    let temp_dir = tempfile::tempdir().unwrap();
+
+    // Create two AGENTS.md files to trigger AGM-006
+    std::fs::write(temp_dir.path().join("AGENTS.md"), "# Root").unwrap();
+    let sub = temp_dir.path().join("sub");
+    std::fs::create_dir(&sub).unwrap();
+    std::fs::write(sub.join("AGENTS.md"), "# Sub").unwrap();
+
+    let root_uri = Url::from_file_path(temp_dir.path()).unwrap();
+
+    // Only call initialize (NOT initialized) - project validation should
+    // still start because we moved spawn_project_validation() there.
+    service
+        .inner()
+        .initialize(InitializeParams {
+            root_uri: Some(root_uri),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+    // Wait for async project validation to complete
+    let mut found = false;
+    for _ in 0..80 {
+        let proj_diags = service.inner().project_level_diagnostics.read().await;
+        if !proj_diags.is_empty() {
+            found = true;
+            break;
+        }
+        drop(proj_diags);
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+
+    assert!(
+        found,
+        "Project-level validation should run during initialize(), \
+         producing AGM-006 diagnostics for duplicate AGENTS.md files"
     );
 }

@@ -3,7 +3,7 @@
 Real-time validation for AI agent configuration files in VS Code.
 Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=avifenesh.agnix).
 
-**224 rules** | **Real-time diagnostics** | **Auto-fix** | **Completion** | **Multi-tool support**
+**229 rules** | **Real-time diagnostics** | **Auto-fix** | **Completion** | **Multi-tool support**
 
 
 ## Features
@@ -45,7 +45,7 @@ Access via Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`):
 | `agnix: Fix All Issues in File` | `Ctrl+Shift+.` | Apply all available fixes |
 | `agnix: Preview Fixes` | - | Browse fixes with diff preview |
 | `agnix: Fix All Safe Issues` | `Ctrl+Alt+.` | Apply only safe fixes |
-| `agnix: Show All Rules` | - | Browse 224 rules by category |
+| `agnix: Show All Rules` | - | Browse 229 rules by category |
 
 | `agnix: Show Rule Documentation` | - | Open docs for a rule (via CodeLens) |
 | `agnix: Ignore Rule in Project` | - | Add rule to `.agnix.toml` disabled list |

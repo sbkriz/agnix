@@ -219,12 +219,10 @@ pub fn validate_file(path: &Path, config: &LintConfig) -> LintResult<Vec<Diagnos
 
 /// Validate a single file with a custom validator registry.
 ///
-/// Note: `config.rules().disabled_validators` is NOT applied at runtime in
-/// this path. Callers must disable validators at registry construction time
-/// using [`ValidatorRegistry::disable_validator_owned()`] or the builder
-/// API. For the LSP path where the config changes frequently, use
-/// [`validate_content()`] which applies `disabled_validators` checks at
-/// runtime.
+/// `config.rules().disabled_validators` is applied at runtime, so callers
+/// may share a single `ValidatorRegistry` across configs that differ only
+/// in their disabled-validator sets (e.g. the LSP path). This is consistent
+/// with [`validate_content()`].
 #[cfg(feature = "filesystem")]
 pub fn validate_file_with_registry(
     path: &Path,
@@ -254,9 +252,15 @@ fn validate_file_with_type(
     let content = file_utils::safe_read_file(path)?;
 
     let validators = registry.validators_for(file_type);
+    let disabled = &config.rules().disabled_validators;
+    let disabled_set: std::collections::HashSet<&str> =
+        disabled.iter().map(|s| s.as_str()).collect();
     let mut diagnostics = Vec::new();
 
     for validator in validators {
+        if !disabled_set.is_empty() && disabled_set.contains(validator.name()) {
+            continue;
+        }
         diagnostics.extend(validator.validate(path, &content, config));
     }
 

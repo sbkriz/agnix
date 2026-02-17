@@ -4665,6 +4665,84 @@ fn test_disabled_validators_config_filters_in_validate_project() {
     );
 }
 
+#[test]
+fn test_disabled_validators_respected_in_validate_file_with_registry() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let claude_md = temp_dir.path().join("CLAUDE.md");
+    // Content with an unclosed XML tag to trigger XmlValidator (XML-001)
+    std::fs::write(&claude_md, "# Project\n\n<example>some content here\n").unwrap();
+
+    // Shared registry without any pre-applied disables
+    let registry = ValidatorRegistry::with_defaults();
+
+    // Without disabling, XmlValidator should fire via validate_file_with_registry
+    let config = LintConfig::default();
+    let diags = validate_file_with_registry(&claude_md, &config, &registry).unwrap();
+    let xml_diags: Vec<_> = diags.iter().filter(|d| d.rule == "XML-001").collect();
+    assert!(
+        !xml_diags.is_empty(),
+        "Expected XML-001 diagnostic from validate_file_with_registry without disabled_validators, got rules: {:?}",
+        diags.iter().map(|d| &d.rule).collect::<Vec<_>>()
+    );
+
+    // With XmlValidator disabled via config, XML-001 should be filtered at runtime
+    let mut config_disabled = LintConfig::default();
+    config_disabled.rules_mut().disabled_validators = vec!["XmlValidator".to_string()];
+    let diags_disabled =
+        validate_file_with_registry(&claude_md, &config_disabled, &registry).unwrap();
+    let xml_diags_disabled: Vec<_> = diags_disabled
+        .iter()
+        .filter(|d| d.rule == "XML-001")
+        .collect();
+    assert!(
+        xml_diags_disabled.is_empty(),
+        "Expected no XML-001 from validate_file_with_registry with XmlValidator disabled, got: {:?}",
+        xml_diags_disabled
+    );
+}
+
+#[test]
+fn test_validate_file_with_registry_consistent_with_validate_content() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let claude_md = temp_dir.path().join("CLAUDE.md");
+    // Content with an unclosed XML tag to trigger XmlValidator (XML-001)
+    std::fs::write(&claude_md, "# Project\n\n<example>some content here\n").unwrap();
+
+    // Shared registry, config with XmlValidator disabled
+    let registry = ValidatorRegistry::with_defaults();
+    let mut config = LintConfig::default();
+    config.rules_mut().disabled_validators = vec!["XmlValidator".to_string()];
+
+    // validate_file_with_registry path
+    let file_diags = validate_file_with_registry(&claude_md, &config, &registry).unwrap();
+    let file_rules: std::collections::HashSet<&str> =
+        file_diags.iter().map(|d| d.rule.as_str()).collect();
+
+    // validate_content path (read file content manually)
+    let content = std::fs::read_to_string(&claude_md).unwrap();
+    let content_diags = validate_content(&claude_md, &content, &config, &registry);
+    let content_rules: std::collections::HashSet<&str> =
+        content_diags.iter().map(|d| d.rule.as_str()).collect();
+
+    assert_eq!(
+        file_rules, content_rules,
+        "validate_file_with_registry and validate_content should produce the same rule set \
+         when using the same registry and config. \
+         file_rules={:?}, content_rules={:?}",
+        file_rules, content_rules
+    );
+
+    // Verify XML-001 is absent from both (sanity check)
+    assert!(
+        !file_rules.contains("XML-001"),
+        "XML-001 should be filtered out by disabled_validators in validate_file_with_registry"
+    );
+    assert!(
+        !content_rules.contains("XML-001"),
+        "XML-001 should be filtered out by disabled_validators in validate_content"
+    );
+}
+
 // ============================================================================
 // Custom provider end-to-end test
 // ============================================================================

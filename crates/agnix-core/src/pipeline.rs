@@ -352,18 +352,8 @@ fn is_excluded_file(path_str: &str, exclude_patterns: &[ExcludePattern]) -> bool
         .any(|p| p.pattern.matches(path_str) && p.dir_only_prefix.as_deref() != Some(path_str))
 }
 
-/// Run project-level checks that require cross-file analysis.
-///
-/// These checks analyze relationships between multiple files in the project:
-/// - AGM-006: Multiple AGENTS.md files
-/// - XP-004: Conflicting build/test commands across instruction files
-/// - XP-005: Conflicting tool constraints across instruction files
-/// - XP-006: Multiple instruction layers without documented precedence
-/// - VER-001: No tool/spec versions pinned
-///
-/// Both `agents_md_paths` and `instruction_file_paths` must be pre-sorted
-/// Join an iterator of paths into a comma-separated string using `Cow<str>` from
-/// `to_string_lossy()`, avoiding per-path heap allocation for valid UTF-8 paths.
+/// Join an iterator of paths into a comma-separated string, avoiding per-path heap
+/// allocation for valid UTF-8 paths by using `Cow<str>` from `to_string_lossy()`.
 fn join_paths<'a>(paths: impl Iterator<Item = &'a Path>) -> String {
     paths.enumerate().fold(String::new(), |mut acc, (i, p)| {
         if i > 0 {
@@ -374,6 +364,16 @@ fn join_paths<'a>(paths: impl Iterator<Item = &'a Path>) -> String {
     })
 }
 
+/// Run project-level checks that require cross-file analysis.
+///
+/// These checks analyze relationships between multiple files in the project:
+/// - AGM-006: Multiple AGENTS.md files
+/// - XP-004: Conflicting build/test commands across instruction files
+/// - XP-005: Conflicting tool constraints across instruction files
+/// - XP-006: Multiple instruction layers without documented precedence
+/// - VER-001: No tool/spec versions pinned
+///
+/// Both `agents_md_paths` and `instruction_file_paths` must be pre-sorted
 /// for deterministic output ordering.
 #[cfg(feature = "filesystem")]
 fn run_project_level_checks(

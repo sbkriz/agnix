@@ -686,6 +686,66 @@ fn builder_built_registry_matches_with_defaults_factory_count() {
 }
 
 // ============================================================================
+// ValidatorProvider::named_validators() contract
+// ============================================================================
+
+#[test]
+fn named_validators_method_is_callable_on_trait_object() {
+    // Verify that named_validators() is object-safe and callable through a
+    // trait object reference, returning the expected tuple shape.
+    struct DummyProvider;
+    impl agnix_core::ValidatorProvider for DummyProvider {
+        fn validators(&self) -> Vec<(agnix_core::FileType, agnix_core::ValidatorFactory)> {
+            vec![]
+        }
+    }
+
+    let provider: &dyn agnix_core::ValidatorProvider = &DummyProvider;
+    let named = provider.named_validators();
+    assert!(
+        named.is_empty(),
+        "Empty provider should return empty named_validators()"
+    );
+}
+
+#[test]
+fn named_validators_default_yields_none_names() {
+    // A custom provider that only implements validators() should get None
+    // names from the default named_validators() implementation.
+    struct CustomProvider;
+    impl agnix_core::ValidatorProvider for CustomProvider {
+        fn validators(&self) -> Vec<(agnix_core::FileType, agnix_core::ValidatorFactory)> {
+            // Return a dummy entry
+            fn dummy_factory() -> Box<dyn agnix_core::Validator> {
+                struct Dummy;
+                impl agnix_core::Validator for Dummy {
+                    fn validate(
+                        &self,
+                        _: &std::path::Path,
+                        _: &str,
+                        _: &agnix_core::LintConfig,
+                    ) -> Vec<agnix_core::Diagnostic> {
+                        vec![]
+                    }
+                }
+                Box::new(Dummy)
+            }
+            vec![(agnix_core::FileType::Skill, dummy_factory)]
+        }
+    }
+
+    let provider: &dyn agnix_core::ValidatorProvider = &CustomProvider;
+    let named = provider.named_validators();
+    assert_eq!(named.len(), 1);
+    let (ft, name, _factory) = &named[0];
+    assert_eq!(*ft, agnix_core::FileType::Skill);
+    assert!(
+        name.is_none(),
+        "Default named_validators() must return None names"
+    );
+}
+
+// ============================================================================
 // ValidatorMetadata API contract
 // ============================================================================
 

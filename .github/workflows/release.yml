@@ -184,6 +184,7 @@ jobs:
       - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2
 
       - name: Verify version matches tag
+        id: version
         run: |
           TAG_VERSION=${GITHUB_REF#refs/tags/v}
           CARGO_VERSION=$(sed -n '/\[workspace\.package\]/,/^\[/p' Cargo.toml | grep '^version' | head -1 | sed 's/.*"\(.*\)".*/\1/')
@@ -191,23 +192,64 @@ jobs:
             echo "Error: Tag version ($TAG_VERSION) doesn't match Cargo.toml version ($CARGO_VERSION)"
             exit 1
           fi
+          echo "version=$TAG_VERSION" >> "$GITHUB_OUTPUT"
 
-      # Publish order: agnix-rules (leaf) → agnix-core → agnix-cli/agnix-lsp
+      - name: Create crate indexing wait helper
+        run: |
+          cat > /tmp/wait-for-crate.sh << 'SCRIPT'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          if [ $# -ne 2 ]; then
+            echo "Usage: $0 <crate> <version>" >&2
+            exit 1
+          fi
+          crate="$1"
+          version="$2"
+          # crates.io indexing is typically <60s, allow 5 min (30 x 10s) for high-load scenarios
+          max_retries=30
+          interval=10
+          echo "Waiting for $crate $version to appear on crates.io index..."
+          for i in $(seq 1 $max_retries); do
+            output=$(cargo search "$crate" --limit 1 2>&1) || {
+              if [ "$i" -lt "$max_retries" ]; then
+                echo "Attempt $i/$max_retries: cargo search failed, retrying in ${interval}s..."
+                sleep "$interval"
+                continue
+              else
+                echo "Attempt $i/$max_retries: cargo search failed, no retries left."
+                break
+              fi
+            }
+            if echo "$output" | grep -qF "$crate = \"$version\""; then
+              echo "$crate $version indexed after $(((i - 1) * interval))s"
+              exit 0
+            fi
+            if [ "$i" -lt "$max_retries" ]; then
+              echo "Attempt $i/$max_retries: $crate $version not yet indexed, retrying in ${interval}s..."
+              sleep "$interval"
+            fi
+          done
+          echo "Error: $crate $version not indexed after $((max_retries * interval))s"
+          exit 1
+          SCRIPT
+          chmod +x /tmp/wait-for-crate.sh
+
+      # Publish order: agnix-rules (leaf) -> agnix-core -> agnix-cli/agnix-lsp/agnix-mcp
       - name: Publish agnix-rules
         run: cargo publish -p agnix-rules
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
-      - name: Wait for crates.io indexing
-        run: sleep 30
+      - name: Wait for agnix-rules indexing
+        run: /tmp/wait-for-crate.sh agnix-rules ${{ steps.version.outputs.version }}
 
       - name: Publish agnix-core
         run: cargo publish -p agnix-core
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
-      - name: Wait for crates.io indexing
-        run: sleep 30
+      - name: Wait for agnix-core indexing
+        run: /tmp/wait-for-crate.sh agnix-core ${{ steps.version.outputs.version }}
 
       - name: Publish agnix-cli
         run: cargo publish -p agnix-cli

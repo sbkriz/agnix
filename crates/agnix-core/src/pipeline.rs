@@ -379,6 +379,7 @@ fn run_project_level_checks(
                 let parent_files =
                     schemas::agents_md::check_agents_md_hierarchy(agents_file, agents_md_paths);
                 let description = if !parent_files.is_empty() {
+                    // Fold with Cow<str> avoids per-path heap allocation for valid UTF-8 paths
                     let parent_paths =
                         parent_files
                             .iter()
@@ -1153,8 +1154,6 @@ mod tests {
 
     #[test]
     fn test_xp004_disabled_no_spurious_read_error() {
-        use crate::DiagnosticLevel;
-
         let temp = tempfile::TempDir::new().unwrap();
 
         // Write a real CLAUDE.md so one file is readable
@@ -1166,7 +1165,7 @@ mod tests {
 
         let instruction_file_paths = vec![claude_md, agents_md];
 
-        // Disable XP-004 but keep XP-005 enabled
+        // Disable XP-004 (other XP rules remain enabled by default)
         let config = LintConfig::builder()
             .disable_rule("XP-004")
             .build_unchecked();
@@ -1181,16 +1180,6 @@ mod tests {
             xp004.is_empty(),
             "Disabling XP-004 should suppress read-error diagnostics, got: {xp004:?}"
         );
-
-        // Verify no XP-004 errors specifically
-        let xp004_errors: Vec<_> = diagnostics
-            .iter()
-            .filter(|d| d.rule == "XP-004" && d.level == DiagnosticLevel::Error)
-            .collect();
-        assert!(
-            xp004_errors.is_empty(),
-            "XP-004 read-error diagnostic should not appear when XP-004 is disabled"
-        );
     }
 
     #[test]
@@ -1198,9 +1187,9 @@ mod tests {
         let temp = tempfile::TempDir::new().unwrap();
 
         let claude_md = temp.path().join("CLAUDE.md");
-        std::fs::write(&claude_md, "# Project\n\nRun npm test to test.\n").unwrap();
+        std::fs::write(&claude_md, "# Project\n\nRun cargo test to run tests.\n").unwrap();
+        // Non-existent file triggers XP-004 read error when enabled
         let agents_md = temp.path().join("AGENTS.md");
-        std::fs::write(&agents_md, "# Agents\n\nRun yarn test to test.\n").unwrap();
 
         let instruction_file_paths = vec![claude_md, agents_md];
 
@@ -1219,6 +1208,19 @@ mod tests {
         assert!(
             xp_diags.is_empty(),
             "Disabling all XP rules should produce zero XP diagnostics, got: {xp_diags:?}"
+        );
+
+        // Sanity check: with default config, XP-004 read-error diagnostic appears
+        let default_config = LintConfig::default();
+        let diagnostics =
+            run_project_level_checks(&[], &instruction_file_paths, &default_config, temp.path());
+        let xp_diags: Vec<_> = diagnostics
+            .iter()
+            .filter(|d| d.rule.starts_with("XP-"))
+            .collect();
+        assert!(
+            !xp_diags.is_empty(),
+            "Default config should produce XP diagnostics for unreadable file"
         );
     }
 

@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Confidence-tiered autofix engine**: `Fix` metadata now supports confidence, alternative groups, and dependencies; CLI adds `--fix-unsafe` and `--show-fixes`; core exposes confidence-based `FixApplyMode`/`FixApplyOptions`
 - **CI crate graph parity test**: New workspace-level test validates that all `Cargo.toml` workspace members are documented in CLAUDE.md, AGENTS.md, README.md, SPEC.md, and CONTRIBUTING.md - prevents architecture-doc drift
 - **`resolve_validation_root` file-input tests**: 7 integration tests covering single-file validation mode - validates file-input path behavior, unknown file type handling, project-level rule scoping, and nonexistent file edge case (#450)
+- **`ImportsValidator` concurrency and multi-file cycle tests**: 11 new tests covering thread-safety under concurrent validation, multi-file import cycles (3- and 4-file chains), depth boundary conditions at and below `MAX_IMPORT_DEPTH` (complementing existing above-boundary coverage), diamond dependency graphs, and mixed valid/invalid import scenarios (#456)
 
 ### Changed
 - **Docs**: Updated architecture references in README.md, SPEC.md, CLAUDE.md, and AGENTS.md to explicitly include the `agnix-wasm` workspace crate

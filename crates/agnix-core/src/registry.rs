@@ -135,11 +135,9 @@ impl ValidatorRegistry {
     /// The factory is called exactly once at registration time. If the
     /// validator's name appears in the disabled set, the instance is
     /// immediately dropped (the factory is still called once to obtain the
-    /// validator name).
-    ///
-    /// Prefer [`register_named`](ValidatorRegistry::register_named) when the
-    /// validator name is known statically (e.g., from the `DEFAULTS` table) to
-    /// avoid allocating a disabled validator just to read its name.
+    /// validator name). For built-in validators registered via
+    /// [`with_defaults()`](ValidatorRegistry::with_defaults), this factory
+    /// call is avoided automatically using static names.
     pub fn register(&mut self, file_type: FileType, factory: ValidatorFactory) {
         let instance = factory();
         if self.disabled_validators.contains(instance.name() as &str) {
@@ -152,7 +150,7 @@ impl ValidatorRegistry {
     ///
     /// If `name` appears in the disabled set, the factory is never called,
     /// avoiding the allocation entirely. This is the fast path used by
-    /// [`register_defaults`] for built-in validators.
+    /// `register_defaults()` for built-in validators.
     fn register_named(&mut self, file_type: FileType, name: &str, factory: ValidatorFactory) {
         if self.disabled_validators.contains(name) {
             return;
@@ -309,10 +307,14 @@ impl ValidatorRegistryBuilder {
     ///
     /// Note: Calling `build()` a second time produces a registry with no
     /// disabled validators (the disabled set is consumed via
-    /// [`std::mem::take`]), but all registered factories are re-called (the
-    /// entries list is preserved). Each `build()` call invokes all registered
-    /// factories. Reuse a builder by calling configuration methods again
-    /// before a subsequent `build()`.
+    /// [`std::mem::take`]), but the entries list is preserved so all
+    /// non-disabled factories are re-called. Reuse a builder by calling
+    /// configuration methods again before a subsequent `build()`.
+    ///
+    /// For entries added via `with_defaults()` or any provider that overrides
+    /// `named_validators()`, disabled validators skip the factory call
+    /// entirely. Entries added via `register()` always call the factory once
+    /// to obtain the name.
     pub fn build(&mut self) -> ValidatorRegistry {
         let mut registry = ValidatorRegistry {
             validators: HashMap::new(),
@@ -714,9 +716,11 @@ mod tests {
             .without_validator("SkipCountingValidator")
             .build();
 
-        // Factory is called once during build() (via the internal registry.register()
-        // call) to obtain the instance name, but the instance is discarded
-        // because the name is in the disabled set.
+        // This exercises the slow (unnamed) path: builder.register() stores None
+        // for the name, so build() calls registry.register() which always calls
+        // the factory once to obtain the name. The instance is then discarded.
+        // Contrast with named_disabled_validator_skips_factory_call which uses
+        // the fast path (Some(name)) and asserts 0 factory calls.
         assert_eq!(SKIP_COUNTING_CONSTRUCTED.load(Ordering::SeqCst), 1);
 
         // No cached instances remain for disabled validators.
@@ -1174,18 +1178,30 @@ mod tests {
 
     #[test]
     fn named_disabled_validator_skips_factory_call() {
+        // Uses a named provider so the builder stores Some("NamedSkipCountingValidator"),
+        // routing through register_named() in build(). The factory must not be called.
         NAMED_SKIP_COUNTING_CONSTRUCTED.store(0, Ordering::SeqCst);
 
-        let mut registry = ValidatorRegistry {
-            validators: HashMap::new(),
-            disabled_validators: HashSet::from(["NamedSkipCountingValidator".to_string()]),
-        };
+        struct NamedCountingProvider;
+        impl ValidatorProvider for NamedCountingProvider {
+            fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
+                vec![(FileType::Skill, named_skip_counting_validator_factory)]
+            }
+            fn named_validators(
+                &self,
+            ) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
+                vec![(
+                    FileType::Skill,
+                    Some("NamedSkipCountingValidator"),
+                    named_skip_counting_validator_factory,
+                )]
+            }
+        }
 
-        registry.register_named(
-            FileType::Skill,
-            "NamedSkipCountingValidator",
-            named_skip_counting_validator_factory,
-        );
+        let registry = ValidatorRegistry::builder()
+            .with_provider(&NamedCountingProvider)
+            .without_validator("NamedSkipCountingValidator")
+            .build();
 
         // Factory must NOT have been called - that is the whole point of
         // register_named: skip allocation for disabled validators.

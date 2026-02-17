@@ -746,6 +746,65 @@ fn named_validators_default_yields_none_names() {
 }
 
 // ============================================================================
+// Builder fast-path: named disabled validators skip factory call
+// ============================================================================
+
+#[test]
+fn builder_with_named_provider_skips_factory_for_disabled_validator() {
+    // Verifies the end-to-end builder path: a provider that overrides
+    // named_validators() with Some(name) causes build() to call register_named(),
+    // which skips the factory entirely when the name is disabled.
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    static CALL_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+    fn counting_factory() -> Box<dyn agnix_core::Validator> {
+        CALL_COUNT.fetch_add(1, Ordering::SeqCst);
+        struct NoopValidator;
+        impl agnix_core::Validator for NoopValidator {
+            fn validate(
+                &self,
+                _: &std::path::Path,
+                _: &str,
+                _: &agnix_core::LintConfig,
+            ) -> Vec<agnix_core::Diagnostic> {
+                vec![]
+            }
+        }
+        Box::new(NoopValidator)
+    }
+
+    struct NamedProvider;
+    impl agnix_core::ValidatorProvider for NamedProvider {
+        fn validators(&self) -> Vec<(agnix_core::FileType, agnix_core::ValidatorFactory)> {
+            vec![(agnix_core::FileType::Skill, counting_factory)]
+        }
+        fn named_validators(
+            &self,
+        ) -> Vec<(agnix_core::FileType, Option<&'static str>, agnix_core::ValidatorFactory)> {
+            vec![(agnix_core::FileType::Skill, Some("NoopValidator"), counting_factory)]
+        }
+    }
+
+    CALL_COUNT.store(0, Ordering::SeqCst);
+
+    let registry = agnix_core::ValidatorRegistry::builder()
+        .with_provider(&NamedProvider)
+        .without_validator("NoopValidator")
+        .build();
+
+    assert_eq!(
+        CALL_COUNT.load(Ordering::SeqCst),
+        0,
+        "factory must not be called for a named disabled validator via the builder path"
+    );
+    assert!(
+        registry.validators_for(agnix_core::FileType::Skill).is_empty(),
+        "disabled validator must not appear in registry"
+    );
+}
+
+// ============================================================================
 // ValidatorMetadata API contract
 // ============================================================================
 

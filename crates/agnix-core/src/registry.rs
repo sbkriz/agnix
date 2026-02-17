@@ -848,48 +848,48 @@ mod tests {
         // Exhaustive match with no wildcard arm - a new variant will cause a
         // compile error, forcing the developer to update this test.
         for ft in &validatable_types {
-            let _ = match ft {
-                FileType::Skill => FileType::Skill,
-                FileType::ClaudeMd => FileType::ClaudeMd,
-                FileType::Agent => FileType::Agent,
-                FileType::AmpCheck => FileType::AmpCheck,
-                FileType::Hooks => FileType::Hooks,
-                FileType::Plugin => FileType::Plugin,
-                FileType::Mcp => FileType::Mcp,
-                FileType::Copilot => FileType::Copilot,
-                FileType::CopilotScoped => FileType::CopilotScoped,
-                FileType::CopilotAgent => FileType::CopilotAgent,
-                FileType::CopilotPrompt => FileType::CopilotPrompt,
-                FileType::CopilotHooks => FileType::CopilotHooks,
-                FileType::ClaudeRule => FileType::ClaudeRule,
-                FileType::CursorRule => FileType::CursorRule,
-                FileType::CursorHooks => FileType::CursorHooks,
-                FileType::CursorAgent => FileType::CursorAgent,
-                FileType::CursorEnvironment => FileType::CursorEnvironment,
-                FileType::CursorRulesLegacy => FileType::CursorRulesLegacy,
-                FileType::ClineRules => FileType::ClineRules,
-                FileType::ClineRulesFolder => FileType::ClineRulesFolder,
-                FileType::OpenCodeConfig => FileType::OpenCodeConfig,
-                FileType::GeminiMd => FileType::GeminiMd,
-                FileType::GeminiSettings => FileType::GeminiSettings,
-                FileType::AmpSettings => FileType::AmpSettings,
-                FileType::GeminiExtension => FileType::GeminiExtension,
-                FileType::GeminiIgnore => FileType::GeminiIgnore,
-                FileType::CodexConfig => FileType::CodexConfig,
-                FileType::RooRules => FileType::RooRules,
-                FileType::RooModes => FileType::RooModes,
-                FileType::RooIgnore => FileType::RooIgnore,
-                FileType::RooModeRules => FileType::RooModeRules,
-                FileType::RooMcp => FileType::RooMcp,
-                FileType::WindsurfRule => FileType::WindsurfRule,
-                FileType::WindsurfWorkflow => FileType::WindsurfWorkflow,
-                FileType::WindsurfRulesLegacy => FileType::WindsurfRulesLegacy,
-                FileType::KiroSteering => FileType::KiroSteering,
-                FileType::GenericMarkdown => FileType::GenericMarkdown,
+            match *ft {
+                FileType::Skill
+                | FileType::ClaudeMd
+                | FileType::Agent
+                | FileType::AmpCheck
+                | FileType::Hooks
+                | FileType::Plugin
+                | FileType::Mcp
+                | FileType::Copilot
+                | FileType::CopilotScoped
+                | FileType::CopilotAgent
+                | FileType::CopilotPrompt
+                | FileType::CopilotHooks
+                | FileType::ClaudeRule
+                | FileType::CursorRule
+                | FileType::CursorHooks
+                | FileType::CursorAgent
+                | FileType::CursorEnvironment
+                | FileType::CursorRulesLegacy
+                | FileType::ClineRules
+                | FileType::ClineRulesFolder
+                | FileType::OpenCodeConfig
+                | FileType::GeminiMd
+                | FileType::GeminiSettings
+                | FileType::AmpSettings
+                | FileType::GeminiExtension
+                | FileType::GeminiIgnore
+                | FileType::CodexConfig
+                | FileType::RooRules
+                | FileType::RooModes
+                | FileType::RooIgnore
+                | FileType::RooModeRules
+                | FileType::RooMcp
+                | FileType::WindsurfRule
+                | FileType::WindsurfWorkflow
+                | FileType::WindsurfRulesLegacy
+                | FileType::KiroSteering
+                | FileType::GenericMarkdown => (),
                 FileType::Unknown => {
                     panic!("Unknown must not appear in validatable_types")
                 }
-            };
+            }
         }
 
         let registry = ValidatorRegistry::with_defaults();

@@ -44,7 +44,8 @@ use revalidation::{
 pub struct Backend {
     client: Client,
     /// Cached lint configuration reused across validations.
-    /// Wrapped in ArcSwap for lock-free reads; updated atomically from .agnix.toml after initialize().
+    /// Wrapped in ArcSwap for lock-free reads; initially loaded from .agnix.toml during initialize()
+    /// and atomically updated on configuration changes (e.g., VS Code settings merges).
     config: Arc<ArcSwap<agnix_core::LintConfig>>,
     /// Workspace root path for boundary validation (security).
     /// Set during initialize() from the client's root_uri.

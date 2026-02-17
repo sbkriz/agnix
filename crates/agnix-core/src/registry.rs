@@ -336,12 +336,20 @@ impl ValidatorRegistryBuilder {
 
 const DEFAULTS: &[(FileType, &str, ValidatorFactory)] = &[
     (FileType::Skill, "SkillValidator", skill_validator),
-    (FileType::Skill, "PerClientSkillValidator", per_client_skill_validator),
+    (
+        FileType::Skill,
+        "PerClientSkillValidator",
+        per_client_skill_validator,
+    ),
     (FileType::Skill, "XmlValidator", xml_validator),
     (FileType::Skill, "ImportsValidator", imports_validator),
     (FileType::AmpCheck, "AmpValidator", amp_validator),
     (FileType::ClaudeMd, "ClaudeMdValidator", claude_md_validator),
-    (FileType::ClaudeMd, "CrossPlatformValidator", cross_platform_validator),
+    (
+        FileType::ClaudeMd,
+        "CrossPlatformValidator",
+        cross_platform_validator,
+    ),
     (FileType::ClaudeMd, "AgentsMdValidator", agents_md_validator),
     (FileType::ClaudeMd, "AmpValidator", amp_validator),
     (FileType::ClaudeMd, "XmlValidator", xml_validator),
@@ -354,35 +362,99 @@ const DEFAULTS: &[(FileType, &str, ValidatorFactory)] = &[
     (FileType::Mcp, "McpValidator", mcp_validator),
     (FileType::Copilot, "CopilotValidator", copilot_validator),
     (FileType::Copilot, "XmlValidator", xml_validator),
-    (FileType::CopilotScoped, "CopilotValidator", copilot_validator),
+    (
+        FileType::CopilotScoped,
+        "CopilotValidator",
+        copilot_validator,
+    ),
     (FileType::CopilotScoped, "XmlValidator", xml_validator),
-    (FileType::CopilotAgent, "CopilotValidator", copilot_validator),
+    (
+        FileType::CopilotAgent,
+        "CopilotValidator",
+        copilot_validator,
+    ),
     (FileType::CopilotAgent, "XmlValidator", xml_validator),
-    (FileType::CopilotPrompt, "CopilotValidator", copilot_validator),
+    (
+        FileType::CopilotPrompt,
+        "CopilotValidator",
+        copilot_validator,
+    ),
     (FileType::CopilotPrompt, "XmlValidator", xml_validator),
-    (FileType::CopilotHooks, "CopilotValidator", copilot_validator),
-    (FileType::ClaudeRule, "ClaudeRulesValidator", claude_rules_validator),
+    (
+        FileType::CopilotHooks,
+        "CopilotValidator",
+        copilot_validator,
+    ),
+    (
+        FileType::ClaudeRule,
+        "ClaudeRulesValidator",
+        claude_rules_validator,
+    ),
     (FileType::CursorRule, "CursorValidator", cursor_validator),
     (FileType::CursorRule, "PromptValidator", prompt_validator),
-    (FileType::CursorRule, "ClaudeMdValidator", claude_md_validator),
+    (
+        FileType::CursorRule,
+        "ClaudeMdValidator",
+        claude_md_validator,
+    ),
     (FileType::CursorHooks, "CursorValidator", cursor_validator),
     (FileType::CursorAgent, "CursorValidator", cursor_validator),
-    (FileType::CursorEnvironment, "CursorValidator", cursor_validator),
-    (FileType::CursorRulesLegacy, "CursorValidator", cursor_validator),
-    (FileType::CursorRulesLegacy, "PromptValidator", prompt_validator),
-    (FileType::CursorRulesLegacy, "ClaudeMdValidator", claude_md_validator),
+    (
+        FileType::CursorEnvironment,
+        "CursorValidator",
+        cursor_validator,
+    ),
+    (
+        FileType::CursorRulesLegacy,
+        "CursorValidator",
+        cursor_validator,
+    ),
+    (
+        FileType::CursorRulesLegacy,
+        "PromptValidator",
+        prompt_validator,
+    ),
+    (
+        FileType::CursorRulesLegacy,
+        "ClaudeMdValidator",
+        claude_md_validator,
+    ),
     (FileType::ClineRules, "ClineValidator", cline_validator),
-    (FileType::ClineRulesFolder, "ClineValidator", cline_validator),
-    (FileType::OpenCodeConfig, "OpenCodeValidator", opencode_validator),
+    (
+        FileType::ClineRulesFolder,
+        "ClineValidator",
+        cline_validator,
+    ),
+    (
+        FileType::OpenCodeConfig,
+        "OpenCodeValidator",
+        opencode_validator,
+    ),
     (FileType::GeminiMd, "GeminiMdValidator", gemini_md_validator),
     (FileType::GeminiMd, "PromptValidator", prompt_validator),
     (FileType::GeminiMd, "XmlValidator", xml_validator),
     (FileType::GeminiMd, "ImportsValidator", imports_validator),
-    (FileType::GeminiMd, "CrossPlatformValidator", cross_platform_validator),
-    (FileType::GeminiSettings, "GeminiSettingsValidator", gemini_settings_validator),
+    (
+        FileType::GeminiMd,
+        "CrossPlatformValidator",
+        cross_platform_validator,
+    ),
+    (
+        FileType::GeminiSettings,
+        "GeminiSettingsValidator",
+        gemini_settings_validator,
+    ),
     (FileType::AmpSettings, "AmpValidator", amp_validator),
-    (FileType::GeminiExtension, "GeminiExtensionValidator", gemini_extension_validator),
-    (FileType::GeminiIgnore, "GeminiIgnoreValidator", gemini_ignore_validator),
+    (
+        FileType::GeminiExtension,
+        "GeminiExtensionValidator",
+        gemini_extension_validator,
+    ),
+    (
+        FileType::GeminiIgnore,
+        "GeminiIgnoreValidator",
+        gemini_ignore_validator,
+    ),
     (FileType::CodexConfig, "CodexValidator", codex_validator),
     // CodexValidator on ClaudeMd catches AGENTS.override.md files (CDX-003).
     // The validator early-returns for all other ClaudeMd filenames.
@@ -392,13 +464,37 @@ const DEFAULTS: &[(FileType, &str, ValidatorFactory)] = &[
     (FileType::RooIgnore, "RooCodeValidator", roo_validator),
     (FileType::RooModeRules, "RooCodeValidator", roo_validator),
     (FileType::RooMcp, "RooCodeValidator", roo_validator),
-    (FileType::WindsurfRule, "WindsurfValidator", windsurf_validator),
-    (FileType::WindsurfWorkflow, "WindsurfValidator", windsurf_validator),
-    (FileType::WindsurfRulesLegacy, "WindsurfValidator", windsurf_validator),
-    (FileType::KiroSteering, "KiroSteeringValidator", kiro_steering_validator),
-    (FileType::GenericMarkdown, "CrossPlatformValidator", cross_platform_validator),
+    (
+        FileType::WindsurfRule,
+        "WindsurfValidator",
+        windsurf_validator,
+    ),
+    (
+        FileType::WindsurfWorkflow,
+        "WindsurfValidator",
+        windsurf_validator,
+    ),
+    (
+        FileType::WindsurfRulesLegacy,
+        "WindsurfValidator",
+        windsurf_validator,
+    ),
+    (
+        FileType::KiroSteering,
+        "KiroSteeringValidator",
+        kiro_steering_validator,
+    ),
+    (
+        FileType::GenericMarkdown,
+        "CrossPlatformValidator",
+        cross_platform_validator,
+    ),
     (FileType::GenericMarkdown, "XmlValidator", xml_validator),
-    (FileType::GenericMarkdown, "ImportsValidator", imports_validator),
+    (
+        FileType::GenericMarkdown,
+        "ImportsValidator",
+        imports_validator,
+    ),
 ];
 
 // ============================================================================
@@ -1187,9 +1283,7 @@ mod tests {
             fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
                 vec![(FileType::Skill, named_skip_counting_validator_factory)]
             }
-            fn named_validators(
-                &self,
-            ) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
+            fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
                 vec![(
                     FileType::Skill,
                     Some("NamedSkipCountingValidator"),

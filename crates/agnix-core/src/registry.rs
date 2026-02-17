@@ -44,6 +44,21 @@ pub trait ValidatorProvider: Send + Sync {
 
     /// Return the validator factories supplied by this provider.
     fn validators(&self) -> Vec<(FileType, ValidatorFactory)>;
+
+    /// Return validator factories with optional static names.
+    ///
+    /// When a name is `Some(name)`, the registry can skip calling `factory()`
+    /// for disabled validators. The default implementation wraps
+    /// [`validators()`](ValidatorProvider::validators) with `None` names.
+    ///
+    /// Providers that know their validator names at compile time should
+    /// override this method and return `Some(name)` for each entry.
+    fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
+        self.validators()
+            .into_iter()
+            .map(|(ft, f)| (ft, None, f))
+            .collect()
+    }
 }
 
 /// The built-in validator provider shipping with agnix-core.
@@ -55,7 +70,14 @@ pub(crate) struct BuiltinProvider;
 
 impl ValidatorProvider for BuiltinProvider {
     fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
-        DEFAULTS.to_vec()
+        DEFAULTS.iter().map(|&(ft, _, f)| (ft, f)).collect()
+    }
+
+    fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
+        DEFAULTS
+            .iter()
+            .map(|&(ft, name, f)| (ft, Some(name), f))
+            .collect()
     }
 }
 
@@ -114,11 +136,28 @@ impl ValidatorRegistry {
     /// validator's name appears in the disabled set, the instance is
     /// immediately dropped (the factory is still called once to obtain the
     /// validator name).
+    ///
+    /// Prefer [`register_named`](ValidatorRegistry::register_named) when the
+    /// validator name is known statically (e.g., from the `DEFAULTS` table) to
+    /// avoid allocating a disabled validator just to read its name.
     pub fn register(&mut self, file_type: FileType, factory: ValidatorFactory) {
         let instance = factory();
         if self.disabled_validators.contains(instance.name() as &str) {
             return;
         }
+        self.validators.entry(file_type).or_default().push(instance);
+    }
+
+    /// Register a validator factory whose name is already known.
+    ///
+    /// If `name` appears in the disabled set, the factory is never called,
+    /// avoiding the allocation entirely. This is the fast path used by
+    /// [`register_defaults`] for built-in validators.
+    fn register_named(&mut self, file_type: FileType, name: &str, factory: ValidatorFactory) {
+        if self.disabled_validators.contains(name) {
+            return;
+        }
+        let instance = factory();
         self.validators.entry(file_type).or_default().push(instance);
     }
 
@@ -183,8 +222,8 @@ impl ValidatorRegistry {
     }
 
     fn register_defaults(&mut self) {
-        for &(file_type, factory) in DEFAULTS {
-            self.register(file_type, factory);
+        for &(file_type, name, factory) in DEFAULTS {
+            self.register_named(file_type, name, factory);
         }
     }
 }
@@ -215,7 +254,7 @@ impl Default for ValidatorRegistry {
 /// assert!(registry.disabled_validator_count() > 0);
 /// ```
 pub struct ValidatorRegistryBuilder {
-    entries: Vec<(FileType, ValidatorFactory)>,
+    entries: Vec<(FileType, Option<&'static str>, ValidatorFactory)>,
     disabled_validators: HashSet<String>,
 }
 
@@ -238,13 +277,13 @@ impl ValidatorRegistryBuilder {
 
     /// Add all validators from a [`ValidatorProvider`].
     pub fn with_provider(&mut self, provider: &dyn ValidatorProvider) -> &mut Self {
-        self.entries.extend(provider.validators());
+        self.entries.extend(provider.named_validators());
         self
     }
 
     /// Register a single validator factory for a file type.
     pub fn register(&mut self, file_type: FileType, factory: ValidatorFactory) -> &mut Self {
-        self.entries.push((file_type, factory));
+        self.entries.push((file_type, None, factory));
         self
     }
 
@@ -279,8 +318,11 @@ impl ValidatorRegistryBuilder {
             validators: HashMap::new(),
             disabled_validators: std::mem::take(&mut self.disabled_validators),
         };
-        for &(file_type, factory) in &self.entries {
-            registry.register(file_type, factory);
+        for &(file_type, name, factory) in &self.entries {
+            match name {
+                Some(n) => registry.register_named(file_type, n, factory),
+                None => registry.register(file_type, factory),
+            }
         }
         registry
     }
@@ -290,71 +332,71 @@ impl ValidatorRegistryBuilder {
 // Built-in defaults
 // ============================================================================
 
-const DEFAULTS: &[(FileType, ValidatorFactory)] = &[
-    (FileType::Skill, skill_validator),
-    (FileType::Skill, per_client_skill_validator),
-    (FileType::Skill, xml_validator),
-    (FileType::Skill, imports_validator),
-    (FileType::AmpCheck, amp_validator),
-    (FileType::ClaudeMd, claude_md_validator),
-    (FileType::ClaudeMd, cross_platform_validator),
-    (FileType::ClaudeMd, agents_md_validator),
-    (FileType::ClaudeMd, amp_validator),
-    (FileType::ClaudeMd, xml_validator),
-    (FileType::ClaudeMd, imports_validator),
-    (FileType::ClaudeMd, prompt_validator),
-    (FileType::Agent, agent_validator),
-    (FileType::Agent, xml_validator),
-    (FileType::Hooks, hooks_validator),
-    (FileType::Plugin, plugin_validator),
-    (FileType::Mcp, mcp_validator),
-    (FileType::Copilot, copilot_validator),
-    (FileType::Copilot, xml_validator),
-    (FileType::CopilotScoped, copilot_validator),
-    (FileType::CopilotScoped, xml_validator),
-    (FileType::CopilotAgent, copilot_validator),
-    (FileType::CopilotAgent, xml_validator),
-    (FileType::CopilotPrompt, copilot_validator),
-    (FileType::CopilotPrompt, xml_validator),
-    (FileType::CopilotHooks, copilot_validator),
-    (FileType::ClaudeRule, claude_rules_validator),
-    (FileType::CursorRule, cursor_validator),
-    (FileType::CursorRule, prompt_validator),
-    (FileType::CursorRule, claude_md_validator),
-    (FileType::CursorHooks, cursor_validator),
-    (FileType::CursorAgent, cursor_validator),
-    (FileType::CursorEnvironment, cursor_validator),
-    (FileType::CursorRulesLegacy, cursor_validator),
-    (FileType::CursorRulesLegacy, prompt_validator),
-    (FileType::CursorRulesLegacy, claude_md_validator),
-    (FileType::ClineRules, cline_validator),
-    (FileType::ClineRulesFolder, cline_validator),
-    (FileType::OpenCodeConfig, opencode_validator),
-    (FileType::GeminiMd, gemini_md_validator),
-    (FileType::GeminiMd, prompt_validator),
-    (FileType::GeminiMd, xml_validator),
-    (FileType::GeminiMd, imports_validator),
-    (FileType::GeminiMd, cross_platform_validator),
-    (FileType::GeminiSettings, gemini_settings_validator),
-    (FileType::AmpSettings, amp_validator),
-    (FileType::GeminiExtension, gemini_extension_validator),
-    (FileType::GeminiIgnore, gemini_ignore_validator),
-    (FileType::CodexConfig, codex_validator),
+const DEFAULTS: &[(FileType, &str, ValidatorFactory)] = &[
+    (FileType::Skill, "SkillValidator", skill_validator),
+    (FileType::Skill, "PerClientSkillValidator", per_client_skill_validator),
+    (FileType::Skill, "XmlValidator", xml_validator),
+    (FileType::Skill, "ImportsValidator", imports_validator),
+    (FileType::AmpCheck, "AmpValidator", amp_validator),
+    (FileType::ClaudeMd, "ClaudeMdValidator", claude_md_validator),
+    (FileType::ClaudeMd, "CrossPlatformValidator", cross_platform_validator),
+    (FileType::ClaudeMd, "AgentsMdValidator", agents_md_validator),
+    (FileType::ClaudeMd, "AmpValidator", amp_validator),
+    (FileType::ClaudeMd, "XmlValidator", xml_validator),
+    (FileType::ClaudeMd, "ImportsValidator", imports_validator),
+    (FileType::ClaudeMd, "PromptValidator", prompt_validator),
+    (FileType::Agent, "AgentValidator", agent_validator),
+    (FileType::Agent, "XmlValidator", xml_validator),
+    (FileType::Hooks, "HooksValidator", hooks_validator),
+    (FileType::Plugin, "PluginValidator", plugin_validator),
+    (FileType::Mcp, "McpValidator", mcp_validator),
+    (FileType::Copilot, "CopilotValidator", copilot_validator),
+    (FileType::Copilot, "XmlValidator", xml_validator),
+    (FileType::CopilotScoped, "CopilotValidator", copilot_validator),
+    (FileType::CopilotScoped, "XmlValidator", xml_validator),
+    (FileType::CopilotAgent, "CopilotValidator", copilot_validator),
+    (FileType::CopilotAgent, "XmlValidator", xml_validator),
+    (FileType::CopilotPrompt, "CopilotValidator", copilot_validator),
+    (FileType::CopilotPrompt, "XmlValidator", xml_validator),
+    (FileType::CopilotHooks, "CopilotValidator", copilot_validator),
+    (FileType::ClaudeRule, "ClaudeRulesValidator", claude_rules_validator),
+    (FileType::CursorRule, "CursorValidator", cursor_validator),
+    (FileType::CursorRule, "PromptValidator", prompt_validator),
+    (FileType::CursorRule, "ClaudeMdValidator", claude_md_validator),
+    (FileType::CursorHooks, "CursorValidator", cursor_validator),
+    (FileType::CursorAgent, "CursorValidator", cursor_validator),
+    (FileType::CursorEnvironment, "CursorValidator", cursor_validator),
+    (FileType::CursorRulesLegacy, "CursorValidator", cursor_validator),
+    (FileType::CursorRulesLegacy, "PromptValidator", prompt_validator),
+    (FileType::CursorRulesLegacy, "ClaudeMdValidator", claude_md_validator),
+    (FileType::ClineRules, "ClineValidator", cline_validator),
+    (FileType::ClineRulesFolder, "ClineValidator", cline_validator),
+    (FileType::OpenCodeConfig, "OpenCodeValidator", opencode_validator),
+    (FileType::GeminiMd, "GeminiMdValidator", gemini_md_validator),
+    (FileType::GeminiMd, "PromptValidator", prompt_validator),
+    (FileType::GeminiMd, "XmlValidator", xml_validator),
+    (FileType::GeminiMd, "ImportsValidator", imports_validator),
+    (FileType::GeminiMd, "CrossPlatformValidator", cross_platform_validator),
+    (FileType::GeminiSettings, "GeminiSettingsValidator", gemini_settings_validator),
+    (FileType::AmpSettings, "AmpValidator", amp_validator),
+    (FileType::GeminiExtension, "GeminiExtensionValidator", gemini_extension_validator),
+    (FileType::GeminiIgnore, "GeminiIgnoreValidator", gemini_ignore_validator),
+    (FileType::CodexConfig, "CodexValidator", codex_validator),
     // CodexValidator on ClaudeMd catches AGENTS.override.md files (CDX-003).
     // The validator early-returns for all other ClaudeMd filenames.
-    (FileType::ClaudeMd, codex_validator),
-    (FileType::RooRules, roo_validator),
-    (FileType::RooModes, roo_validator),
-    (FileType::RooIgnore, roo_validator),
-    (FileType::RooModeRules, roo_validator),
-    (FileType::RooMcp, roo_validator),
-    (FileType::WindsurfRule, windsurf_validator),
-    (FileType::WindsurfWorkflow, windsurf_validator),
-    (FileType::WindsurfRulesLegacy, windsurf_validator),
-    (FileType::KiroSteering, kiro_steering_validator),
-    (FileType::GenericMarkdown, cross_platform_validator),
-    (FileType::GenericMarkdown, xml_validator),
-    (FileType::GenericMarkdown, imports_validator),
+    (FileType::ClaudeMd, "CodexValidator", codex_validator),
+    (FileType::RooRules, "RooCodeValidator", roo_validator),
+    (FileType::RooModes, "RooCodeValidator", roo_validator),
+    (FileType::RooIgnore, "RooCodeValidator", roo_validator),
+    (FileType::RooModeRules, "RooCodeValidator", roo_validator),
+    (FileType::RooMcp, "RooCodeValidator", roo_validator),
+    (FileType::WindsurfRule, "WindsurfValidator", windsurf_validator),
+    (FileType::WindsurfWorkflow, "WindsurfValidator", windsurf_validator),
+    (FileType::WindsurfRulesLegacy, "WindsurfValidator", windsurf_validator),
+    (FileType::KiroSteering, "KiroSteeringValidator", kiro_steering_validator),
+    (FileType::GenericMarkdown, "CrossPlatformValidator", cross_platform_validator),
+    (FileType::GenericMarkdown, "XmlValidator", xml_validator),
+    (FileType::GenericMarkdown, "ImportsValidator", imports_validator),
 ];
 
 // ============================================================================
@@ -1054,7 +1096,7 @@ mod tests {
         // by exactly that amount.
         let xml_occurrences_in_defaults = DEFAULTS
             .iter()
-            .filter(|(_, factory)| *factory as usize == xml_validator as usize)
+            .filter(|(_, _, factory)| *factory as usize == xml_validator as usize)
             .count();
         assert_eq!(
             xml_occurrences_in_defaults, 9,
@@ -1084,6 +1126,123 @@ mod tests {
         assert_eq!(
             registry.total_factory_count(),
             registry.total_validator_count()
+        );
+    }
+
+    // ---- Named registration tests ----
+
+    #[test]
+    fn defaults_names_match_factory_names() {
+        // Every static name in DEFAULTS must exactly match the name returned
+        // by the factory-produced instance. A mismatch would silently break
+        // the disabled-validator fast path.
+        for &(file_type, static_name, factory) in DEFAULTS {
+            let instance = factory();
+            let runtime_name = instance.name();
+            assert_eq!(
+                static_name, runtime_name,
+                "DEFAULTS name mismatch for {file_type:?}: \
+                 static=\"{static_name}\" vs runtime=\"{runtime_name}\""
+            );
+        }
+    }
+
+    // Used by named_disabled_validator_skips_factory_call
+    static NAMED_SKIP_COUNTING_CONSTRUCTED: AtomicUsize = AtomicUsize::new(0);
+
+    struct NamedSkipCountingValidator;
+
+    impl Validator for NamedSkipCountingValidator {
+        fn validate(
+            &self,
+            _path: &std::path::Path,
+            _content: &str,
+            _config: &crate::config::LintConfig,
+        ) -> Vec<crate::diagnostics::Diagnostic> {
+            Vec::new()
+        }
+
+        fn name(&self) -> &'static str {
+            "NamedSkipCountingValidator"
+        }
+    }
+
+    fn named_skip_counting_validator_factory() -> Box<dyn Validator> {
+        NAMED_SKIP_COUNTING_CONSTRUCTED.fetch_add(1, Ordering::SeqCst);
+        Box::new(NamedSkipCountingValidator)
+    }
+
+    #[test]
+    fn named_disabled_validator_skips_factory_call() {
+        NAMED_SKIP_COUNTING_CONSTRUCTED.store(0, Ordering::SeqCst);
+
+        let mut registry = ValidatorRegistry {
+            validators: HashMap::new(),
+            disabled_validators: HashSet::from(["NamedSkipCountingValidator".to_string()]),
+        };
+
+        registry.register_named(
+            FileType::Skill,
+            "NamedSkipCountingValidator",
+            named_skip_counting_validator_factory,
+        );
+
+        // Factory must NOT have been called - that is the whole point of
+        // register_named: skip allocation for disabled validators.
+        assert_eq!(
+            NAMED_SKIP_COUNTING_CONSTRUCTED.load(Ordering::SeqCst),
+            0,
+            "register_named must not call factory for disabled validators"
+        );
+
+        // No cached instances for this type.
+        assert!(registry.validators_for(FileType::Skill).is_empty());
+    }
+
+    #[test]
+    fn builtin_provider_named_validators_returns_all_names() {
+        let provider = BuiltinProvider;
+        let named = provider.named_validators();
+
+        assert_eq!(
+            named.len(),
+            DEFAULTS.len(),
+            "named_validators() should return the same number of entries as DEFAULTS"
+        );
+
+        // Every entry must have Some(name)
+        for (i, (ft, name, _factory)) in named.iter().enumerate() {
+            assert!(
+                name.is_some(),
+                "Entry {i} ({ft:?}) should have Some(name), got None"
+            );
+        }
+
+        // Cross-check: names must match DEFAULTS static names
+        for (named_entry, default_entry) in named.iter().zip(DEFAULTS.iter()) {
+            let (_, named_name, _) = named_entry;
+            let (_, default_name, _) = default_entry;
+            assert_eq!(
+                named_name.unwrap(),
+                *default_name,
+                "named_validators() name should match DEFAULTS"
+            );
+        }
+    }
+
+    #[test]
+    fn custom_provider_named_validators_defaults_to_none() {
+        // A provider that only implements validators() should get None names
+        // from the default named_validators() implementation.
+        let provider = TestProvider;
+        let named = provider.named_validators();
+
+        assert_eq!(named.len(), 1);
+        let (ft, name, _factory) = &named[0];
+        assert_eq!(*ft, FileType::Skill);
+        assert!(
+            name.is_none(),
+            "Default named_validators() should yield None names"
         );
     }
 }

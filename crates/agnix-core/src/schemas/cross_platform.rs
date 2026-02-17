@@ -1035,7 +1035,7 @@ pub fn is_instruction_file(path: &Path) -> bool {
 
 /// Case-insensitive ASCII substring search without allocating.
 fn ascii_contains_ignore_case(haystack: &str, needle: &str) -> bool {
-    if needle.len() > haystack.len() {
+    if needle.is_empty() || needle.len() > haystack.len() {
         return false;
     }
     let haystack = haystack.as_bytes();
@@ -2424,6 +2424,27 @@ Use pnpm install for dependencies.
             "random.mdc without .cursor parent should NOT match");
         assert!(!is_instruction_file(&PathBuf::from("rules.mdc")),
             "rules.mdc without .cursor parent should NOT match");
+    }
+
+    #[test]
+    fn test_instruction_file_empty_and_special_paths() {
+        use std::path::PathBuf;
+        assert!(
+            !is_instruction_file(&PathBuf::from("")),
+            "Empty path should not match"
+        );
+        assert!(
+            is_instruction_file(&PathBuf::from("/CLAUDE.md")),
+            "Absolute path /CLAUDE.md should match"
+        );
+        assert!(
+            is_instruction_file(&PathBuf::from("../../CLAUDE.md")),
+            "Relative path with .. should match"
+        );
+        assert!(
+            !is_instruction_file(&PathBuf::from(".cursor/config.md")),
+            ".cursor/config.md (no .mdc, no rules) should NOT match"
+        );
     }
 
     // ===== ReDoS Protection Tests =====

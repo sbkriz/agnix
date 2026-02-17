@@ -803,7 +803,6 @@ mod tests {
 
     // ---- Coverage: every validatable FileType has validators ----
 
-    /// Every validatable FileType variant must have at least one validator in the default registry.
     #[test]
     fn every_validatable_file_type_has_at_least_one_validator() {
         let validatable_types: [FileType; 37] = [
@@ -845,13 +844,6 @@ mod tests {
             FileType::KiroSteering,
             FileType::GenericMarkdown,
         ];
-
-        assert_eq!(
-            validatable_types.len(),
-            37,
-            "If this fails, a new FileType variant was added. \
-             Update this array AND add a validator registration in DEFAULTS."
-        );
 
         // Exhaustive match with no wildcard arm - a new variant will cause a
         // compile error, forcing the developer to update this test.

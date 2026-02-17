@@ -1,45 +1,27 @@
 {
-  "taskId": 405,
-  "phase": "implementation",
-  "status": "complete",
-  "implementationComplete": true,
-  "currentStep": "implementation-complete",
-  "totalSteps": 12,
-  "lastActivityAt": "2026-02-14T14:45:00Z",
-  "filesModified": [
-    "crates/agnix-core/src/file_types/types.rs",
-    "crates/agnix-core/src/file_types/detection.rs",
-    "crates/agnix-core/src/config.rs",
-    "crates/agnix-core/src/config/rule_filter.rs",
-    "crates/agnix-core/src/rules/windsurf.rs",
-    "crates/agnix-core/src/rules/mod.rs",
-    "crates/agnix-core/src/registry.rs",
-    "crates/agnix-core/locales/en.yml",
-    "crates/agnix-core/locales/es.yml",
-    "crates/agnix-core/locales/zh-CN.yml",
-    "crates/agnix-core/tests/api_contract.rs",
-    "crates/agnix-cli/tests/rule_parity.rs",
-    "crates/agnix-mcp/tests/mcp_tests.rs",
-    "crates/agnix-rules/rules.json",
-    "knowledge-base/rules.json",
-    "knowledge-base/VALIDATION-RULES.md",
-    "scripts/generate-docs-rules.py",
-    "website/docs/rules/generated/ws-001.md",
-    "website/docs/rules/generated/ws-002.md",
-    "website/docs/rules/generated/ws-003.md",
-    "website/docs/rules/generated/ws-004.md",
-    "website/docs/rules/index.md",
-    "website/src/data/siteData.json",
-    "tests/fixtures/windsurf/rules/valid-rule.md",
-    "tests/fixtures/windsurf/rules/empty-rule.md",
-    "tests/fixtures/windsurf/workflows/valid-workflow.md",
-    "tests/fixtures/windsurf/workflows/empty-workflow.md",
-    "tests/fixtures/windsurf-legacy/.windsurfrules"
-  ],
-  "verification": {
-    "fmt": "ok",
-    "clippy": "ok",
-    "tests": "ok",
-    "build": "ok"
+  "task": {
+    "id": "461",
+    "title": "Avoid factory() call during registry registration for name caching"
+  },
+  "workflow": {
+    "status": "active",
+    "currentPhase": "implementation",
+    "createdAt": "2026-02-17T00:00:00Z",
+    "lastActivityAt": "2026-02-18T00:01:00Z"
+  },
+  "git": {
+    "branch": "perf/avoid-factory-call-461",
+    "baseSha": "64897e6b0eb18af5a949e6a70975ac28b57d1eb5",
+    "mainRepoPath": "/home/ubuntu/agnix",
+    "isWorktree": true
+  },
+  "implementation": {
+    "currentStep": 5,
+    "totalSteps": 6,
+    "filesModified": ["crates/agnix-core/src/registry.rs"]
+  },
+  "resume": {
+    "canResume": true,
+    "resumeFromStep": "implementation-step-6"
   }
 }

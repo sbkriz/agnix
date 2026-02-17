@@ -176,8 +176,6 @@ jobs:
     runs-on: ubuntu-latest
     # Skip prereleases (tags with hyphens like v0.1.0-beta)
     if: ${{ !contains(github.ref, '-') }}
-    env:
-      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
@@ -213,16 +211,23 @@ jobs:
           echo "Waiting for $crate $version to appear on crates.io index..."
           for i in $(seq 1 $max_retries); do
             output=$(cargo search "$crate" --limit 1 2>&1) || {
-              echo "Attempt $i/$max_retries: cargo search failed, retrying in ${interval}s..."
-              sleep "$interval"
-              continue
+              if [ "$i" -lt "$max_retries" ]; then
+                echo "Attempt $i/$max_retries: cargo search failed, retrying in ${interval}s..."
+                sleep "$interval"
+                continue
+              else
+                echo "Attempt $i/$max_retries: cargo search failed, no retries left."
+                break
+              fi
             }
             if echo "$output" | grep -qF "$crate = \"$version\""; then
-              echo "$crate $version indexed after $((i * interval))s"
+              echo "$crate $version indexed after $(((i - 1) * interval))s"
               exit 0
             fi
-            echo "Attempt $i/$max_retries: $crate $version not yet indexed, retrying in ${interval}s..."
-            sleep "$interval"
+            if [ "$i" -lt "$max_retries" ]; then
+              echo "Attempt $i/$max_retries: $crate $version not yet indexed, retrying in ${interval}s..."
+              sleep "$interval"
+            fi
           done
           echo "Error: $crate $version not indexed after $((max_retries * interval))s"
           exit 1
@@ -232,24 +237,34 @@ jobs:
       # Publish order: agnix-rules (leaf) -> agnix-core -> agnix-cli/agnix-lsp/agnix-mcp
       - name: Publish agnix-rules
         run: cargo publish -p agnix-rules
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
       - name: Wait for agnix-rules indexing
         run: /tmp/wait-for-crate.sh agnix-rules ${{ steps.version.outputs.version }}
 
       - name: Publish agnix-core
         run: cargo publish -p agnix-core
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
       - name: Wait for agnix-core indexing
         run: /tmp/wait-for-crate.sh agnix-core ${{ steps.version.outputs.version }}
 
       - name: Publish agnix-cli
         run: cargo publish -p agnix-cli
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
       - name: Publish agnix-lsp
         run: cargo publish -p agnix-lsp
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
       - name: Publish agnix-mcp
         run: cargo publish -p agnix-mcp
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
   vscode:
     name: Publish VS Code Extension

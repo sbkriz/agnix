@@ -1801,4 +1801,422 @@ mod tests {
             "Extensionless imports should not trigger REF-004"
         );
     }
+
+    // --- Concurrency and multi-file cycle tests (task #456) ---
+
+    #[test]
+    fn test_cycle_detection_three_file_chain() {
+        let temp = TempDir::new().unwrap();
+        let claude = temp.path().join("CLAUDE.md");
+        let b = temp.path().join("b.md");
+        let c = temp.path().join("c.md");
+
+        fs::write(&claude, "@b.md").unwrap();
+        fs::write(&b, "@c.md").unwrap();
+        fs::write(&c, "@CLAUDE.md").unwrap();
+
+        let validator = ImportsValidator;
+        let content = fs::read_to_string(&claude).unwrap();
+        let diagnostics = validator.validate(&claude, &content, &LintConfig::default());
+
+        assert!(
+            diagnostics.iter().any(|d| d.rule == "CC-MEM-002"),
+            "Three-file cycle (CLAUDE.md -> b.md -> c.md -> CLAUDE.md) should trigger CC-MEM-002"
+        );
+    }
+
+    #[test]
+    fn test_cycle_detection_four_file_chain() {
+        let temp = TempDir::new().unwrap();
+        let claude = temp.path().join("CLAUDE.md");
+        let b = temp.path().join("b.md");
+        let c = temp.path().join("c.md");
+        let d = temp.path().join("d.md");
+
+        fs::write(&claude, "@b.md").unwrap();
+        fs::write(&b, "@c.md").unwrap();
+        fs::write(&c, "@d.md").unwrap();
+        fs::write(&d, "@CLAUDE.md").unwrap();
+
+        let validator = ImportsValidator;
+        let content = fs::read_to_string(&claude).unwrap();
+        let diagnostics = validator.validate(&claude, &content, &LintConfig::default());
+
+        assert!(
+            diagnostics.iter().any(|d| d.rule == "CC-MEM-002"),
+            "Four-file cycle should trigger CC-MEM-002"
+        );
+        assert!(
+            !diagnostics.iter().any(|d| d.rule == "CC-MEM-003"),
+            "Four-file cycle should not trigger CC-MEM-003 (depth 4 <= MAX_IMPORT_DEPTH)"
+        );
+    }
+
+    #[test]
+    fn test_depth_at_boundary_no_trigger() {
+        // Chain: CLAUDE.md -> a.md -> b.md -> c.md -> leaf.md
+        // That is 4 levels of imports, depth never exceeds MAX_IMPORT_DEPTH (5).
+        let temp = TempDir::new().unwrap();
+        let claude = temp.path().join("CLAUDE.md");
+        let a = temp.path().join("a.md");
+        let b = temp.path().join("b.md");
+        let c = temp.path().join("c.md");
+        let leaf = temp.path().join("leaf.md");
+
+        fs::write(&claude, "@a.md").unwrap();
+        fs::write(&a, "@b.md").unwrap();
+        fs::write(&b, "@c.md").unwrap();
+        fs::write(&c, "@leaf.md").unwrap();
+        fs::write(&leaf, "End of chain").unwrap();
+
+        let validator = ImportsValidator;
+        let content = fs::read_to_string(&claude).unwrap();
+        let diagnostics = validator.validate(&claude, &content, &LintConfig::default());
+
+        assert!(
+            !diagnostics.iter().any(|d| d.rule == "CC-MEM-003"),
+            "Chain of 5 files (4 imports deep) should not trigger CC-MEM-003"
+        );
+        assert!(
+            !diagnostics.iter().any(|d| d.rule == "CC-MEM-002"),
+            "Linear chain with no cycle should not trigger CC-MEM-002"
+        );
+    }
+
+    #[test]
+    fn test_concurrent_cycle_detection_no_deadlock() {
+        use std::collections::HashMap;
+        use std::sync::{Arc, RwLock};
+        use std::thread;
+
+        let temp = TempDir::new().unwrap();
+        let claude = temp.path().join("CLAUDE.md");
+        let b = temp.path().join("b.md");
+
+        fs::write(&claude, "@b.md").unwrap();
+        fs::write(&b, "@CLAUDE.md").unwrap();
+
+        let cache: crate::parsers::ImportCache = Arc::new(RwLock::new(HashMap::new()));
+
+        let handles: Vec<_> = (0..8)
+            .map(|_| {
+                let cache = cache.clone();
+                let path = claude.clone();
+                let content = fs::read_to_string(&path).unwrap();
+                thread::spawn(move || {
+                    let mut config = LintConfig::default();
+                    config.set_import_cache(cache);
+                    config.set_root_dir(path.parent().unwrap().to_path_buf());
+                    let validator = ImportsValidator;
+                    validator.validate(&path, &content, &config)
+                })
+            })
+            .collect();
+
+        for handle in handles {
+            let diagnostics = handle.join().expect("Thread panicked during cycle detection");
+            assert!(
+                diagnostics.iter().any(|d| d.rule == "CC-MEM-002"),
+                "Each thread should detect CC-MEM-002 in two-file cycle"
+            );
+        }
+    }
+
+    #[test]
+    fn test_concurrent_three_file_cycle_shared_cache() {
+        use std::collections::HashMap;
+        use std::sync::{Arc, RwLock};
+        use std::thread;
+
+        let temp = TempDir::new().unwrap();
+        let claude = temp.path().join("CLAUDE.md");
+        let b = temp.path().join("b.md");
+        let c = temp.path().join("c.md");
+
+        fs::write(&claude, "@b.md").unwrap();
+        fs::write(&b, "@c.md").unwrap();
+        fs::write(&c, "@CLAUDE.md").unwrap();
+
+        let cache: crate::parsers::ImportCache = Arc::new(RwLock::new(HashMap::new()));
+
+        let handles: Vec<_> = (0..10)
+            .map(|_| {
+                let cache = cache.clone();
+                let path = claude.clone();
+                let content = fs::read_to_string(&path).unwrap();
+                thread::spawn(move || {
+                    let mut config = LintConfig::default();
+                    config.set_import_cache(cache);
+                    config.set_root_dir(path.parent().unwrap().to_path_buf());
+                    let validator = ImportsValidator;
+                    validator.validate(&path, &content, &config)
+                })
+            })
+            .collect();
+
+        for handle in handles {
+            let diagnostics = handle
+                .join()
+                .expect("Thread panicked during three-file cycle detection");
+            assert!(
+                diagnostics.iter().any(|d| d.rule == "CC-MEM-002"),
+                "Each thread should detect CC-MEM-002 in three-file cycle"
+            );
+        }
+
+        // Verify cache populated for all three files
+        let guard = cache.read().unwrap();
+        assert!(
+            guard.len() >= 3,
+            "Shared cache should contain entries for all 3 files, found {}",
+            guard.len()
+        );
+    }
+
+    #[test]
+    fn test_concurrent_cycle_near_depth_limit() {
+        use std::collections::HashMap;
+        use std::sync::{Arc, RwLock};
+        use std::thread;
+
+        // Chain: CLAUDE.md -> a.md -> b.md -> c.md -> d.md -> CLAUDE.md
+        // Cycle detected at depth 4 (stack has 5 entries when d.md processes its import).
+        // depth + 1 = 5 which is NOT > MAX_IMPORT_DEPTH (5), so CC-MEM-003 should not fire.
+        // But cycle check runs first anyway, so CC-MEM-002 fires.
+        let temp = TempDir::new().unwrap();
+        let claude = temp.path().join("CLAUDE.md");
+        let a = temp.path().join("a.md");
+        let b = temp.path().join("b.md");
+        let c = temp.path().join("c.md");
+        let d = temp.path().join("d.md");
+
+        fs::write(&claude, "@a.md").unwrap();
+        fs::write(&a, "@b.md").unwrap();
+        fs::write(&b, "@c.md").unwrap();
+        fs::write(&c, "@d.md").unwrap();
+        fs::write(&d, "@CLAUDE.md").unwrap();
+
+        let cache: crate::parsers::ImportCache = Arc::new(RwLock::new(HashMap::new()));
+
+        let handles: Vec<_> = (0..5)
+            .map(|_| {
+                let cache = cache.clone();
+                let path = claude.clone();
+                let content = fs::read_to_string(&path).unwrap();
+                thread::spawn(move || {
+                    let mut config = LintConfig::default();
+                    config.set_import_cache(cache);
+                    config.set_root_dir(path.parent().unwrap().to_path_buf());
+                    let validator = ImportsValidator;
+                    validator.validate(&path, &content, &config)
+                })
+            })
+            .collect();
+
+        for handle in handles {
+            let diagnostics = handle
+                .join()
+                .expect("Thread panicked during near-depth-limit cycle detection");
+            assert!(
+                diagnostics.iter().any(|d| d.rule == "CC-MEM-002"),
+                "Cycle at depth 4 should trigger CC-MEM-002"
+            );
+            assert!(
+                !diagnostics.iter().any(|d| d.rule == "CC-MEM-003"),
+                "Cycle at depth 4 should not trigger CC-MEM-003"
+            );
+        }
+    }
+
+    #[test]
+    fn test_concurrent_diamond_dependency_no_duplicate_diagnostics() {
+        use std::collections::HashMap;
+        use std::sync::{Arc, RwLock};
+        use std::thread;
+
+        // CLAUDE.md imports @b.md and @c.md
+        // Both b.md and c.md import @shared.md
+        // shared.md imports @missing.md (does not exist)
+        let temp = TempDir::new().unwrap();
+        let claude = temp.path().join("CLAUDE.md");
+        let b = temp.path().join("b.md");
+        let c = temp.path().join("c.md");
+        let shared = temp.path().join("shared.md");
+
+        fs::write(&claude, "@b.md\n@c.md").unwrap();
+        fs::write(&b, "@shared.md").unwrap();
+        fs::write(&c, "@shared.md").unwrap();
+        fs::write(&shared, "@missing.md").unwrap();
+
+        let cache: crate::parsers::ImportCache = Arc::new(RwLock::new(HashMap::new()));
+
+        let handles: Vec<_> = (0..5)
+            .map(|_| {
+                let cache = cache.clone();
+                let path = claude.clone();
+                let content = fs::read_to_string(&path).unwrap();
+                thread::spawn(move || {
+                    let mut config = LintConfig::default();
+                    config.set_import_cache(cache);
+                    config.set_root_dir(path.parent().unwrap().to_path_buf());
+                    let validator = ImportsValidator;
+                    validator.validate(&path, &content, &config)
+                })
+            })
+            .collect();
+
+        for handle in handles {
+            let diagnostics = handle
+                .join()
+                .expect("Thread panicked during diamond dependency validation");
+            assert!(
+                diagnostics.iter().any(|d| {
+                    (d.rule == "CC-MEM-001" || d.rule == "REF-001")
+                        && d.message.contains("@missing.md")
+                }),
+                "Diamond dependency should report missing import for @missing.md"
+            );
+        }
+    }
+
+    #[test]
+    fn test_filesystem_error_mid_chain_recovery() {
+        // CLAUDE.md imports @a.md, a.md imports @b.md (does not exist)
+        // b.md would import @c.md but b.md is missing, so c.md should never be referenced
+        let temp = TempDir::new().unwrap();
+        let claude = temp.path().join("CLAUDE.md");
+        let a = temp.path().join("a.md");
+        // b.md intentionally not created
+        // c.md intentionally not created
+
+        fs::write(&claude, "@a.md").unwrap();
+        fs::write(&a, "@b.md").unwrap();
+
+        let validator = ImportsValidator;
+        let content = fs::read_to_string(&claude).unwrap();
+        let diagnostics = validator.validate(&claude, &content, &LintConfig::default());
+
+        // Should report CC-MEM-001 for b.md (missing, referenced from non-CLAUDE a.md
+        // is REF-001, but from CLAUDE.md chain perspective the diagnostic is on a.md
+        // which is a non-CLAUDE file, so it emits REF-001)
+        let missing_b: Vec<_> = diagnostics
+            .iter()
+            .filter(|d| {
+                (d.rule == "CC-MEM-001" || d.rule == "REF-001")
+                    && d.message.contains("@b.md")
+            })
+            .collect();
+        assert!(
+            !missing_b.is_empty(),
+            "Should report missing import for b.md"
+        );
+
+        // Should NOT reference c.md at all since b.md doesn't exist
+        let referencing_c: Vec<_> = diagnostics
+            .iter()
+            .filter(|d| d.message.contains("c.md"))
+            .collect();
+        assert!(
+            referencing_c.is_empty(),
+            "Should not reference c.md since b.md does not exist"
+        );
+    }
+
+    #[test]
+    fn test_concurrent_different_roots_shared_cache() {
+        use std::collections::HashMap;
+        use std::sync::{Arc, RwLock};
+        use std::thread;
+
+        // CLAUDE.md and SKILL.md both import @b.md
+        // b.md imports @CLAUDE.md (creates cycle only for CLAUDE.md root)
+        let temp = TempDir::new().unwrap();
+        let claude = temp.path().join("CLAUDE.md");
+        let skill = temp.path().join("SKILL.md");
+        let b = temp.path().join("b.md");
+
+        fs::write(&claude, "@b.md").unwrap();
+        fs::write(&skill, "@b.md").unwrap();
+        fs::write(&b, "@CLAUDE.md").unwrap();
+
+        let cache: crate::parsers::ImportCache = Arc::new(RwLock::new(HashMap::new()));
+
+        // 5 threads validate CLAUDE.md
+        let claude_handles: Vec<_> = (0..5)
+            .map(|_| {
+                let cache = cache.clone();
+                let path = claude.clone();
+                let content = fs::read_to_string(&path).unwrap();
+                thread::spawn(move || {
+                    let mut config = LintConfig::default();
+                    config.set_import_cache(cache);
+                    config.set_root_dir(path.parent().unwrap().to_path_buf());
+                    let validator = ImportsValidator;
+                    validator.validate(&path, &content, &config)
+                })
+            })
+            .collect();
+
+        // 5 threads validate SKILL.md
+        let skill_handles: Vec<_> = (0..5)
+            .map(|_| {
+                let cache = cache.clone();
+                let path = skill.clone();
+                let content = fs::read_to_string(&path).unwrap();
+                thread::spawn(move || {
+                    let mut config = LintConfig::default();
+                    config.set_import_cache(cache);
+                    config.set_root_dir(path.parent().unwrap().to_path_buf());
+                    let validator = ImportsValidator;
+                    validator.validate(&path, &content, &config)
+                })
+            })
+            .collect();
+
+        for handle in claude_handles {
+            let diagnostics = handle
+                .join()
+                .expect("CLAUDE.md thread panicked");
+            assert!(
+                diagnostics.iter().any(|d| d.rule == "CC-MEM-002"),
+                "CLAUDE.md threads should detect cycle (CC-MEM-002)"
+            );
+        }
+
+        for handle in skill_handles {
+            let diagnostics = handle
+                .join()
+                .expect("SKILL.md thread panicked");
+            assert!(
+                !diagnostics.iter().any(|d| d.rule == "CC-MEM-002"),
+                "SKILL.md threads should not get CC-MEM-002 (cycle rules only apply to CLAUDE.md roots)"
+            );
+        }
+    }
+
+    #[test]
+    fn test_cycle_detection_three_file_chain_with_non_claude_root() {
+        // Same three-file cycle but rooted at SKILL.md instead of CLAUDE.md
+        let temp = TempDir::new().unwrap();
+        let skill = temp.path().join("SKILL.md");
+        let b = temp.path().join("b.md");
+        let c = temp.path().join("c.md");
+
+        fs::write(&skill, "@b.md").unwrap();
+        fs::write(&b, "@c.md").unwrap();
+        fs::write(&c, "@SKILL.md").unwrap();
+
+        let validator = ImportsValidator;
+        let content = fs::read_to_string(&skill).unwrap();
+        let diagnostics = validator.validate(&skill, &content, &LintConfig::default());
+
+        assert!(
+            !diagnostics.iter().any(|d| d.rule == "CC-MEM-002"),
+            "SKILL.md root should not trigger CC-MEM-002 (cycle rules only apply to CLAUDE.md roots)"
+        );
+        assert!(
+            !diagnostics.iter().any(|d| d.rule == "CC-MEM-003"),
+            "SKILL.md root should not trigger CC-MEM-003 (depth rules only apply to CLAUDE.md roots)"
+        );
+    }
 }

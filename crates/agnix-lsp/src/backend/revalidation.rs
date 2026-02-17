@@ -269,8 +269,9 @@ impl Backend {
         // This prevents older batches from publishing after a newer config update starts.
         let revalidation_generation = self.config_generation.fetch_add(1, Ordering::SeqCst) + 1;
 
-        // Load current config, apply settings, and atomically swap
-        // Clone the existing config, modify it, then replace
+        // Load current config, apply settings, and atomically swap.
+        // Not using compare_and_swap because did_change_configuration is an LSP
+        // notification - tower-lsp serializes notifications, so no concurrent writer.
         {
             let current = self.config.load_full();
             let mut new_config = (*current).clone();

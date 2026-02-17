@@ -92,7 +92,7 @@ pub trait Validator: Send + Sync + 'static {
 pub trait ValidatorProvider: Send + Sync {
     fn name(&self) -> &str { /* default: short type name */ }
     fn validators(&self) -> Vec<(FileType, ValidatorFactory)>;
-    fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)>; // default: wraps validators() with None names
+    fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> { /* default: wraps validators() with None names */ }
 }
 
 // Registry with builder pattern and runtime filtering

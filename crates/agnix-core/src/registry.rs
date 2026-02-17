@@ -334,7 +334,7 @@ impl ValidatorRegistryBuilder {
 // Built-in defaults
 // ============================================================================
 
-const DEFAULTS: &[(FileType, &str, ValidatorFactory)] = &[
+const DEFAULTS: &[(FileType, &'static str, ValidatorFactory)] = &[
     (FileType::Skill, "SkillValidator", skill_validator),
     (
         FileType::Skill,

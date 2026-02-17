@@ -528,6 +528,51 @@ fn bench_hooks_autofix_spans(c: &mut Criterion) {
     group.finish();
 }
 
+/// Benchmark `is_instruction_file()` - called once per file during project walk.
+///
+/// Measures the allocation-free path-component implementation against a
+/// representative mix of paths: common non-matches (majority of files in any
+/// repo), direct filename matches, and directory-based matches.
+fn bench_is_instruction_file(c: &mut Criterion) {
+    use agnix_core::__internal::is_instruction_file;
+
+    let paths: Vec<(&str, std::path::PathBuf)> = vec![
+        // Common non-matches (the hot path - most files are not instruction files)
+        ("rs_file", Path::new("src/main.rs").to_path_buf()),
+        ("toml_file", Path::new("Cargo.toml").to_path_buf()),
+        ("readme", Path::new("README.md").to_path_buf()),
+        ("nested_rs", Path::new("crates/core/src/lib.rs").to_path_buf()),
+        ("json_file", Path::new("package.json").to_path_buf()),
+        ("deep_path", Path::new("a/b/c/d/e/f/g/file.txt").to_path_buf()),
+        ("gitignore", Path::new(".gitignore").to_path_buf()),
+        ("license", Path::new("LICENSE").to_path_buf()),
+        // Backup files (early rejection)
+        ("bak_file", Path::new("CLAUDE.md.bak").to_path_buf()),
+        ("swp_file", Path::new("AGENTS.md.swp").to_path_buf()),
+        ("tilde_file", Path::new("CLAUDE.md~").to_path_buf()),
+        // Direct filename matches
+        ("claude_md", Path::new("CLAUDE.md").to_path_buf()),
+        ("agents_md", Path::new("AGENTS.md").to_path_buf()),
+        ("gemini_md", Path::new("gemini.md").to_path_buf()),
+        ("clinerules", Path::new(".clinerules").to_path_buf()),
+        // Directory-based matches
+        ("cursor_mdc", Path::new(".cursor/rules/test.mdc").to_path_buf()),
+        ("cursor_deep", Path::new("project/.cursor/rules/deep/file.mdc").to_path_buf()),
+        ("github_copilot", Path::new(".github/copilot-instructions.md").to_path_buf()),
+        ("opencode", Path::new(".opencode/config.md").to_path_buf()),
+        // False-positive guard: substring in filename, not a directory
+        ("cursor_substring", Path::new("my.cursor-notes.mdc").to_path_buf()),
+    ];
+
+    let mut group = c.benchmark_group("is_instruction_file");
+    for (name, path) in &paths {
+        group.bench_with_input(BenchmarkId::new("path", *name), path, |b, p| {
+            b.iter(|| is_instruction_file(black_box(p)))
+        });
+    }
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_detect_file_type,
@@ -542,5 +587,6 @@ criterion_group!(
     bench_memory_usage,
     bench_single_file_target,
     bench_hooks_autofix_spans,
+    bench_is_instruction_file,
 );
 criterion_main!(benches);

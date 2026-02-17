@@ -2323,6 +2323,109 @@ Use pnpm install for dependencies.
         )));
     }
 
+    // ===== is_instruction_file edge case tests (issue #470) =====
+
+    #[test]
+    fn test_instruction_file_case_variations() {
+        use std::path::PathBuf;
+        // Case-insensitive matching should accept all case variants
+        assert!(
+            is_instruction_file(&PathBuf::from("Claude.MD")),
+            "Claude.MD should match (case-insensitive)"
+        );
+        assert!(
+            is_instruction_file(&PathBuf::from("agents.MD")),
+            "agents.MD should match (case-insensitive)"
+        );
+        assert!(
+            is_instruction_file(&PathBuf::from("GEMINI.md")),
+            "GEMINI.md should match (case-insensitive)"
+        );
+        assert!(
+            is_instruction_file(&PathBuf::from("Gemini.Local.Md")),
+            "Gemini.Local.Md should match (case-insensitive)"
+        );
+        assert!(
+            is_instruction_file(&PathBuf::from(".CLINERULES")),
+            ".CLINERULES should match (case-insensitive)"
+        );
+    }
+
+    #[test]
+    fn test_instruction_file_no_false_positive_cursor_substring() {
+        use std::path::PathBuf;
+        // A filename containing ".cursor" as a substring should NOT match.
+        // The old code used path_str.contains(".cursor") which was buggy.
+        assert!(
+            !is_instruction_file(&PathBuf::from("my.cursor-notes.txt")),
+            "my.cursor-notes.txt should NOT match - .cursor is not a directory component"
+        );
+        assert!(
+            !is_instruction_file(&PathBuf::from("my.cursor-notes.mdc")),
+            "my.cursor-notes.mdc should NOT match - .cursor is not a directory component"
+        );
+    }
+
+    #[test]
+    fn test_instruction_file_deeply_nested_cursor() {
+        use std::path::PathBuf;
+        // Deeply nested path under .cursor with rules should still match
+        assert!(
+            is_instruction_file(&PathBuf::from("a/b/.cursor/rules/deep/file.mdc")),
+            "Deeply nested .cursor/rules path should match"
+        );
+        assert!(
+            is_instruction_file(&PathBuf::from("project/.cursor/rules/api.mdc")),
+            ".cursor/rules/*.mdc should match"
+        );
+        // .cursor without rules and without .mdc should NOT match
+        assert!(
+            !is_instruction_file(&PathBuf::from("a/b/.cursor/config/settings.json")),
+            ".cursor/config/settings.json should NOT match"
+        );
+    }
+
+    #[test]
+    fn test_instruction_file_opencode_directory() {
+        use std::path::PathBuf;
+        assert!(
+            is_instruction_file(&PathBuf::from(".opencode/config.md")),
+            ".opencode directory should match"
+        );
+        assert!(
+            is_instruction_file(&PathBuf::from("project/.opencode/something.yaml")),
+            "nested .opencode directory should match"
+        );
+    }
+
+    #[test]
+    fn test_instruction_file_github_copilot_variants() {
+        use std::path::PathBuf;
+        assert!(
+            is_instruction_file(&PathBuf::from(".github/copilot-instructions.md")),
+            ".github/copilot-instructions.md should match"
+        );
+        assert!(
+            is_instruction_file(&PathBuf::from(".github/copilot/settings.json")),
+            ".github/copilot/settings.json should match"
+        );
+        // .github without copilot should not match
+        assert!(
+            !is_instruction_file(&PathBuf::from(".github/workflows/ci.yml")),
+            ".github/workflows/ci.yml should NOT match"
+        );
+    }
+
+    #[test]
+    fn test_instruction_file_bare_filename_no_path() {
+        use std::path::PathBuf;
+        // File with no parent path
+        assert!(!is_instruction_file(&PathBuf::from("random.mdc")),
+            "random.mdc without .cursor parent should NOT match");
+        assert!(!is_instruction_file(&PathBuf::from("rules.mdc")),
+            "rules.mdc without .cursor parent should NOT match");
+    }
+
     // ===== ReDoS Protection Tests =====
 
     #[test]

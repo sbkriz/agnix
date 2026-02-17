@@ -124,6 +124,7 @@ pub mod __internal {
         check_xml_balance_with_content_end, extract_imports, extract_markdown_links,
         extract_xml_tags,
     };
+    pub use crate::schemas::cross_platform::is_instruction_file;
 }
 
 #[cfg(test)]

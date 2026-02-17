@@ -1889,13 +1889,14 @@ mod tests {
 
     #[test]
     fn test_depth_at_boundary_no_trigger() {
-        // 6 files, 5 hops deep - exactly at MAX_IMPORT_DEPTH = 5.
-        // Deepest point: depth=5, check 5+1=6 > 5 is true, so CC-MEM-003 WOULD fire...
-        // wait - at depth=4 we try to recurse into e (depth+1=5 <= 5, allowed).
-        // At depth=5 (visiting e) we try to recurse into leaf (depth+1=6 > 5, TRIGGERS).
-        // This test verifies the boundary: a chain reaching depth 5 (leaf at depth 5)
-        // is reachable but a further import from leaf would trigger CC-MEM-003.
-        // Since leaf has no further imports, CC-MEM-003 should NOT fire.
+        // 6 files in a linear chain: CLAUDE -> a -> b -> c -> d -> leaf.
+        // There are 5 import hops, so the deepest file (leaf) is at depth=5.
+        // With MAX_IMPORT_DEPTH = 5 and the check `depth + 1 > MAX_IMPORT_DEPTH`:
+        // - At depth=4 (file d), recursing into leaf uses 4+1=5 > 5 (false), so it is allowed.
+        // - If leaf tried to import another file, that recursion would use 5+1=6 > 5 (true),
+        //   and CC-MEM-003 would trigger.
+        // This test verifies the boundary: a chain that reaches depth 5 is allowed as long as
+        // the leaf file has no further imports, so CC-MEM-003 should NOT fire.
         let temp = TempDir::new().unwrap();
         let claude = temp.path().join("CLAUDE.md");
         let a = temp.path().join("a.md");
@@ -1928,8 +1929,9 @@ mod tests {
     #[test]
     fn test_concurrent_cycle_detection_no_deadlock() {
         use std::collections::HashMap;
-        use std::sync::{Arc, RwLock};
+        use std::sync::{Arc, RwLock, mpsc};
         use std::thread;
+        use std::time::Duration;
 
         let temp = TempDir::new().unwrap();
         let claude = temp.path().join("CLAUDE.md");
@@ -1939,26 +1941,28 @@ mod tests {
         fs::write(&b, "@CLAUDE.md").unwrap();
 
         let cache: crate::parsers::ImportCache = Arc::new(RwLock::new(HashMap::new()));
+        let (tx, rx) = mpsc::channel();
 
-        let handles: Vec<_> = (0..8)
-            .map(|_| {
-                let cache = cache.clone();
-                let path = claude.clone();
-                let content = fs::read_to_string(&path).unwrap();
-                thread::spawn(move || {
-                    let mut config = LintConfig::default();
-                    config.set_import_cache(cache);
-                    config.set_root_dir(path.parent().unwrap().to_path_buf());
-                    let validator = ImportsValidator;
-                    validator.validate(&path, &content, &config)
-                })
-            })
-            .collect();
+        for _ in 0..8 {
+            let cache = cache.clone();
+            let path = claude.clone();
+            let content = fs::read_to_string(&path).unwrap();
+            let tx = tx.clone();
+            thread::spawn(move || {
+                let mut config = LintConfig::default();
+                config.set_import_cache(cache);
+                config.set_root_dir(path.parent().unwrap().to_path_buf());
+                let validator = ImportsValidator;
+                let result = validator.validate(&path, &content, &config);
+                tx.send(result).ok();
+            });
+        }
+        drop(tx);
 
-        for handle in handles {
-            let diagnostics = handle
-                .join()
-                .expect("Thread panicked during cycle detection");
+        for _ in 0..8 {
+            let diagnostics = rx
+                .recv_timeout(Duration::from_secs(10))
+                .expect("Thread did not complete within 10s (possible deadlock)");
             assert!(
                 diagnostics.iter().any(|d| d.rule == "CC-MEM-002"),
                 "Each thread should detect CC-MEM-002 in two-file cycle"

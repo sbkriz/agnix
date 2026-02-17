@@ -806,24 +806,28 @@ pub fn validate_project_with_registry(
                         }
                     }
 
-                    // Collect AGENTS.md paths for AGM-006 check (thread-local, no lock)
+                    // Collect AGENTS.md paths for AGM-006 check (thread-local, no lock).
+                    // Clone here because file_path is needed below for validation.
                     if file_path.file_name().and_then(|n| n.to_str()) == Some("AGENTS.md") {
                         agents.push(file_path.clone());
                     }
 
-                    // Collect instruction file paths for XP-004/005/006 checks (thread-local, no lock)
+                    // Collect instruction file paths for XP-004/005/006 checks (thread-local, no lock).
+                    // Clone here because file_path is needed below for validation.
                     if schemas::cross_platform::is_instruction_file(&file_path) {
                         instructions.push(file_path.clone());
                     }
 
                     // Validate the file using the pre-resolved file_type to avoid
                     // re-compiling [files] glob patterns for every file.
+                    // On error, move file_path into the diagnostic (no clone needed
+                    // since it is the last use of the owned PathBuf).
                     match validate_file_with_type(&file_path, file_type, &config, registry) {
                         Ok(file_diagnostics) => diags.extend(file_diagnostics),
                         Err(e) => {
                             diags.push(
                                 Diagnostic::error(
-                                    file_path.clone(),
+                                    file_path,
                                     0,
                                     0,
                                     "file::read",

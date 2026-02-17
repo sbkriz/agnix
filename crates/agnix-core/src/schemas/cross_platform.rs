@@ -976,7 +976,7 @@ pub fn is_instruction_file(path: &Path) -> bool {
         return true;
     }
 
-    // Directory-based checks via path component iteration (zero heap allocations).
+    // Directory-based checks via path component iteration.
     // Using components() ensures we match actual directory names, not substrings
     // of filenames (e.g. "my.cursor-notes.txt" won't false-positive).
     use std::path::Component;

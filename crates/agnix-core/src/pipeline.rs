@@ -362,6 +362,18 @@ fn is_excluded_file(path_str: &str, exclude_patterns: &[ExcludePattern]) -> bool
 /// - VER-001: No tool/spec versions pinned
 ///
 /// Both `agents_md_paths` and `instruction_file_paths` must be pre-sorted
+/// Join an iterator of paths into a comma-separated string using `Cow<str>` from
+/// `to_string_lossy()`, avoiding per-path heap allocation for valid UTF-8 paths.
+fn join_paths<'a>(paths: impl Iterator<Item = &'a Path>) -> String {
+    paths.enumerate().fold(String::new(), |mut acc, (i, p)| {
+        if i > 0 {
+            acc.push_str(", ");
+        }
+        acc.push_str(&p.to_string_lossy());
+        acc
+    })
+}
+
 /// for deterministic output ordering.
 #[cfg(feature = "filesystem")]
 fn run_project_level_checks(
@@ -379,33 +391,17 @@ fn run_project_level_checks(
                 let parent_files =
                     schemas::agents_md::check_agents_md_hierarchy(agents_file, agents_md_paths);
                 let description = if !parent_files.is_empty() {
-                    // Fold with Cow<str> avoids per-path heap allocation for valid UTF-8 paths
-                    let parent_paths =
-                        parent_files
-                            .iter()
-                            .enumerate()
-                            .fold(String::new(), |mut acc, (i, p)| {
-                                if i > 0 {
-                                    acc.push_str(", ");
-                                }
-                                acc.push_str(&p.to_string_lossy());
-                                acc
-                            });
+                    let parent_paths = join_paths(parent_files.iter().map(|p| p.as_path()));
                     format!(
                         "Nested AGENTS.md detected - parent AGENTS.md files exist at: {parent_paths}",
                     )
                 } else {
-                    let other_paths = agents_md_paths
-                        .iter()
-                        .filter(|p| p.as_path() != agents_file.as_path())
-                        .enumerate()
-                        .fold(String::new(), |mut acc, (i, p)| {
-                            if i > 0 {
-                                acc.push_str(", ");
-                            }
-                            acc.push_str(&p.to_string_lossy());
-                            acc
-                        });
+                    let other_paths = join_paths(
+                        agents_md_paths
+                            .iter()
+                            .filter(|p| p.as_path() != agents_file.as_path())
+                            .map(|p| p.as_path()),
+                    );
                     format!(
                         "Multiple AGENTS.md files detected - other AGENTS.md files exist at: {other_paths}",
                     )

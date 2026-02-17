@@ -1817,9 +1817,15 @@ mod tests {
         let content = fs::read_to_string(&claude).unwrap();
         let diagnostics = validator.validate(&claude, &content, &LintConfig::default());
 
+        let cycle_diag = diagnostics.iter().find(|d| d.rule == "CC-MEM-002");
         assert!(
-            diagnostics.iter().any(|d| d.rule == "CC-MEM-002"),
+            cycle_diag.is_some(),
             "Three-file cycle (CLAUDE.md -> b.md -> c.md -> CLAUDE.md) should trigger CC-MEM-002"
+        );
+        let msg = &cycle_diag.unwrap().message;
+        assert!(
+            msg.contains("b.md") && msg.contains("c.md"),
+            "CC-MEM-002 message should contain the full cycle path, got: {msg}"
         );
     }
 
@@ -1846,12 +1852,14 @@ mod tests {
         );
         assert!(
             !diagnostics.iter().any(|d| d.rule == "CC-MEM-003"),
-            "Four-file cycle should not trigger CC-MEM-003 (depth 4 <= MAX_IMPORT_DEPTH)"
+            "Four-file cycle should not trigger CC-MEM-003 (cycle detection short-circuits traversal before depth is evaluated)"
         );
     }
 
     #[test]
-    fn test_depth_at_boundary_no_trigger() {
+    fn test_depth_below_boundary_no_trigger() {
+        // 5 files, 4 hops deep. MAX_IMPORT_DEPTH = 5, check is depth+1 > 5.
+        // Deepest point: depth=4, check 4+1=5 > 5 is false. Should not trigger CC-MEM-003.
         let temp = TempDir::new().unwrap();
         let claude = temp.path().join("CLAUDE.md");
         let a = temp.path().join("a.md");
@@ -1872,6 +1880,44 @@ mod tests {
         assert!(
             !diagnostics.iter().any(|d| d.rule == "CC-MEM-003"),
             "Chain of 5 files (4 imports deep) should not trigger CC-MEM-003"
+        );
+        assert!(
+            !diagnostics.iter().any(|d| d.rule == "CC-MEM-002"),
+            "Linear chain with no cycle should not trigger CC-MEM-002"
+        );
+    }
+
+    #[test]
+    fn test_depth_at_boundary_no_trigger() {
+        // 6 files, 5 hops deep - exactly at MAX_IMPORT_DEPTH = 5.
+        // Deepest point: depth=5, check 5+1=6 > 5 is true, so CC-MEM-003 WOULD fire...
+        // wait - at depth=4 we try to recurse into e (depth+1=5 <= 5, allowed).
+        // At depth=5 (visiting e) we try to recurse into leaf (depth+1=6 > 5, TRIGGERS).
+        // This test verifies the boundary: a chain reaching depth 5 (leaf at depth 5)
+        // is reachable but a further import from leaf would trigger CC-MEM-003.
+        // Since leaf has no further imports, CC-MEM-003 should NOT fire.
+        let temp = TempDir::new().unwrap();
+        let claude = temp.path().join("CLAUDE.md");
+        let a = temp.path().join("a.md");
+        let b = temp.path().join("b.md");
+        let c = temp.path().join("c.md");
+        let d = temp.path().join("d.md");
+        let leaf = temp.path().join("leaf.md");
+
+        fs::write(&claude, "@a.md").unwrap();
+        fs::write(&a, "@b.md").unwrap();
+        fs::write(&b, "@c.md").unwrap();
+        fs::write(&c, "@d.md").unwrap();
+        fs::write(&d, "@leaf.md").unwrap();
+        fs::write(&leaf, "End of chain").unwrap();
+
+        let validator = ImportsValidator;
+        let content = fs::read_to_string(&claude).unwrap();
+        let diagnostics = validator.validate(&claude, &content, &LintConfig::default());
+
+        assert!(
+            !diagnostics.iter().any(|d| d.rule == "CC-MEM-003"),
+            "Chain of 6 files (depth reaches MAX_IMPORT_DEPTH=5) should not trigger CC-MEM-003"
         );
         assert!(
             !diagnostics.iter().any(|d| d.rule == "CC-MEM-002"),
@@ -2057,18 +2103,22 @@ mod tests {
             let diagnostics = handle
                 .join()
                 .expect("Thread panicked during diamond dependency validation");
-            assert!(
-                diagnostics.iter().any(|d| {
+            let missing_count = diagnostics
+                .iter()
+                .filter(|d| {
                     (d.rule == "CC-MEM-001" || d.rule == "REF-001")
                         && d.message.contains("@missing.md")
-                }),
-                "Diamond dependency should report missing import for @missing.md"
+                })
+                .count();
+            assert_eq!(
+                missing_count, 1,
+                "Diamond dependency should produce exactly one missing-import diagnostic for @missing.md (deduplication check)"
             );
         }
     }
 
     #[test]
-    fn test_filesystem_error_mid_chain_recovery() {
+    fn test_missing_transitive_import_stops_traversal() {
         let temp = TempDir::new().unwrap();
         let claude = temp.path().join("CLAUDE.md");
         let a = temp.path().join("a.md");
@@ -2110,54 +2160,38 @@ mod tests {
 
         let cache: crate::parsers::ImportCache = Arc::new(RwLock::new(HashMap::new()));
 
-        let claude_handles: Vec<_> = (0..5)
-            .map(|_| {
+        // Interleave CLAUDE.md and SKILL.md handles in one Vec so both groups race
+        // against each other and against the shared cache simultaneously.
+        let handles: Vec<(bool, _)> = (0..10)
+            .map(|i| {
                 let cache = cache.clone();
-                let path = claude.clone();
+                let is_claude = i % 2 == 0;
+                let path = if is_claude { claude.clone() } else { skill.clone() };
                 let content = fs::read_to_string(&path).unwrap();
-                thread::spawn(move || {
+                let handle = thread::spawn(move || {
                     let mut config = LintConfig::default();
                     config.set_import_cache(cache);
                     config.set_root_dir(path.parent().unwrap().to_path_buf());
                     let validator = ImportsValidator;
                     validator.validate(&path, &content, &config)
-                })
+                });
+                (is_claude, handle)
             })
             .collect();
 
-        let skill_handles: Vec<_> = (0..5)
-            .map(|_| {
-                let cache = cache.clone();
-                let path = skill.clone();
-                let content = fs::read_to_string(&path).unwrap();
-                thread::spawn(move || {
-                    let mut config = LintConfig::default();
-                    config.set_import_cache(cache);
-                    config.set_root_dir(path.parent().unwrap().to_path_buf());
-                    let validator = ImportsValidator;
-                    validator.validate(&path, &content, &config)
-                })
-            })
-            .collect();
-
-        for handle in claude_handles {
-            let diagnostics = handle
-                .join()
-                .expect("CLAUDE.md thread panicked");
-            assert!(
-                diagnostics.iter().any(|d| d.rule == "CC-MEM-002"),
-                "CLAUDE.md threads should detect cycle (CC-MEM-002)"
-            );
-        }
-
-        for handle in skill_handles {
-            let diagnostics = handle
-                .join()
-                .expect("SKILL.md thread panicked");
-            assert!(
-                !diagnostics.iter().any(|d| d.rule == "CC-MEM-002"),
-                "SKILL.md threads should not get CC-MEM-002 (cycle rules only apply to CLAUDE.md roots)"
-            );
+        for (is_claude, handle) in handles {
+            let diagnostics = handle.join().expect("Thread panicked");
+            if is_claude {
+                assert!(
+                    diagnostics.iter().any(|d| d.rule == "CC-MEM-002"),
+                    "CLAUDE.md threads should detect cycle (CC-MEM-002)"
+                );
+            } else {
+                assert!(
+                    !diagnostics.iter().any(|d| d.rule == "CC-MEM-002"),
+                    "SKILL.md threads should not get CC-MEM-002 (cycle rules only apply to CLAUDE.md roots)"
+                );
+            }
         }
     }
 

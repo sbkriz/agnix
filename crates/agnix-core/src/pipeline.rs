@@ -379,23 +379,34 @@ fn run_project_level_checks(
                 let parent_files =
                     schemas::agents_md::check_agents_md_hierarchy(agents_file, agents_md_paths);
                 let description = if !parent_files.is_empty() {
-                    let parent_paths: Vec<String> = parent_files
-                        .iter()
-                        .map(|p| p.to_string_lossy().into_owned())
-                        .collect();
+                    let parent_paths =
+                        parent_files
+                            .iter()
+                            .enumerate()
+                            .fold(String::new(), |mut acc, (i, p)| {
+                                if i > 0 {
+                                    acc.push_str(", ");
+                                }
+                                acc.push_str(&p.to_string_lossy());
+                                acc
+                            });
                     format!(
-                        "Nested AGENTS.md detected - parent AGENTS.md files exist at: {}",
-                        parent_paths.join(", ")
+                        "Nested AGENTS.md detected - parent AGENTS.md files exist at: {parent_paths}",
                     )
                 } else {
-                    let other_paths: Vec<String> = agents_md_paths
+                    let other_paths = agents_md_paths
                         .iter()
                         .filter(|p| p.as_path() != agents_file.as_path())
-                        .map(|p| p.to_string_lossy().into_owned())
-                        .collect();
+                        .enumerate()
+                        .fold(String::new(), |mut acc, (i, p)| {
+                            if i > 0 {
+                                acc.push_str(", ");
+                            }
+                            acc.push_str(&p.to_string_lossy());
+                            acc
+                        });
                     format!(
-                        "Multiple AGENTS.md files detected - other AGENTS.md files exist at: {}",
-                        other_paths.join(", ")
+                        "Multiple AGENTS.md files detected - other AGENTS.md files exist at: {other_paths}",
                     )
                 };
 
@@ -430,16 +441,18 @@ fn run_project_level_checks(
                         file_contents.push((file_path.clone(), content));
                     }
                     Err(e) => {
-                        diagnostics.push(
-                            Diagnostic::error(
-                                file_path.clone(),
-                                0,
-                                0,
-                                "XP-004",
-                                t!("rules.xp_004_read_error", error = e.to_string()),
-                            )
-                            .with_suggestion(t!("rules.xp_004_read_error_suggestion")),
-                        );
+                        if xp004_enabled {
+                            diagnostics.push(
+                                Diagnostic::error(
+                                    file_path.clone(),
+                                    0,
+                                    0,
+                                    "XP-004",
+                                    t!("rules.xp_004_read_error", error = e.to_string()),
+                                )
+                                .with_suggestion(t!("rules.xp_004_read_error_suggestion")),
+                            );
+                        }
                     }
                 }
             }
@@ -1099,5 +1112,169 @@ mod tests {
             xp004_errors[0].suggestion.is_some(),
             "XP-004 read-error diagnostic should include a suggestion"
         );
+    }
+
+    #[test]
+    fn test_agm006_disabled_skips_diagnostics() {
+        let temp = tempfile::TempDir::new().unwrap();
+
+        // Create multiple AGENTS.md files to trigger AGM-006
+        let root_agents = temp.path().join("AGENTS.md");
+        std::fs::write(&root_agents, "# Root agents\n").unwrap();
+        let sub_dir = temp.path().join("subdir");
+        std::fs::create_dir(&sub_dir).unwrap();
+        let nested_agents = sub_dir.join("AGENTS.md");
+        std::fs::write(&nested_agents, "# Nested agents\n").unwrap();
+
+        let agents_md_paths = vec![root_agents, nested_agents];
+
+        // With AGM-006 disabled, expect zero AGM-006 diagnostics
+        let config = LintConfig::builder()
+            .disable_rule("AGM-006")
+            .build_unchecked();
+        let diagnostics =
+            run_project_level_checks(&agents_md_paths, &[], &config, temp.path());
+        let agm006: Vec<_> = diagnostics.iter().filter(|d| d.rule == "AGM-006").collect();
+        assert!(
+            agm006.is_empty(),
+            "Disabling AGM-006 should suppress all AGM-006 diagnostics, got: {agm006:?}"
+        );
+
+        // Sanity check: with default config, AGM-006 diagnostics DO appear
+        let default_config = LintConfig::default();
+        let diagnostics =
+            run_project_level_checks(&agents_md_paths, &[], &default_config, temp.path());
+        let agm006: Vec<_> = diagnostics.iter().filter(|d| d.rule == "AGM-006").collect();
+        assert!(
+            !agm006.is_empty(),
+            "Default config should produce AGM-006 diagnostics for multiple AGENTS.md files"
+        );
+    }
+
+    #[test]
+    fn test_xp004_disabled_no_spurious_read_error() {
+        use crate::DiagnosticLevel;
+
+        let temp = tempfile::TempDir::new().unwrap();
+
+        // Write a real CLAUDE.md so one file is readable
+        let claude_md = temp.path().join("CLAUDE.md");
+        std::fs::write(&claude_md, "# Project\n\nRun cargo test to run tests.\n").unwrap();
+
+        // AGENTS.md deliberately does NOT exist on disk
+        let agents_md = temp.path().join("AGENTS.md");
+
+        let instruction_file_paths = vec![claude_md, agents_md];
+
+        // Disable XP-004 but keep XP-005 enabled
+        let config = LintConfig::builder()
+            .disable_rule("XP-004")
+            .build_unchecked();
+        let diagnostics =
+            run_project_level_checks(&[], &instruction_file_paths, &config, temp.path());
+
+        let xp004: Vec<_> = diagnostics
+            .iter()
+            .filter(|d| d.rule == "XP-004")
+            .collect();
+        assert!(
+            xp004.is_empty(),
+            "Disabling XP-004 should suppress read-error diagnostics, got: {xp004:?}"
+        );
+
+        // Verify no XP-004 errors specifically
+        let xp004_errors: Vec<_> = diagnostics
+            .iter()
+            .filter(|d| d.rule == "XP-004" && d.level == DiagnosticLevel::Error)
+            .collect();
+        assert!(
+            xp004_errors.is_empty(),
+            "XP-004 read-error diagnostic should not appear when XP-004 is disabled"
+        );
+    }
+
+    #[test]
+    fn test_all_xp_rules_disabled_skips_diagnostics() {
+        let temp = tempfile::TempDir::new().unwrap();
+
+        let claude_md = temp.path().join("CLAUDE.md");
+        std::fs::write(&claude_md, "# Project\n\nRun npm test to test.\n").unwrap();
+        let agents_md = temp.path().join("AGENTS.md");
+        std::fs::write(&agents_md, "# Agents\n\nRun yarn test to test.\n").unwrap();
+
+        let instruction_file_paths = vec![claude_md, agents_md];
+
+        let config = LintConfig::builder()
+            .disable_rule("XP-004")
+            .disable_rule("XP-005")
+            .disable_rule("XP-006")
+            .build_unchecked();
+        let diagnostics =
+            run_project_level_checks(&[], &instruction_file_paths, &config, temp.path());
+
+        let xp_diags: Vec<_> = diagnostics
+            .iter()
+            .filter(|d| d.rule.starts_with("XP-"))
+            .collect();
+        assert!(
+            xp_diags.is_empty(),
+            "Disabling all XP rules should produce zero XP diagnostics, got: {xp_diags:?}"
+        );
+    }
+
+    #[test]
+    fn test_ver001_disabled_skips_diagnostics() {
+        let temp = tempfile::TempDir::new().unwrap();
+
+        let config = LintConfig::builder()
+            .disable_rule("VER-001")
+            .build_unchecked();
+        let diagnostics = run_project_level_checks(&[], &[], &config, temp.path());
+
+        let ver001: Vec<_> = diagnostics.iter().filter(|d| d.rule == "VER-001").collect();
+        assert!(
+            ver001.is_empty(),
+            "Disabling VER-001 should suppress VER-001 diagnostics, got: {ver001:?}"
+        );
+
+        // Sanity check: default config with no versions pinned should produce VER-001
+        let default_config = LintConfig::default();
+        let diagnostics = run_project_level_checks(&[], &[], &default_config, temp.path());
+        let ver001: Vec<_> = diagnostics.iter().filter(|d| d.rule == "VER-001").collect();
+        assert!(
+            !ver001.is_empty(),
+            "Default config should produce VER-001 when no versions are pinned"
+        );
+    }
+
+    #[test]
+    fn test_xp004_enabled_still_emits_read_error() {
+        use crate::DiagnosticLevel;
+
+        let temp = tempfile::TempDir::new().unwrap();
+
+        let claude_md = temp.path().join("CLAUDE.md");
+        std::fs::write(&claude_md, "# Project\n\nRun cargo test to run tests.\n").unwrap();
+
+        // AGENTS.md deliberately does NOT exist on disk
+        let agents_md = temp.path().join("AGENTS.md");
+
+        let instruction_file_paths = vec![claude_md, agents_md.clone()];
+
+        // XP-004 enabled (default) - read error should still produce diagnostic
+        let config = LintConfig::default();
+        let diagnostics =
+            run_project_level_checks(&[], &instruction_file_paths, &config, temp.path());
+
+        let xp004_errors: Vec<_> = diagnostics
+            .iter()
+            .filter(|d| d.rule == "XP-004" && d.level == DiagnosticLevel::Error)
+            .collect();
+        assert_eq!(
+            xp004_errors.len(),
+            1,
+            "XP-004 should still emit read-error diagnostic when enabled, got: {xp004_errors:?}"
+        );
+        assert_eq!(xp004_errors[0].file, agents_md);
     }
 }

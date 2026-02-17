@@ -1011,9 +1011,9 @@ pub fn is_instruction_file(path: &Path) -> bool {
 
     // .cursor directory: filename ends with .mdc OR any component is "rules"
     if found_cursor {
-        let has_mdc_ext = file_name
-            .rsplit('.')
-            .next()
+        let has_mdc_ext = Path::new(file_name)
+            .extension()
+            .and_then(|ext| ext.to_str())
             .is_some_and(|ext| ext.eq_ignore_ascii_case("mdc"));
         if has_mdc_ext || found_rules {
             return true;
@@ -1035,7 +1035,10 @@ pub fn is_instruction_file(path: &Path) -> bool {
 
 /// Case-insensitive ASCII substring search without allocating.
 fn ascii_contains_ignore_case(haystack: &str, needle: &str) -> bool {
-    if needle.is_empty() || needle.len() > haystack.len() {
+    if needle.is_empty() {
+        return true;
+    }
+    if needle.len() > haystack.len() {
         return false;
     }
     let haystack = haystack.as_bytes();
@@ -2420,10 +2423,14 @@ Use pnpm install for dependencies.
     fn test_instruction_file_bare_filename_no_path() {
         use std::path::PathBuf;
         // File with no parent path
-        assert!(!is_instruction_file(&PathBuf::from("random.mdc")),
-            "random.mdc without .cursor parent should NOT match");
-        assert!(!is_instruction_file(&PathBuf::from("rules.mdc")),
-            "rules.mdc without .cursor parent should NOT match");
+        assert!(
+            !is_instruction_file(&PathBuf::from("random.mdc")),
+            "random.mdc without .cursor parent should NOT match"
+        );
+        assert!(
+            !is_instruction_file(&PathBuf::from("rules.mdc")),
+            "rules.mdc without .cursor parent should NOT match"
+        );
     }
 
     #[test]

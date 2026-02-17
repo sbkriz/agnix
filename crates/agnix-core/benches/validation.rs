@@ -541,9 +541,15 @@ fn bench_is_instruction_file(c: &mut Criterion) {
         ("rs_file", Path::new("src/main.rs").to_path_buf()),
         ("toml_file", Path::new("Cargo.toml").to_path_buf()),
         ("readme", Path::new("README.md").to_path_buf()),
-        ("nested_rs", Path::new("crates/core/src/lib.rs").to_path_buf()),
+        (
+            "nested_rs",
+            Path::new("crates/core/src/lib.rs").to_path_buf(),
+        ),
         ("json_file", Path::new("package.json").to_path_buf()),
-        ("deep_path", Path::new("a/b/c/d/e/f/g/file.txt").to_path_buf()),
+        (
+            "deep_path",
+            Path::new("a/b/c/d/e/f/g/file.txt").to_path_buf(),
+        ),
         ("gitignore", Path::new(".gitignore").to_path_buf()),
         ("license", Path::new("LICENSE").to_path_buf()),
         // Backup files (early rejection)
@@ -556,12 +562,24 @@ fn bench_is_instruction_file(c: &mut Criterion) {
         ("gemini_md", Path::new("gemini.md").to_path_buf()),
         ("clinerules", Path::new(".clinerules").to_path_buf()),
         // Directory-based matches
-        ("cursor_mdc", Path::new(".cursor/rules/test.mdc").to_path_buf()),
-        ("cursor_deep", Path::new("project/.cursor/rules/deep/file.mdc").to_path_buf()),
-        ("github_copilot", Path::new(".github/copilot-instructions.md").to_path_buf()),
+        (
+            "cursor_mdc",
+            Path::new(".cursor/rules/test.mdc").to_path_buf(),
+        ),
+        (
+            "cursor_deep",
+            Path::new("project/.cursor/rules/deep/file.mdc").to_path_buf(),
+        ),
+        (
+            "github_copilot",
+            Path::new(".github/copilot-instructions.md").to_path_buf(),
+        ),
         ("opencode", Path::new(".opencode/config.md").to_path_buf()),
         // False-positive guard: substring in filename, not a directory
-        ("cursor_substring", Path::new("my.cursor-notes.mdc").to_path_buf()),
+        (
+            "cursor_substring",
+            Path::new("my.cursor-notes.mdc").to_path_buf(),
+        ),
     ];
 
     let mut group = c.benchmark_group("is_instruction_file");

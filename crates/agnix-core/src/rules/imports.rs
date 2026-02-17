@@ -1956,7 +1956,9 @@ mod tests {
             .collect();
 
         for handle in handles {
-            let diagnostics = handle.join().expect("Thread panicked during cycle detection");
+            let diagnostics = handle
+                .join()
+                .expect("Thread panicked during cycle detection");
             assert!(
                 diagnostics.iter().any(|d| d.rule == "CC-MEM-002"),
                 "Each thread should detect CC-MEM-002 in two-file cycle"
@@ -2132,8 +2134,7 @@ mod tests {
 
         assert!(
             diagnostics.iter().any(|d| {
-                (d.rule == "CC-MEM-001" || d.rule == "REF-001")
-                    && d.message.contains("@b.md")
+                (d.rule == "CC-MEM-001" || d.rule == "REF-001") && d.message.contains("@b.md")
             }),
             "Should report missing import for b.md"
         );
@@ -2166,7 +2167,11 @@ mod tests {
             .map(|i| {
                 let cache = cache.clone();
                 let is_claude = i % 2 == 0;
-                let path = if is_claude { claude.clone() } else { skill.clone() };
+                let path = if is_claude {
+                    claude.clone()
+                } else {
+                    skill.clone()
+                };
                 let content = fs::read_to_string(&path).unwrap();
                 let handle = thread::spawn(move || {
                     let mut config = LintConfig::default();

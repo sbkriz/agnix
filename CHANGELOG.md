@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **ValidatorRegistry memory efficiency**: Replaced `String` with `&'static str` for validator names, eliminating per-validator heap allocations during registry construction. Added `disable_validator_owned()` variants for runtime string disabling with duplicate detection to prevent unnecessary memory leaks
 - **Instruction file detection**: Rewrote `is_instruction_file()` to use allocation-free path component iteration and `eq_ignore_ascii_case`, eliminating 2 heap allocations per file during project validation walks
 - **Parallel validation fold**: Eliminated PathBuf clone on error path in parallel fold by moving the owned value into the diagnostic
+- **LSP lock-free config reads**: Replaced `Arc<RwLock<Arc<LintConfig>>>` with `Arc<ArcSwap<LintConfig>>` in LSP backend, eliminating read lock contention on every `did_change`/`did_open`/`did_save` event (#468)
 
 ### Fixed
 - **REF-001**: Corrected metadata to reflect universal applicability across all tools (not claude-code specific), changed source_type to community, and added agentskills.io reference

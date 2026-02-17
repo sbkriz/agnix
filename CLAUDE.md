@@ -153,7 +153,7 @@ CLI args → LintConfig → validate_project()
 
 ### LSP Architecture
 
-- Backend holds `RwLock<Arc<LintConfig>>`, immutable `Arc<ValidatorRegistry>`, document cache
+- Backend holds `Arc<ArcSwap<LintConfig>>` for lock-free config reads, immutable `Arc<ValidatorRegistry>`, document cache
 - Validation runs in `spawn_blocking()` (CPU-bound, sync)
 - Events: `did_open`, `did_change`, `did_save`, `did_close`, `did_change_configuration`, `codeAction`, `hover`
 

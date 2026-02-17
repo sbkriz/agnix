@@ -201,20 +201,30 @@ jobs:
           cat > /tmp/wait-for-crate.sh << 'SCRIPT'
           #!/usr/bin/env bash
           set -euo pipefail
+          if [ $# -ne 2 ]; then
+            echo "Usage: $0 <crate> <version>" >&2
+            exit 1
+          fi
           crate="$1"
           version="$2"
+          # crates.io indexing is typically <60s, allow 5 min (30 x 10s) for high-load scenarios
           max_retries=30
           interval=10
           echo "Waiting for $crate $version to appear on crates.io index..."
           for i in $(seq 1 $max_retries); do
-            if cargo search "$crate" --limit 1 | grep -q "^${crate} = \"${version}\""; then
+            output=$(cargo search "$crate" --limit 1 2>&1) || {
+              echo "Attempt $i/$max_retries: cargo search failed, retrying in ${interval}s..."
+              sleep "$interval"
+              continue
+            }
+            if echo "$output" | grep -qF "$crate = \"$version\""; then
               echo "$crate $version indexed after $((i * interval))s"
               exit 0
             fi
             echo "Attempt $i/$max_retries: $crate $version not yet indexed, retrying in ${interval}s..."
             sleep "$interval"
           done
-          echo "ERROR: $crate $version not indexed after $((max_retries * interval))s"
+          echo "Error: $crate $version not indexed after $((max_retries * interval))s"
           exit 1
           SCRIPT
           chmod +x /tmp/wait-for-crate.sh

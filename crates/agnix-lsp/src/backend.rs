@@ -10,6 +10,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use arc_swap::ArcSwap;
 use tokio::sync::RwLock;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
@@ -43,8 +44,8 @@ use revalidation::{
 pub struct Backend {
     client: Client,
     /// Cached lint configuration reused across validations.
-    /// Wrapped in RwLock to allow loading from .agnix.toml after initialize().
-    config: Arc<RwLock<Arc<agnix_core::LintConfig>>>,
+    /// Wrapped in ArcSwap for lock-free reads; updated atomically from .agnix.toml after initialize().
+    config: Arc<ArcSwap<agnix_core::LintConfig>>,
     /// Workspace root path for boundary validation (security).
     /// Set during initialize() from the client's root_uri.
     workspace_root: Arc<RwLock<Option<PathBuf>>>,
@@ -72,7 +73,7 @@ impl Backend {
     pub fn new(client: Client) -> Self {
         Self {
             client,
-            config: Arc::new(RwLock::new(Arc::new(agnix_core::LintConfig::default()))),
+            config: Arc::new(ArcSwap::from_pointee(agnix_core::LintConfig::default())),
             workspace_root: Arc::new(RwLock::new(None)),
             workspace_root_canonical: Arc::new(RwLock::new(None)),
             documents: Arc::new(RwLock::new(HashMap::new())),
@@ -114,7 +115,7 @@ impl Backend {
     /// Both `LintConfig` and `ValidatorRegistry` are cloned from cached
     /// instances to avoid repeated allocations on each validation.
     async fn validate_file(&self, path: PathBuf) -> Vec<Diagnostic> {
-        let config = Arc::clone(&*self.config.read().await);
+        let config = self.config.load_full();
         let registry = Arc::clone(&self.registry);
         let result = tokio::task::spawn_blocking(move || {
             agnix_core::validate_file_with_registry(&path, &config, &registry)
@@ -183,7 +184,7 @@ impl Backend {
         // developer docs, project specs, etc. Only validate files that are
         // specifically identified as agent configuration files.
         {
-            let config = self.config.read().await;
+            let config = self.config.load();
             let file_type = agnix_core::resolve_file_type(&file_path, &config);
             if file_type.is_generic() {
                 // Publish empty diagnostics to clear any stale results
@@ -218,7 +219,7 @@ impl Backend {
             }
         };
 
-        let config = Arc::clone(&*self.config.read().await);
+        let config = self.config.load_full();
         let registry = Arc::clone(&self.registry);
         let result = tokio::task::spawn_blocking(move || {
             Ok::<_, agnix_core::LintError>(agnix_core::validate_content(
@@ -287,7 +288,7 @@ impl LanguageServer for Backend {
                             }
                             let mut config_with_root = loaded_config;
                             config_with_root.set_root_dir(root_path.clone());
-                            *self.config.write().await = Arc::new(config_with_root);
+                            self.config.store(Arc::new(config_with_root));
                         }
                         Err(e) => {
                             // Log error but continue with default config
@@ -417,7 +418,7 @@ impl LanguageServer for Backend {
             None => return Ok(None),
         };
 
-        let config = self.config.read().await;
+        let config = self.config.load();
         let file_type = uri
             .to_file_path()
             .ok()
@@ -444,7 +445,7 @@ impl LanguageServer for Backend {
             None => return Ok(None),
         };
 
-        let config = self.config.read().await;
+        let config = self.config.load();
         let items = completion_items_for_document(&path, content.as_str(), position, &config);
         if items.is_empty() {
             Ok(None)

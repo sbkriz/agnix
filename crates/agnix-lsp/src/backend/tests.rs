@@ -2475,7 +2475,7 @@ async fn test_agent_config_files_still_validated() {
     let uri = Url::from_file_path(&claude_path).unwrap();
 
     // Verify the file type is NOT generic
-    let config = service.inner().config.read().await;
+    let config = service.inner().config.load();
     let file_type = agnix_core::resolve_file_type(&claude_path, &config);
     assert!(
         !file_type.is_generic(),
@@ -2532,7 +2532,7 @@ disabled_validators = ["XmlValidator"]
         .unwrap();
 
     // Verify the config was loaded with disabled validators
-    let config = service.inner().config.read().await;
+    let config = service.inner().config.load();
     assert!(
         config
             .rules()

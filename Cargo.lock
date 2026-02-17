@@ -63,6 +63,7 @@ version = "0.12.2"
 dependencies = [
  "agnix-core",
  "anyhow",
+ "arc-swap",
  "rust-i18n",
  "serde",
  "serde_json",

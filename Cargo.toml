@@ -53,6 +53,9 @@ glob = "0.3"
 # Parallelism
 rayon = "1.10"
 
+# Lock-free concurrency
+arc-swap = "1"
+
 # CLI
 clap = { version = "4", features = ["derive", "cargo"] }
 colored = "3.1.1"

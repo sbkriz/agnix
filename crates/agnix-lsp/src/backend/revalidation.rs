@@ -118,7 +118,7 @@ impl Backend {
             None => return,
         };
 
-        let config = Arc::clone(&*self.config.read().await);
+        let config = self.config.load_full();
 
         // Capture generation to detect stale runs
         let expected_generation = self
@@ -269,17 +269,17 @@ impl Backend {
         // This prevents older batches from publishing after a newer config update starts.
         let revalidation_generation = self.config_generation.fetch_add(1, Ordering::SeqCst) + 1;
 
-        // Acquire write lock and apply settings
+        // Load current config, apply settings, and atomically swap
         // Clone the existing config, modify it, then replace
         {
-            let mut config_guard = self.config.write().await;
-            let mut new_config = (**config_guard).clone();
+            let current = self.config.load_full();
+            let mut new_config = (*current).clone();
             vscode_config.merge_into_lint_config(&mut new_config);
             // Set root_dir from workspace_root for glob pattern matching
             if let Some(ref root) = *self.workspace_root.read().await {
                 new_config.set_root_dir(root.clone());
             }
-            *config_guard = Arc::new(new_config);
+            self.config.store(Arc::new(new_config));
         }
 
         // Re-validate all open documents with new config

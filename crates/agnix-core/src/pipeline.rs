@@ -1133,8 +1133,7 @@ mod tests {
         let config = LintConfig::builder()
             .disable_rule("AGM-006")
             .build_unchecked();
-        let diagnostics =
-            run_project_level_checks(&agents_md_paths, &[], &config, temp.path());
+        let diagnostics = run_project_level_checks(&agents_md_paths, &[], &config, temp.path());
         let agm006: Vec<_> = diagnostics.iter().filter(|d| d.rule == "AGM-006").collect();
         assert!(
             agm006.is_empty(),
@@ -1172,10 +1171,7 @@ mod tests {
         let diagnostics =
             run_project_level_checks(&[], &instruction_file_paths, &config, temp.path());
 
-        let xp004: Vec<_> = diagnostics
-            .iter()
-            .filter(|d| d.rule == "XP-004")
-            .collect();
+        let xp004: Vec<_> = diagnostics.iter().filter(|d| d.rule == "XP-004").collect();
         assert!(
             xp004.is_empty(),
             "Disabling XP-004 should suppress read-error diagnostics, got: {xp004:?}"

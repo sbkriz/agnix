@@ -4750,8 +4750,10 @@ fn test_validate_file_with_registry_consistent_with_validate_content() {
     let content_diags_enabled = validate_content(&claude_md, &content, &config_empty, &registry);
     let file_rules_enabled: std::collections::HashSet<&str> =
         file_diags_enabled.iter().map(|d| d.rule.as_str()).collect();
-    let content_rules_enabled: std::collections::HashSet<&str> =
-        content_diags_enabled.iter().map(|d| d.rule.as_str()).collect();
+    let content_rules_enabled: std::collections::HashSet<&str> = content_diags_enabled
+        .iter()
+        .map(|d| d.rule.as_str())
+        .collect();
     assert_eq!(
         file_rules_enabled, content_rules_enabled,
         "validate_file_with_registry and validate_content should agree with empty disabled list"
@@ -4778,7 +4780,11 @@ fn test_validate_project_with_registry_respects_disabled_validators() {
     assert!(
         !xml_diags.is_empty(),
         "Expected XML-001 from validate_project_with_registry without disabled_validators, got rules: {:?}",
-        result.diagnostics.iter().map(|d| &d.rule).collect::<Vec<_>>()
+        result
+            .diagnostics
+            .iter()
+            .map(|d| &d.rule)
+            .collect::<Vec<_>>()
     );
 
     // With XmlValidator disabled via config, XML-001 should be filtered at runtime
@@ -4817,8 +4823,10 @@ fn test_disabled_validators_multi_validator_validate_file_with_registry() {
 
     // Disable two validators simultaneously - both should be absent
     let mut config_multi = LintConfig::default();
-    config_multi.rules_mut().disabled_validators =
-        vec!["XmlValidator".to_string(), "FrontmatterValidator".to_string()];
+    config_multi.rules_mut().disabled_validators = vec![
+        "XmlValidator".to_string(),
+        "FrontmatterValidator".to_string(),
+    ];
     let diags_multi = validate_file_with_registry(&claude_md, &config_multi, &registry).unwrap();
     assert!(
         !diags_multi.iter().any(|d| d.rule == "XML-001"),

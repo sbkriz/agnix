@@ -45,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Disabled-validator fast path**: Added `named_validators()` to `ValidatorProvider` trait (default impl wraps `validators()` with `None` names). Providers that override it with `Some(name)` allow `ValidatorRegistryBuilder` to skip the factory call entirely for disabled validators, avoiding the allocation. Built-in validators use the fast path automatically (#461)
 
 ### Fixed
+- **`validate_file_with_registry` disabled-validator gap**: `config.rules().disabled_validators` was silently ignored in the `validate_file_with_type` path (used by `validate_file_with_registry` and `validate_project_with_registry`). Validators now respect `disabled_validators` at runtime in all code paths, consistent with `validate_content()` (#469)
 - **REF-001**: Corrected metadata to reflect universal applicability across all tools (not claude-code specific), changed source_type to community, and added agentskills.io reference
 - **CC-HK-001**: Added `TeammateIdle` and `TaskCompleted` as valid hook event names
 - **CC-AG-004**: Added `delegate` as a valid permission mode for Claude Code agents

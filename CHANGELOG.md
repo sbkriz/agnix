@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CI crate graph parity test**: New workspace-level test validates that all `Cargo.toml` workspace members are documented in CLAUDE.md, AGENTS.md, README.md, SPEC.md, and CONTRIBUTING.md - prevents architecture-doc drift
 - **`resolve_validation_root` file-input tests**: 7 integration tests covering single-file validation mode - validates file-input path behavior, unknown file type handling, project-level rule scoping, and nonexistent file edge case (#450)
 - **`ImportsValidator` concurrency and multi-file cycle tests**: 11 new tests covering thread-safety under concurrent validation, multi-file import cycles (3- and 4-file chains), depth boundary conditions at and below `MAX_IMPORT_DEPTH` (complementing existing above-boundary coverage), diamond dependency graphs, and mixed valid/invalid import scenarios (#456)
+- **UTF-8 boundary `_checked` Fix constructors**: Added 6 new `Fix` constructor variants (`replace_checked`, `replace_with_confidence_checked`, `insert_checked`, `insert_with_confidence_checked`, `delete_checked`, `delete_with_confidence_checked`) that accept `content: &str` and validate UTF-8 char boundary alignment via `debug_assert!` in debug builds - no-ops in release builds (#463)
 
 ### Changed
 - **Docs**: Updated architecture references in README.md, SPEC.md, CLAUDE.md, and AGENTS.md to explicitly include the `agnix-wasm` workspace crate
@@ -45,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Disabled-validator fast path**: Added `named_validators()` to `ValidatorProvider` trait (default impl wraps `validators()` with `None` names). Providers that override it with `Some(name)` allow `ValidatorRegistryBuilder` to skip the factory call entirely for disabled validators, avoiding the allocation. Built-in validators use the fast path automatically (#461)
 
 ### Fixed
+- **`Fix` constructor range assertions**: Added `debug_assert!(start <= end)` to `Fix::replace`, `Fix::replace_with_confidence`, `Fix::delete`, and `Fix::delete_with_confidence` to catch inverted byte ranges in debug builds (#463)
 - **`validate_file_with_registry` disabled-validator gap**: `config.rules().disabled_validators` was silently ignored in the `validate_file_with_type` path (used by `validate_file_with_registry` and `validate_project_with_registry`). Validators now respect `disabled_validators` at runtime in all code paths, consistent with `validate_content()` (#469)
 - **REF-001**: Corrected metadata to reflect universal applicability across all tools (not claude-code specific), changed source_type to community, and added agentskills.io reference
 - **CC-HK-001**: Added `TeammateIdle` and `TaskCompleted` as valid hook event names

@@ -1183,7 +1183,7 @@ mod tests {
         assert!(DiagnosticLevel::Error < DiagnosticLevel::Info);
     }
 
-    // ===== Fix debug_assert! reversed-range tests =====
+    // Fix debug_assert! reversed-range tests
 
     #[cfg(debug_assertions)]
     mod fix_debug_assert_tests {
@@ -1224,7 +1224,7 @@ mod tests {
         }
     }
 
-    // ===== Fix _checked constructor tests =====
+    // Fix _checked constructor tests
 
     mod fix_checked_tests {
         use super::*;
@@ -1264,6 +1264,21 @@ mod tests {
         #[test]
         fn test_fix_delete_checked_valid() {
             let fix = Fix::delete_checked(CONTENT_2BYTE, 0, 3, "ok", true);
+            assert_eq!(fix.start_byte, 0);
+            assert_eq!(fix.end_byte, 3);
+        }
+
+        #[test]
+        fn test_fix_insert_with_confidence_checked_valid() {
+            // byte 3 is start of e-acute, a valid char boundary
+            let fix = Fix::insert_with_confidence_checked(CONTENT_2BYTE, 3, "x", "ok", 0.9);
+            assert_eq!(fix.start_byte, 3);
+            assert_eq!(fix.end_byte, 3);
+        }
+
+        #[test]
+        fn test_fix_delete_with_confidence_checked_valid() {
+            let fix = Fix::delete_with_confidence_checked(CONTENT_2BYTE, 0, 3, "ok", 0.9);
             assert_eq!(fix.start_byte, 0);
             assert_eq!(fix.end_byte, 3);
         }
@@ -1340,6 +1355,36 @@ mod tests {
                     Fix::delete_with_confidence_checked(CONTENT_2BYTE, 3, 4, "bad", 0.9)
                 })
                 .is_err());
+            }
+
+            #[test]
+            fn test_fix_replace_with_confidence_checked_mid_codepoint_end_panics() {
+                // end byte 4 is inside the 2-byte e-acute (bytes 3-4)
+                assert!(panic::catch_unwind(||
+                    Fix::replace_with_confidence_checked(CONTENT_2BYTE, 0, 4, "x", "bad", 0.9)
+                ).is_err());
+            }
+
+            #[test]
+            fn test_fix_insert_with_confidence_checked_out_of_bounds_panics() {
+                assert!(panic::catch_unwind(||
+                    Fix::insert_with_confidence_checked(CONTENT_2BYTE, CONTENT_2BYTE.len() + 1, "x", "bad", 0.9)
+                ).is_err());
+            }
+
+            #[test]
+            fn test_fix_replace_checked_reversed_range_panics() {
+                // The _checked variants also contain their own start <= end assertion
+                assert!(panic::catch_unwind(||
+                    Fix::replace_checked(CONTENT_2BYTE, 5, 3, "x", "bad", true)
+                ).is_err());
+            }
+
+            #[test]
+            fn test_fix_delete_checked_reversed_range_panics() {
+                assert!(panic::catch_unwind(||
+                    Fix::delete_checked(CONTENT_2BYTE, 5, 3, "bad", true)
+                ).is_err());
             }
 
             #[test]

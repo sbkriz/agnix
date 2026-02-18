@@ -4741,6 +4741,133 @@ fn test_validate_file_with_registry_consistent_with_validate_content() {
         !content_rules.contains("XML-001"),
         "XML-001 should be filtered out by disabled_validators in validate_content"
     );
+
+    // Also verify both paths agree when disabled_validators is empty
+    let config_empty = LintConfig::default();
+    let file_diags_enabled =
+        validate_file_with_registry(&claude_md, &config_empty, &registry).unwrap();
+    let content = std::fs::read_to_string(&claude_md).unwrap();
+    let content_diags_enabled = validate_content(&claude_md, &content, &config_empty, &registry);
+    let file_rules_enabled: std::collections::HashSet<&str> =
+        file_diags_enabled.iter().map(|d| d.rule.as_str()).collect();
+    let content_rules_enabled: std::collections::HashSet<&str> =
+        content_diags_enabled.iter().map(|d| d.rule.as_str()).collect();
+    assert_eq!(
+        file_rules_enabled, content_rules_enabled,
+        "validate_file_with_registry and validate_content should agree with empty disabled list"
+    );
+}
+
+#[test]
+fn test_validate_project_with_registry_respects_disabled_validators() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let claude_md = temp_dir.path().join("CLAUDE.md");
+    std::fs::write(&claude_md, "# Project\n\n<example>some content here\n").unwrap();
+
+    // Shared registry without pre-applied disables (mirrors the LSP shared-registry pattern)
+    let registry = ValidatorRegistry::with_defaults();
+
+    // Without disabling, XmlValidator should fire
+    let config = LintConfig::default();
+    let result = validate_project_with_registry(temp_dir.path(), &config, &registry).unwrap();
+    let xml_diags: Vec<_> = result
+        .diagnostics
+        .iter()
+        .filter(|d| d.rule == "XML-001")
+        .collect();
+    assert!(
+        !xml_diags.is_empty(),
+        "Expected XML-001 from validate_project_with_registry without disabled_validators, got rules: {:?}",
+        result.diagnostics.iter().map(|d| &d.rule).collect::<Vec<_>>()
+    );
+
+    // With XmlValidator disabled via config, XML-001 should be filtered at runtime
+    let mut config_disabled = LintConfig::default();
+    config_disabled.rules_mut().disabled_validators = vec!["XmlValidator".to_string()];
+    let result_disabled =
+        validate_project_with_registry(temp_dir.path(), &config_disabled, &registry).unwrap();
+    let xml_diags_disabled: Vec<_> = result_disabled
+        .diagnostics
+        .iter()
+        .filter(|d| d.rule == "XML-001")
+        .collect();
+    assert!(
+        xml_diags_disabled.is_empty(),
+        "Expected no XML-001 from validate_project_with_registry with XmlValidator disabled, got: {:?}",
+        xml_diags_disabled
+    );
+}
+
+#[test]
+fn test_disabled_validators_multi_validator_validate_file_with_registry() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let claude_md = temp_dir.path().join("CLAUDE.md");
+    // Unclosed XML tag triggers XmlValidator (XML-001); missing description triggers other validators
+    std::fs::write(&claude_md, "<example>some content here\n").unwrap();
+
+    let registry = ValidatorRegistry::with_defaults();
+
+    // Confirm XML-001 fires with default config
+    let config = LintConfig::default();
+    let diags = validate_file_with_registry(&claude_md, &config, &registry).unwrap();
+    assert!(
+        diags.iter().any(|d| d.rule == "XML-001"),
+        "Expected XML-001 to fire with default config"
+    );
+
+    // Disable two validators simultaneously - both should be absent
+    let mut config_multi = LintConfig::default();
+    config_multi.rules_mut().disabled_validators =
+        vec!["XmlValidator".to_string(), "FrontmatterValidator".to_string()];
+    let diags_multi = validate_file_with_registry(&claude_md, &config_multi, &registry).unwrap();
+    assert!(
+        !diags_multi.iter().any(|d| d.rule == "XML-001"),
+        "Expected XML-001 absent when XmlValidator is in disabled_validators"
+    );
+    let fm_diags: Vec<_> = diags_multi
+        .iter()
+        .filter(|d| d.rule.starts_with("FM-"))
+        .collect();
+    assert!(
+        fm_diags.is_empty(),
+        "Expected no FM-* diagnostics when FrontmatterValidator is disabled, got: {:?}",
+        fm_diags
+    );
+}
+
+#[test]
+fn test_validate_file_with_registry_no_state_leakage_between_configs() {
+    // Verify a shared registry produces correct results when called with alternating
+    // configs (one disabling XmlValidator, one not), i.e. no state leakage between calls.
+    let temp_dir = tempfile::tempdir().unwrap();
+    let claude_md = temp_dir.path().join("CLAUDE.md");
+    std::fs::write(&claude_md, "# Project\n\n<example>some content here\n").unwrap();
+
+    let registry = ValidatorRegistry::with_defaults();
+    let config_enabled = LintConfig::default();
+    let mut config_disabled = LintConfig::default();
+    config_disabled.rules_mut().disabled_validators = vec!["XmlValidator".to_string()];
+
+    // Call 1: enabled - XML-001 should fire
+    let diags1 = validate_file_with_registry(&claude_md, &config_enabled, &registry).unwrap();
+    assert!(
+        diags1.iter().any(|d| d.rule == "XML-001"),
+        "Call 1 (enabled): expected XML-001"
+    );
+
+    // Call 2: disabled - XML-001 should be absent
+    let diags2 = validate_file_with_registry(&claude_md, &config_disabled, &registry).unwrap();
+    assert!(
+        !diags2.iter().any(|d| d.rule == "XML-001"),
+        "Call 2 (disabled): expected no XML-001"
+    );
+
+    // Call 3: enabled again - XML-001 must return (no state leakage from call 2)
+    let diags3 = validate_file_with_registry(&claude_md, &config_enabled, &registry).unwrap();
+    assert!(
+        diags3.iter().any(|d| d.rule == "XML-001"),
+        "Call 3 (re-enabled): expected XML-001 to return after disabled call"
+    );
 }
 
 // ============================================================================

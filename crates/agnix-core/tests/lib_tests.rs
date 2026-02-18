@@ -4808,38 +4808,50 @@ fn test_validate_project_with_registry_respects_disabled_validators() {
 fn test_disabled_validators_multi_validator_validate_file_with_registry() {
     let temp_dir = tempfile::tempdir().unwrap();
     let claude_md = temp_dir.path().join("CLAUDE.md");
-    // Unclosed XML tag triggers XmlValidator (XML-001); missing description triggers other validators
-    std::fs::write(&claude_md, "<example>some content here\n").unwrap();
+    // Unclosed XML tag triggers XmlValidator (XML-001).
+    // "Never use var" (negative-only instruction) triggers ClaudeMdValidator (CC-MEM-006).
+    std::fs::write(
+        &claude_md,
+        "Never use var in JavaScript.\n\n<example>some content here\n",
+    )
+    .unwrap();
 
     let registry = ValidatorRegistry::with_defaults();
 
-    // Confirm XML-001 fires with default config
+    // Confirm both rules fire with default config before disabling anything
     let config = LintConfig::default();
     let diags = validate_file_with_registry(&claude_md, &config, &registry).unwrap();
     assert!(
         diags.iter().any(|d| d.rule == "XML-001"),
-        "Expected XML-001 to fire with default config"
+        "Expected XML-001 to fire with default config, got rules: {:?}",
+        diags.iter().map(|d| &d.rule).collect::<Vec<_>>()
+    );
+    assert!(
+        diags.iter().any(|d| d.rule == "CC-MEM-006"),
+        "Expected CC-MEM-006 to fire with default config, got rules: {:?}",
+        diags.iter().map(|d| &d.rule).collect::<Vec<_>>()
     );
 
-    // Disable two validators simultaneously - both should be absent
+    // Disable both validators simultaneously - both rule sets should be absent
     let mut config_multi = LintConfig::default();
-    config_multi.rules_mut().disabled_validators = vec![
-        "XmlValidator".to_string(),
-        "FrontmatterValidator".to_string(),
-    ];
+    config_multi.rules_mut().disabled_validators =
+        vec!["XmlValidator".to_string(), "ClaudeMdValidator".to_string()];
     let diags_multi = validate_file_with_registry(&claude_md, &config_multi, &registry).unwrap();
     assert!(
         !diags_multi.iter().any(|d| d.rule == "XML-001"),
-        "Expected XML-001 absent when XmlValidator is in disabled_validators"
+        "Expected XML-001 absent when XmlValidator is disabled, got: {:?}",
+        diags_multi
+            .iter()
+            .filter(|d| d.rule == "XML-001")
+            .collect::<Vec<_>>()
     );
-    let fm_diags: Vec<_> = diags_multi
-        .iter()
-        .filter(|d| d.rule.starts_with("FM-"))
-        .collect();
     assert!(
-        fm_diags.is_empty(),
-        "Expected no FM-* diagnostics when FrontmatterValidator is disabled, got: {:?}",
-        fm_diags
+        !diags_multi.iter().any(|d| d.rule == "CC-MEM-006"),
+        "Expected CC-MEM-006 absent when ClaudeMdValidator is disabled, got: {:?}",
+        diags_multi
+            .iter()
+            .filter(|d| d.rule == "CC-MEM-006")
+            .collect::<Vec<_>>()
     );
 }
 

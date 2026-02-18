@@ -56,6 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **MCP-008**: Updated default MCP protocol version from `2025-06-18` to `2025-11-25` to align with the latest specification
 - **CC-HK-003**: Downgraded from Error to Info level - matcher field is optional for tool events, not required; omitting it matches all tools (best practice hint, not an error)
 - **SARIF artifact URIs**: Now uses git repository root as base path instead of current working directory, ensuring correct IDE file navigation for SARIF output. Falls back to CWD when scan path is not inside a git repository (#488)
+- **CI**: Moved `VSCE_PAT` from CLI argument to environment variable in VS Code extension publish step, preventing secret exposure in process list (#464)
 
 ## [0.11.1] - 2026-02-11
 

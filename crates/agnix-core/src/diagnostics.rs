@@ -184,7 +184,7 @@ impl Fix {
     /// Create a replacement fix, asserting UTF-8 char boundary alignment in debug builds.
     ///
     /// Validates that both `start` and `end` land on UTF-8 char boundaries in `content`.
-    /// This is a no-op in release builds. Use [`Self::replace`] when `content` is not available.
+    /// These checks are no-ops in release builds; the function otherwise behaves identically to its unchecked counterpart. Use [`Self::replace`] when `content` is not available.
     pub fn replace_checked(
         content: &str,
         start: usize,
@@ -220,7 +220,7 @@ impl Fix {
     /// alignment in debug builds.
     ///
     /// Validates that both `start` and `end` land on UTF-8 char boundaries in `content`.
-    /// This is a no-op in release builds. Use [`Self::replace_with_confidence`] when
+    /// These checks are no-ops in release builds; the function otherwise behaves identically to its unchecked counterpart. Use [`Self::replace_with_confidence`] when
     /// `content` is not available.
     pub fn replace_with_confidence_checked(
         content: &str,
@@ -256,7 +256,7 @@ impl Fix {
     /// Create an insertion fix, asserting UTF-8 char boundary alignment in debug builds.
     ///
     /// Validates that `position` lands on a UTF-8 char boundary in `content`.
-    /// This is a no-op in release builds. Use [`Self::insert`] when `content` is not available.
+    /// These checks are no-ops in release builds; the function otherwise behaves identically to its unchecked counterpart. Use [`Self::insert`] when `content` is not available.
     pub fn insert_checked(
         content: &str,
         position: usize,
@@ -279,7 +279,7 @@ impl Fix {
     /// alignment in debug builds.
     ///
     /// Validates that `position` lands on a UTF-8 char boundary in `content`.
-    /// This is a no-op in release builds. Use [`Self::insert_with_confidence`] when
+    /// These checks are no-ops in release builds; the function otherwise behaves identically to its unchecked counterpart. Use [`Self::insert_with_confidence`] when
     /// `content` is not available.
     pub fn insert_with_confidence_checked(
         content: &str,
@@ -302,7 +302,7 @@ impl Fix {
     /// Create a deletion fix, asserting UTF-8 char boundary alignment in debug builds.
     ///
     /// Validates that both `start` and `end` land on UTF-8 char boundaries in `content`.
-    /// This is a no-op in release builds. Use [`Self::delete`] when `content` is not available.
+    /// These checks are no-ops in release builds; the function otherwise behaves identically to its unchecked counterpart. Use [`Self::delete`] when `content` is not available.
     pub fn delete_checked(
         content: &str,
         start: usize,
@@ -337,7 +337,7 @@ impl Fix {
     /// alignment in debug builds.
     ///
     /// Validates that both `start` and `end` land on UTF-8 char boundaries in `content`.
-    /// This is a no-op in release builds. Use [`Self::delete_with_confidence`] when
+    /// These checks are no-ops in release builds; the function otherwise behaves identically to its unchecked counterpart. Use [`Self::delete_with_confidence`] when
     /// `content` is not available.
     pub fn delete_with_confidence_checked(
         content: &str,
@@ -1419,6 +1419,22 @@ mod tests {
             }
 
             #[test]
+            fn test_fix_delete_checked_mid_codepoint_start_panics() {
+                // start=4 is the continuation byte of the 2-byte e-acute; only end was covered before
+                assert!(panic::catch_unwind(||
+                    Fix::delete_checked(CONTENT_2BYTE, 4, 5, "bad", true)
+                ).is_err());
+            }
+
+            #[test]
+            fn test_fix_delete_with_confidence_checked_mid_codepoint_start_panics() {
+                // start=4 is the continuation byte of the 2-byte e-acute
+                assert!(panic::catch_unwind(||
+                    Fix::delete_with_confidence_checked(CONTENT_2BYTE, 4, 5, "bad", 0.9)
+                ).is_err());
+            }
+
+            #[test]
             fn test_fix_replace_with_confidence_checked_mid_codepoint_end_panics() {
                 // end byte 4 is inside the 2-byte e-acute (bytes 3-4)
                 assert!(panic::catch_unwind(||
@@ -1483,6 +1499,20 @@ mod tests {
                     Fix::replace_checked(CONTENT_4BYTE, 1, 3, "x", "bad", true)
                 })
                 .is_err());
+            }
+
+            #[test]
+            fn test_fix_replace_checked_end_out_of_bounds_panics() {
+                assert!(panic::catch_unwind(||
+                    Fix::replace_checked(CONTENT_2BYTE, 0, CONTENT_2BYTE.len() + 1, "x", "bad", true)
+                ).is_err());
+            }
+
+            #[test]
+            fn test_fix_delete_checked_end_out_of_bounds_panics() {
+                assert!(panic::catch_unwind(||
+                    Fix::delete_checked(CONTENT_2BYTE, 0, CONTENT_2BYTE.len() + 1, "bad", true)
+                ).is_err());
             }
         }
     }

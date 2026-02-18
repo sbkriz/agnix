@@ -59,6 +59,10 @@ impl Fix {
         description: impl Into<String>,
         safe: bool,
     ) -> Self {
+        debug_assert!(
+            start <= end,
+            "Fix::replace: start_byte ({start}) must be <= end_byte ({end})"
+        );
         let confidence = if safe { 1.0 } else { LEGACY_UNSAFE_CONFIDENCE };
         Self {
             start_byte: start,
@@ -80,6 +84,10 @@ impl Fix {
         description: impl Into<String>,
         confidence: f32,
     ) -> Self {
+        debug_assert!(
+            start <= end,
+            "Fix::replace_with_confidence: start_byte ({start}) must be <= end_byte ({end})"
+        );
         Self {
             start_byte: start,
             end_byte: end,
@@ -133,6 +141,10 @@ impl Fix {
 
     /// Create a deletion fix (replacement is empty)
     pub fn delete(start: usize, end: usize, description: impl Into<String>, safe: bool) -> Self {
+        debug_assert!(
+            start <= end,
+            "Fix::delete: start_byte ({start}) must be <= end_byte ({end})"
+        );
         let confidence = if safe { 1.0 } else { LEGACY_UNSAFE_CONFIDENCE };
         Self {
             start_byte: start,
@@ -153,6 +165,10 @@ impl Fix {
         description: impl Into<String>,
         confidence: f32,
     ) -> Self {
+        debug_assert!(
+            start <= end,
+            "Fix::delete_with_confidence: start_byte ({start}) must be <= end_byte ({end})"
+        );
         Self {
             start_byte: start,
             end_byte: end,
@@ -163,6 +179,154 @@ impl Fix {
             group: None,
             depends_on: None,
         }
+    }
+
+    /// Creates a replacement fix, asserting UTF-8 char boundary alignment in debug builds.
+    ///
+    /// Validates that both `start` and `end` land on UTF-8 char boundaries in `content`.
+    /// This is a no-op in release builds. Use [`Self::replace`] when `content` is not available.
+    pub fn replace_checked(
+        content: &str,
+        start: usize,
+        end: usize,
+        replacement: impl Into<String>,
+        description: impl Into<String>,
+        safe: bool,
+    ) -> Self {
+        debug_assert!(
+            start <= end,
+            "Fix::replace_checked: start_byte ({start}) must be <= end_byte ({end})"
+        );
+        debug_assert!(
+            start <= content.len() && content.is_char_boundary(start),
+            "Fix::replace_checked: start_byte ({start}) is not on a UTF-8 char boundary"
+        );
+        debug_assert!(
+            end <= content.len() && content.is_char_boundary(end),
+            "Fix::replace_checked: end_byte ({end}) is not on a UTF-8 char boundary"
+        );
+        Self::replace(start, end, replacement, description, safe)
+    }
+
+    /// Creates a replacement fix with explicit confidence, asserting UTF-8 char boundary
+    /// alignment in debug builds.
+    ///
+    /// Validates that both `start` and `end` land on UTF-8 char boundaries in `content`.
+    /// This is a no-op in release builds. Use [`Self::replace_with_confidence`] when
+    /// `content` is not available.
+    pub fn replace_with_confidence_checked(
+        content: &str,
+        start: usize,
+        end: usize,
+        replacement: impl Into<String>,
+        description: impl Into<String>,
+        confidence: f32,
+    ) -> Self {
+        debug_assert!(
+            start <= end,
+            "Fix::replace_with_confidence_checked: start_byte ({start}) must be <= end_byte ({end})"
+        );
+        debug_assert!(
+            start <= content.len() && content.is_char_boundary(start),
+            "Fix::replace_with_confidence_checked: start_byte ({start}) is not on a UTF-8 char boundary"
+        );
+        debug_assert!(
+            end <= content.len() && content.is_char_boundary(end),
+            "Fix::replace_with_confidence_checked: end_byte ({end}) is not on a UTF-8 char boundary"
+        );
+        Self::replace_with_confidence(start, end, replacement, description, confidence)
+    }
+
+    /// Creates an insertion fix, asserting UTF-8 char boundary alignment in debug builds.
+    ///
+    /// Validates that `position` lands on a UTF-8 char boundary in `content`.
+    /// This is a no-op in release builds. Use [`Self::insert`] when `content` is not available.
+    pub fn insert_checked(
+        content: &str,
+        position: usize,
+        text: impl Into<String>,
+        description: impl Into<String>,
+        safe: bool,
+    ) -> Self {
+        debug_assert!(
+            position <= content.len() && content.is_char_boundary(position),
+            "Fix::insert_checked: position ({position}) is not on a UTF-8 char boundary"
+        );
+        Self::insert(position, text, description, safe)
+    }
+
+    /// Creates an insertion fix with explicit confidence, asserting UTF-8 char boundary
+    /// alignment in debug builds.
+    ///
+    /// Validates that `position` lands on a UTF-8 char boundary in `content`.
+    /// This is a no-op in release builds. Use [`Self::insert_with_confidence`] when
+    /// `content` is not available.
+    pub fn insert_with_confidence_checked(
+        content: &str,
+        position: usize,
+        text: impl Into<String>,
+        description: impl Into<String>,
+        confidence: f32,
+    ) -> Self {
+        debug_assert!(
+            position <= content.len() && content.is_char_boundary(position),
+            "Fix::insert_with_confidence_checked: position ({position}) is not on a UTF-8 char boundary"
+        );
+        Self::insert_with_confidence(position, text, description, confidence)
+    }
+
+    /// Creates a deletion fix, asserting UTF-8 char boundary alignment in debug builds.
+    ///
+    /// Validates that both `start` and `end` land on UTF-8 char boundaries in `content`.
+    /// This is a no-op in release builds. Use [`Self::delete`] when `content` is not available.
+    pub fn delete_checked(
+        content: &str,
+        start: usize,
+        end: usize,
+        description: impl Into<String>,
+        safe: bool,
+    ) -> Self {
+        debug_assert!(
+            start <= end,
+            "Fix::delete_checked: start_byte ({start}) must be <= end_byte ({end})"
+        );
+        debug_assert!(
+            start <= content.len() && content.is_char_boundary(start),
+            "Fix::delete_checked: start_byte ({start}) is not on a UTF-8 char boundary"
+        );
+        debug_assert!(
+            end <= content.len() && content.is_char_boundary(end),
+            "Fix::delete_checked: end_byte ({end}) is not on a UTF-8 char boundary"
+        );
+        Self::delete(start, end, description, safe)
+    }
+
+    /// Creates a deletion fix with explicit confidence, asserting UTF-8 char boundary
+    /// alignment in debug builds.
+    ///
+    /// Validates that both `start` and `end` land on UTF-8 char boundaries in `content`.
+    /// This is a no-op in release builds. Use [`Self::delete_with_confidence`] when
+    /// `content` is not available.
+    pub fn delete_with_confidence_checked(
+        content: &str,
+        start: usize,
+        end: usize,
+        description: impl Into<String>,
+        confidence: f32,
+    ) -> Self {
+        debug_assert!(
+            start <= end,
+            "Fix::delete_with_confidence_checked: start_byte ({start}) must be <= end_byte ({end})"
+        );
+        debug_assert!(
+            start <= content.len() && content.is_char_boundary(start),
+            "Fix::delete_with_confidence_checked: start_byte ({start}) is not on a UTF-8 char boundary"
+        );
+        debug_assert!(
+            end <= content.len() && content.is_char_boundary(end),
+            "Fix::delete_with_confidence_checked: end_byte ({end}) is not on a UTF-8 char boundary"
+        );
+        Self::delete_with_confidence(start, end, description, confidence)
     }
 
     /// Override confidence for this fix and sync legacy `safe`.
@@ -1017,5 +1181,189 @@ mod tests {
         assert!(DiagnosticLevel::Error < DiagnosticLevel::Warning);
         assert!(DiagnosticLevel::Warning < DiagnosticLevel::Info);
         assert!(DiagnosticLevel::Error < DiagnosticLevel::Info);
+    }
+
+    // ===== Fix debug_assert! reversed-range tests =====
+
+    #[cfg(debug_assertions)]
+    mod fix_debug_assert_tests {
+        use super::*;
+        use std::panic;
+
+        #[test]
+        fn test_fix_replace_reversed_range_panics() {
+            assert!(panic::catch_unwind(|| Fix::replace(10, 5, "x", "bad", true)).is_err());
+        }
+
+        #[test]
+        fn test_fix_replace_with_confidence_reversed_range_panics() {
+            assert!(
+                panic::catch_unwind(|| Fix::replace_with_confidence(10, 5, "x", "bad", 0.9))
+                    .is_err()
+            );
+        }
+
+        #[test]
+        fn test_fix_delete_reversed_range_panics() {
+            assert!(panic::catch_unwind(|| Fix::delete(20, 10, "bad", true)).is_err());
+        }
+
+        #[test]
+        fn test_fix_delete_with_confidence_reversed_range_panics() {
+            assert!(
+                panic::catch_unwind(|| Fix::delete_with_confidence(20, 10, "bad", 0.9)).is_err()
+            );
+        }
+
+        #[test]
+        fn test_fix_replace_equal_start_end_ok() {
+            // start == end is a valid zero-width replacement
+            let fix = Fix::replace(5, 5, "x", "ok", true);
+            assert_eq!(fix.start_byte, 5);
+            assert_eq!(fix.end_byte, 5);
+        }
+    }
+
+    // ===== Fix _checked constructor tests =====
+
+    mod fix_checked_tests {
+        use super::*;
+
+        // "hel\u{00e9}lo" = 7 bytes: h(0) e(1) l(2) e-acute(3,4) l(5) o(6)
+        // Byte 4 is mid-codepoint (inside the 2-byte e-acute)
+        const CONTENT_2BYTE: &str = "hel\u{00e9}lo";
+
+        #[test]
+        fn test_fix_replace_checked_valid_boundaries() {
+            let fix = Fix::replace_checked(CONTENT_2BYTE, 0, 5, "x", "ok", true);
+            assert_eq!(fix.start_byte, 0);
+            assert_eq!(fix.end_byte, 5);
+        }
+
+        #[test]
+        fn test_fix_insert_checked_valid_boundary() {
+            // byte 3 is start of e-acute, which is a valid char boundary
+            let fix = Fix::insert_checked(CONTENT_2BYTE, 3, "x", "ok", true);
+            assert_eq!(fix.start_byte, 3);
+        }
+
+        #[test]
+        fn test_fix_checked_at_content_end() {
+            let fix = Fix::insert_checked(CONTENT_2BYTE, CONTENT_2BYTE.len(), "x", "ok", true);
+            assert_eq!(fix.start_byte, CONTENT_2BYTE.len());
+        }
+
+        #[test]
+        fn test_fix_replace_with_confidence_checked_valid() {
+            let fix =
+                Fix::replace_with_confidence_checked(CONTENT_2BYTE, 0, 3, "x", "ok", 0.9);
+            assert_eq!(fix.start_byte, 0);
+            assert_eq!(fix.end_byte, 3);
+        }
+
+        #[test]
+        fn test_fix_delete_checked_valid() {
+            let fix = Fix::delete_checked(CONTENT_2BYTE, 0, 3, "ok", true);
+            assert_eq!(fix.start_byte, 0);
+            assert_eq!(fix.end_byte, 3);
+        }
+
+        // 4-byte emoji: "a\u{1f600}b" = 6 bytes: a(0) grinning-face(1,2,3,4) b(5)
+        // Valid range: 1..5 covers whole emoji. Invalid: 1..3 (mid-emoji).
+        const CONTENT_4BYTE: &str = "a\u{1f600}b";
+
+        #[test]
+        fn test_fix_replace_checked_four_byte_valid() {
+            // 1..5 covers the full emoji - valid char boundaries
+            let fix = Fix::replace_checked(CONTENT_4BYTE, 1, 5, "x", "ok", true);
+            assert_eq!(fix.start_byte, 1);
+            assert_eq!(fix.end_byte, 5);
+        }
+
+        #[cfg(debug_assertions)]
+        mod fix_checked_panic_tests {
+            use super::*;
+            use std::panic;
+
+            #[test]
+            fn test_fix_replace_checked_mid_codepoint_start_panics() {
+                // byte 4 is inside the 2-byte e-acute (bytes 3-4)
+                assert!(panic::catch_unwind(|| {
+                    Fix::replace_checked(CONTENT_2BYTE, 4, 5, "x", "bad", true)
+                })
+                .is_err());
+            }
+
+            #[test]
+            fn test_fix_replace_checked_mid_codepoint_end_panics() {
+                assert!(panic::catch_unwind(|| {
+                    Fix::replace_checked(CONTENT_2BYTE, 0, 4, "x", "bad", true)
+                })
+                .is_err());
+            }
+
+            #[test]
+            fn test_fix_insert_checked_mid_codepoint_panics() {
+                assert!(panic::catch_unwind(|| {
+                    Fix::insert_checked(CONTENT_2BYTE, 4, "x", "bad", true)
+                })
+                .is_err());
+            }
+
+            #[test]
+            fn test_fix_delete_checked_mid_codepoint_panics() {
+                assert!(panic::catch_unwind(|| {
+                    Fix::delete_checked(CONTENT_2BYTE, 3, 4, "bad", true)
+                })
+                .is_err());
+            }
+
+            #[test]
+            fn test_fix_replace_with_confidence_checked_mid_codepoint_panics() {
+                assert!(panic::catch_unwind(|| {
+                    Fix::replace_with_confidence_checked(CONTENT_2BYTE, 4, 5, "x", "bad", 0.9)
+                })
+                .is_err());
+            }
+
+            #[test]
+            fn test_fix_insert_with_confidence_checked_mid_codepoint_panics() {
+                assert!(panic::catch_unwind(|| {
+                    Fix::insert_with_confidence_checked(CONTENT_2BYTE, 4, "x", "bad", 0.9)
+                })
+                .is_err());
+            }
+
+            #[test]
+            fn test_fix_delete_with_confidence_checked_mid_codepoint_panics() {
+                assert!(panic::catch_unwind(|| {
+                    Fix::delete_with_confidence_checked(CONTENT_2BYTE, 3, 4, "bad", 0.9)
+                })
+                .is_err());
+            }
+
+            #[test]
+            fn test_fix_checked_out_of_bounds_panics() {
+                assert!(panic::catch_unwind(|| {
+                    Fix::insert_checked(
+                        CONTENT_2BYTE,
+                        CONTENT_2BYTE.len() + 1,
+                        "x",
+                        "bad",
+                        true,
+                    )
+                })
+                .is_err());
+            }
+
+            #[test]
+            fn test_fix_replace_checked_four_byte_mid_emoji_panics() {
+                // bytes 1..3 are in the middle of the 4-byte emoji
+                assert!(panic::catch_unwind(|| {
+                    Fix::replace_checked(CONTENT_4BYTE, 1, 3, "x", "bad", true)
+                })
+                .is_err());
+            }
+        }
     }
 }

@@ -59,7 +59,8 @@ pub trait ValidatorProvider: Send + Sync {
     /// `register_named()` checks the static name against the disabled set, so a
     /// mismatch causes the wrong validator to be excluded or allows a disabled
     /// validator to slip through undetected. In debug builds, a
-    /// `debug_assert_eq!` inside `register_named()` catches this early.
+    /// `#[cfg(debug_assertions)]` check inside `register_named()` catches this
+    /// early with zero overhead in release builds.
     ///
     /// # Default implementation
     ///
@@ -168,8 +169,11 @@ impl ValidatorRegistry {
     /// avoiding the allocation entirely. This is the fast path used by
     /// `register_defaults()` for built-in validators.
     ///
-    /// In debug builds, a `debug_assert_eq!` verifies that `name` matches
-    /// `factory().name()`. A mismatch means the static name passed to
+    /// In debug builds, a `#[cfg(debug_assertions)]` block verifies that `name`
+    /// matches `factory().name()`. The check is compiled out entirely in release
+    /// builds, so calling `instance.name()` - a vtable dispatch on
+    /// `Box<dyn Validator>` - incurs zero overhead in production. A mismatch
+    /// means the static name passed to
     /// [`named_validators()`](ValidatorProvider::named_validators) is wrong,
     /// which silently breaks the disabled-validator mechanism.
     fn register_named(&mut self, file_type: FileType, name: &str, factory: ValidatorFactory) {
@@ -177,14 +181,17 @@ impl ValidatorRegistry {
             return;
         }
         let instance = factory();
-        let runtime_name = instance.name();
-        debug_assert_eq!(
-            name, runtime_name,
-            "ValidatorProvider name/factory mismatch: static name \"{name}\" \
-             does not match factory().name() \"{runtime_name}\". The static name \
-             passed to named_validators() must equal the value returned by \
-             Validator::name().",
-        );
+        #[cfg(debug_assertions)]
+        {
+            let runtime_name = instance.name();
+            assert_eq!(
+                name, runtime_name,
+                "ValidatorProvider name/factory mismatch: static name \"{name}\" \
+                 does not match factory().name() \"{runtime_name}\". The static name \
+                 passed to named_validators() must equal the value returned by \
+                 Validator::name().",
+            );
+        }
         self.validators.entry(file_type).or_default().push(instance);
     }
 

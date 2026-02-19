@@ -171,11 +171,24 @@ impl ValidatorRegistry {
     /// If `name` appears in the disabled set, the factory is never called,
     /// avoiding the allocation entirely. This is the fast path used by
     /// `register_defaults()` for built-in validators.
+    ///
+    /// In debug builds, a `debug_assert_eq!` verifies that `name` matches
+    /// `factory().name()`. A mismatch means the static name passed to
+    /// [`named_validators()`](ValidatorProvider::named_validators) is wrong,
+    /// which silently breaks the disabled-validator mechanism.
     fn register_named(&mut self, file_type: FileType, name: &str, factory: ValidatorFactory) {
         if self.disabled_validators.contains(name) {
             return;
         }
         let instance = factory();
+        debug_assert_eq!(
+            name,
+            instance.name(),
+            "ValidatorProvider name/factory mismatch: static name \"{name}\" \
+             does not match factory().name() \"{}\". The static name passed to \
+             named_validators() must equal the value returned by Validator::name().",
+            instance.name(),
+        );
         self.validators.entry(file_type).or_default().push(instance);
     }
 

@@ -56,22 +56,19 @@ pub trait ValidatorProvider: Send + Sync {
     ///
     /// Each `Some(name)` **must** equal the value returned by `factory().name()`.
     /// Violating this silently breaks the disabled-validator mechanism:
-    /// [`register_named()`](ValidatorRegistry::register_named) checks the
-    /// static name against the disabled set, so a mismatch causes the wrong
-    /// validator to be excluded or allows a disabled validator to slip through
-    /// undetected. In debug builds, a `debug_assert_eq!` inside
-    /// `register_named()` catches this early.
+    /// `register_named()` checks the static name against the disabled set, so a
+    /// mismatch causes the wrong validator to be excluded or allows a disabled
+    /// validator to slip through undetected. In debug builds, a
+    /// `debug_assert_eq!` inside `register_named()` catches this early.
     ///
     /// # Default implementation
     ///
     /// The default implementation delegates to
     /// [`validators()`](ValidatorProvider::validators) and maps each entry
     /// into a `(FileType, None, factory)` tuple, incurring an extra allocation
-    /// compared to a direct override. Providers with many entries can override
-    /// this method directly to avoid the overhead.
-    ///
-    /// Providers that know their validator names at compile time should
-    /// override this method and return `Some(name)` for each entry.
+    /// compared to a direct override. Providers that know their validator names
+    /// at compile time should override this method and return `Some(name)` for
+    /// each entry to avoid the overhead.
     fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
         self.validators()
             .into_iter()
@@ -1402,7 +1399,7 @@ mod tests {
             _content: &str,
             _config: &crate::config::LintConfig,
         ) -> Vec<crate::diagnostics::Diagnostic> {
-            Vec::new()
+            vec![]
         }
 
         fn name(&self) -> &'static str {
@@ -1499,7 +1496,11 @@ mod tests {
                 vec![(FileType::Skill, mismatched_validator_factory)]
             }
             fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
-                vec![(FileType::Skill, Some("WrongName"), mismatched_validator_factory)]
+                vec![(
+                    FileType::Skill,
+                    Some("WrongName"),
+                    mismatched_validator_factory,
+                )]
             }
         }
 
@@ -1512,10 +1513,16 @@ mod tests {
         // against the disabled set (which contains "ActualName"), found no
         // match, called the factory, and registered the validator - even though
         // the user intended to disable it.
+        let slipped_through = registry.validators_for(FileType::Skill);
         assert_eq!(
-            registry.validators_for(FileType::Skill).len(),
+            slipped_through.len(),
             1,
             "Mismatched static name caused validator to slip through despite disable request"
+        );
+        assert_eq!(
+            slipped_through[0].name(),
+            "ActualName",
+            "The registered validator must be the mismatched one"
         );
     }
 }

@@ -47,12 +47,29 @@ pub trait ValidatorProvider: Send + Sync {
 
     /// Return validator factories with optional static names.
     ///
+    /// This is a **performance optimization hook**, not a rename mechanism.
     /// When a name is `Some(name)`, the registry can skip calling `factory()`
-    /// for disabled validators. The default implementation wraps
-    /// [`validators()`](ValidatorProvider::validators) with `None` names.
+    /// entirely for disabled validators, avoiding the heap allocation that
+    /// would otherwise be needed just to read the validator's name.
     ///
-    /// Providers that know their validator names at compile time should
-    /// override this method and return `Some(name)` for each entry.
+    /// # Name invariant
+    ///
+    /// Each `Some(name)` **must** equal the value returned by `factory().name()`.
+    /// Violating this silently breaks the disabled-validator mechanism:
+    /// `register_named()` checks the static name against the disabled set, so a
+    /// mismatch causes the wrong validator to be excluded or allows a disabled
+    /// validator to slip through undetected. In debug builds, a
+    /// `#[cfg(debug_assertions)]` check inside `register_named()` catches this
+    /// early with zero overhead in release builds.
+    ///
+    /// # Default implementation
+    ///
+    /// The default implementation delegates to
+    /// [`validators()`](ValidatorProvider::validators) and maps each entry
+    /// into a `(FileType, None, factory)` tuple, incurring an extra allocation
+    /// compared to a direct override. Providers that know their validator names
+    /// at compile time should override this method and return `Some(name)` for
+    /// each entry to avoid the overhead.
     fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
         self.validators()
             .into_iter()
@@ -151,11 +168,30 @@ impl ValidatorRegistry {
     /// If `name` appears in the disabled set, the factory is never called,
     /// avoiding the allocation entirely. This is the fast path used by
     /// `register_defaults()` for built-in validators.
+    ///
+    /// In debug builds, a `#[cfg(debug_assertions)]` block verifies that `name`
+    /// matches `factory().name()`. The check is compiled out entirely in release
+    /// builds, so calling `instance.name()` - a vtable dispatch on
+    /// `Box<dyn Validator>` - incurs zero overhead in production. A mismatch
+    /// means the static name passed to
+    /// [`named_validators()`](ValidatorProvider::named_validators) is wrong,
+    /// which silently breaks the disabled-validator mechanism.
     fn register_named(&mut self, file_type: FileType, name: &str, factory: ValidatorFactory) {
         if self.disabled_validators.contains(name) {
             return;
         }
         let instance = factory();
+        #[cfg(debug_assertions)]
+        {
+            let runtime_name = instance.name();
+            assert_eq!(
+                name, runtime_name,
+                "ValidatorProvider name/factory mismatch: static name \"{name}\" \
+                 does not match factory().name() \"{runtime_name}\". The static name \
+                 passed to named_validators() must equal the value returned by \
+                 Validator::name().",
+            );
+        }
         self.validators.entry(file_type).or_default().push(instance);
     }
 
@@ -1353,6 +1389,146 @@ mod tests {
         assert!(
             name.is_none(),
             "Default named_validators() should yield None names"
+        );
+    }
+
+    // ---- Name/factory mismatch tests ----
+
+    // Validator whose name() returns "ActualName", used to demonstrate the
+    // mismatch when a provider declares the static name as "WrongName".
+    struct MismatchedValidator;
+
+    impl Validator for MismatchedValidator {
+        fn validate(
+            &self,
+            _path: &std::path::Path,
+            _content: &str,
+            _config: &crate::config::LintConfig,
+        ) -> Vec<crate::diagnostics::Diagnostic> {
+            vec![]
+        }
+
+        fn name(&self) -> &'static str {
+            "ActualName"
+        }
+    }
+
+    fn mismatched_validator_factory() -> Box<dyn Validator> {
+        Box::new(MismatchedValidator)
+    }
+
+    #[cfg(debug_assertions)]
+    #[test]
+    #[should_panic(expected = "name/factory mismatch")]
+    fn mismatched_named_validator_panics_in_debug() {
+        // Provider declares the static name as "WrongName" but the factory
+        // produces a validator with name() = "ActualName". The debug_assert_eq!
+        // inside register_named() must catch this and panic.
+        struct MismatchedProvider;
+        impl ValidatorProvider for MismatchedProvider {
+            fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
+                // Required by the trait; not exercised by this test path.
+                vec![(FileType::Skill, mismatched_validator_factory)]
+            }
+            fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
+                vec![(
+                    FileType::Skill,
+                    Some("WrongName"),
+                    mismatched_validator_factory,
+                )]
+            }
+        }
+
+        // Building the registry triggers register_named() which hits the
+        // debug_assert_eq! because "WrongName" != "ActualName".
+        let _registry = ValidatorRegistry::builder()
+            .with_provider(&MismatchedProvider)
+            .build();
+    }
+
+    // Not cfg(debug_assertions)-gated: the factory-skip path (early return
+    // when the static name is in the disabled set) is taken before the
+    // debug_assert_eq! can fire, so this test holds in both debug and release.
+    #[test]
+    fn mismatched_named_validator_silently_skips_when_disabled() {
+        // Same mismatch as above, but "WrongName" is in the disabled set.
+        // Because register_named() checks the static name against the disabled
+        // set before calling factory(), the factory is never called, so the
+        // debug_assert never fires. However, the validator with the actual
+        // name "ActualName" is also NOT registered - demonstrating the
+        // silent-skip failure mode that the invariant documentation warns about.
+        struct MismatchedProvider;
+        impl ValidatorProvider for MismatchedProvider {
+            fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
+                vec![(FileType::Skill, mismatched_validator_factory)]
+            }
+            fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
+                vec![(
+                    FileType::Skill,
+                    Some("WrongName"),
+                    mismatched_validator_factory,
+                )]
+            }
+        }
+
+        let registry = ValidatorRegistry::builder()
+            .with_provider(&MismatchedProvider)
+            .without_validator("WrongName")
+            .build();
+
+        // The factory was never called because "WrongName" matched the
+        // disabled set. No validators are registered at all.
+        assert!(
+            registry.validators_for(FileType::Skill).is_empty(),
+            "Mismatched static name caused silent skip - no validators registered"
+        );
+    }
+
+    // This test only runs in release mode: in debug builds the debug_assert_eq!
+    // inside register_named() would panic when the factory is called (because
+    // "WrongName" is not in the disabled set), masking the slip-through behavior.
+    #[cfg(not(debug_assertions))]
+    #[test]
+    fn mismatched_named_validator_slip_through_when_real_name_disabled() {
+        // The dangerous half of the failure mode: the user tries to disable
+        // "ActualName" (the real validator name), but the provider declared the
+        // static name as "WrongName". register_named() checks "WrongName"
+        // against the disabled set - no match - so the factory is called and
+        // the validator is registered despite the disable request.
+        struct MismatchedProvider;
+        impl ValidatorProvider for MismatchedProvider {
+            fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
+                // Required by the trait; not exercised by this test path.
+                vec![(FileType::Skill, mismatched_validator_factory)]
+            }
+            fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
+                vec![(
+                    FileType::Skill,
+                    Some("WrongName"),
+                    mismatched_validator_factory,
+                )]
+            }
+        }
+
+        let registry = ValidatorRegistry::builder()
+            .with_provider(&MismatchedProvider)
+            .without_validator("ActualName") // The real name - disable attempt
+            .build();
+
+        // The validator slipped through: register_named() checked "WrongName"
+        // against the disabled set (which contains "ActualName"), found no
+        // match, called the factory, and registered the validator - even though
+        // the user intended to disable it.
+        let slipped_through = registry.validators_for(FileType::Skill);
+        assert_eq!(
+            slipped_through.len(),
+            1,
+            "Mismatched static name caused validator to slip through despite disable request"
+        );
+        assert_eq!(
+            slipped_through[0].name(),
+            "ActualName",
+            "The registered validator must be the mismatched one"
         );
     }
 }

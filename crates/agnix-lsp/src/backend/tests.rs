@@ -2659,10 +2659,10 @@ async fn test_stress_concurrent_document_open_close() {
                 .path()
                 .join(format!("skill-{i}"))
                 .join("SKILL.md");
+            // Read content before spawning to avoid blocking I/O on a tokio worker thread.
+            let content = std::fs::read_to_string(&path).unwrap();
+            let uri = Url::from_file_path(&path).unwrap();
             handles.push(tokio::spawn(async move {
-                let uri = Url::from_file_path(&path).unwrap();
-                let content = std::fs::read_to_string(&path).unwrap();
-
                 backend
                     .did_open(DidOpenTextDocumentParams {
                         text_document: TextDocumentItem {
@@ -2673,7 +2673,9 @@ async fn test_stress_concurrent_document_open_close() {
                         },
                     })
                     .await;
-
+                // did_close removes the document from the cache synchronously
+                // before spawning any background I/O, so the post-join emptiness
+                // assertion below is safe without a drain step.
                 backend
                     .did_close(DidCloseTextDocumentParams {
                         text_document: TextDocumentIdentifier { uri },
@@ -2757,9 +2759,12 @@ async fn test_stress_rapid_config_changes_drop_stale_batches() {
     // return false (stale detected).
     let task_b = tokio::spawn(async move {
         let mut stale_count = 0u32;
-        for stale_gen in 0..change_count {
+        // Each iteration probes a different generation value (0, 1, 2...).
+        // Once Task A has advanced the counter past probe_gen, the check returns
+        // false (stale). When probe_gen matches the current counter it returns true.
+        for probe_gen in 0..change_count {
             if !backend_b
-                .should_publish_diagnostics(&uri_b, Some(stale_gen), None)
+                .should_publish_diagnostics(&uri_b, Some(probe_gen), None)
                 .await
             {
                 stale_count += 1;
@@ -2956,15 +2961,16 @@ async fn test_stress_config_change_during_active_validation() {
 
     assert!(result.is_ok(), "concurrent config change timed out");
 
-    // Task A increments config_generation by 1 (fetch_add(1) + 1),
-    // Task B adds 9999 - order is non-deterministic but final value >= 9999
+    // Task A does fetch_add(1) (config_generation 0→1) and Task B does
+    // fetch_add(9_999). Both tasks always run to completion before the assertion,
+    // so the total is always 0 + 1 + 9_999 = 10_000 regardless of ordering.
     let generation = service
         .inner()
         .config_generation
         .load(Ordering::SeqCst);
-    assert!(
-        generation >= 9_999,
-        "config_generation should be >= 9999, got {}",
+    assert_eq!(
+        generation, 10_000,
+        "config_generation should be 10000 (1 from config change + 9999 from bump), got {}",
         generation
     );
 
@@ -3013,24 +3019,11 @@ async fn test_stress_concurrent_project_and_file_validation() {
         .await
         .unwrap();
 
-    // Open all 7 files
-    for name in ["AGENTS.md"] {
-        let path = temp_dir.path().join(name);
-        let uri = Url::from_file_path(&path).unwrap();
-        service
-            .inner()
-            .did_open(DidOpenTextDocumentParams {
-                text_document: TextDocumentItem {
-                    uri,
-                    language_id: "markdown".to_string(),
-                    version: 1,
-                    text: std::fs::read_to_string(&path).unwrap(),
-                },
-            })
-            .await;
-    }
-    {
-        let path = sub.join("AGENTS.md");
+    // Open all 7 files: 2 AGENTS.md + 5 SKILL.md
+    for path in [
+        temp_dir.path().join("AGENTS.md"),
+        sub.join("AGENTS.md"),
+    ] {
         let uri = Url::from_file_path(&path).unwrap();
         service
             .inner()

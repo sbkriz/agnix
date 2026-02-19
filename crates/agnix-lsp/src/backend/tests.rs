@@ -2656,7 +2656,8 @@ async fn test_stress_concurrent_document_open_close() {
         for i in 0..doc_count {
             let backend = backend.clone();
             let path = temp_dir.path().join(format!("skill-{i}")).join("SKILL.md");
-            // Read content before spawning to avoid blocking I/O on a tokio worker thread.
+            // Read content before spawning: avoids running 20 concurrent blocking
+            // std::fs reads inside spawned tasks (one per task in a hot loop).
             let content = std::fs::read_to_string(&path).unwrap();
             let uri = Url::from_file_path(&path).unwrap();
             handles.push(tokio::spawn(async move {
@@ -3351,15 +3352,25 @@ async fn test_stress_rapid_project_validation_generation_guard() {
         .await
         .unwrap();
 
-    // Wait for the initial background project validation to complete
-    for _ in 0..80 {
-        let proj_diags = service.inner().project_level_diagnostics.read().await;
-        if !proj_diags.is_empty() {
-            break;
+    // Wait for the initial background project validation to complete before
+    // spawning concurrent runs. Assert the wait succeeded so a stalled
+    // background task causes an explicit failure rather than a silent race.
+    let init_sync = tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        loop {
+            {
+                let proj_diags = service.inner().project_level_diagnostics.read().await;
+                if !proj_diags.is_empty() {
+                    break;
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
         }
-        drop(proj_diags);
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    }
+    })
+    .await;
+    assert!(
+        init_sync.is_ok(),
+        "initialize() background project validation did not complete within 10s"
+    );
 
     // Open both AGENTS.md files
     for path in [temp_dir.path().join("AGENTS.md"), sub.join("AGENTS.md")] {

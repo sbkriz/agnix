@@ -2614,3 +2614,768 @@ async fn test_project_validation_starts_in_initialize() {
          producing AGM-006 diagnostics for duplicate AGENTS.md files"
     );
 }
+
+// ===== Concurrent Revalidation Stress Tests =====
+
+/// Stress test: 20 concurrent document open/close cycles must not panic
+/// or leave stale entries in the document cache.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn test_stress_concurrent_document_open_close() {
+    let (service, _socket) = LspService::new(Backend::new);
+
+    let temp_dir = tempfile::tempdir().unwrap();
+    let root_uri = Url::from_file_path(temp_dir.path()).unwrap();
+    service
+        .inner()
+        .initialize(InitializeParams {
+            root_uri: Some(root_uri),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+    let doc_count = 20usize;
+
+    // Create 20 subdirectories, each with a valid SKILL.md
+    for i in 0..doc_count {
+        let dir = temp_dir.path().join(format!("skill-{i}"));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("SKILL.md"),
+            format!(
+                "---\nname: stress-skill-{i}\nversion: 1.0.0\nmodel: sonnet\n---\n\n# Stress Skill {i}\n"
+            ),
+        )
+        .unwrap();
+    }
+
+    let backend = service.inner().clone();
+
+    let result = tokio::time::timeout(std::time::Duration::from_secs(30), async {
+        let mut handles = Vec::new();
+        for i in 0..doc_count {
+            let backend = backend.clone();
+            let path = temp_dir
+                .path()
+                .join(format!("skill-{i}"))
+                .join("SKILL.md");
+            handles.push(tokio::spawn(async move {
+                let uri = Url::from_file_path(&path).unwrap();
+                let content = std::fs::read_to_string(&path).unwrap();
+
+                backend
+                    .did_open(DidOpenTextDocumentParams {
+                        text_document: TextDocumentItem {
+                            uri: uri.clone(),
+                            language_id: "markdown".to_string(),
+                            version: 1,
+                            text: content,
+                        },
+                    })
+                    .await;
+
+                backend
+                    .did_close(DidCloseTextDocumentParams {
+                        text_document: TextDocumentIdentifier { uri },
+                    })
+                    .await;
+            }));
+        }
+
+        for handle in handles {
+            handle.await.expect("task should not panic");
+        }
+    })
+    .await;
+
+    assert!(result.is_ok(), "concurrent open/close timed out");
+
+    // After all close operations, the document cache should be empty
+    let docs = service.inner().documents.read().await;
+    assert!(
+        docs.is_empty(),
+        "documents cache should be empty after all close operations, found {} entries",
+        docs.len()
+    );
+}
+
+/// Stress test: rapid sequential config changes must not panic and the
+/// generation counter must reflect all applied changes. Each config change
+/// triggers bounded revalidation of all open documents, exercising the
+/// stale-batch generation guard under pressure.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn test_stress_rapid_config_changes_drop_stale_batches() {
+    let (service, socket) = LspService::new(Backend::new);
+    // Drop the socket receiver immediately so the internal channel never
+    // fills up and blocks the sender (publish_diagnostics / log_message).
+    drop(socket);
+
+    let temp_dir = tempfile::tempdir().unwrap();
+    let root_uri = Url::from_file_path(temp_dir.path()).unwrap();
+    service
+        .inner()
+        .initialize(InitializeParams {
+            root_uri: Some(root_uri),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+    let config_change_count = 10u64;
+
+    // Open 3 SKILL.md documents via the normal path
+    for i in 0..3 {
+        let dir = temp_dir.path().join(format!("skill-{i}"));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("SKILL.md");
+        std::fs::write(
+            &path,
+            format!(
+                "---\nname: config-skill-{i}\nversion: 1.0.0\nmodel: sonnet\n---\n\n# Config Skill {i}\n"
+            ),
+        )
+        .unwrap();
+
+        let uri = Url::from_file_path(&path).unwrap();
+        service
+            .inner()
+            .did_open(DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri,
+                    language_id: "markdown".to_string(),
+                    version: 1,
+                    text: std::fs::read_to_string(&path).unwrap(),
+                },
+            })
+            .await;
+    }
+
+    // Fire config changes sequentially. Each call triggers revalidation
+    // of all cached documents via for_each_bounded.
+    let result = tokio::time::timeout(std::time::Duration::from_secs(60), async {
+        for _ in 0..config_change_count {
+            service
+                .inner()
+                .did_change_configuration(DidChangeConfigurationParams {
+                    settings: serde_json::json!({ "severity": "Error" }),
+                })
+                .await;
+        }
+    })
+    .await;
+
+    assert!(result.is_ok(), "rapid config changes timed out");
+
+    let generation = service
+        .inner()
+        .config_generation
+        .load(Ordering::SeqCst);
+    assert_eq!(
+        generation, config_change_count,
+        "config_generation should be {} after {} config changes, got {}",
+        config_change_count, config_change_count, generation
+    );
+
+    let open_docs = service.inner().documents.read().await.len();
+    assert_eq!(
+        open_docs, 3,
+        "all 3 documents should still be in cache, found {}",
+        open_docs
+    );
+}
+
+/// Stress test: 30 concurrent did_change calls on the same document must
+/// not corrupt the cache or panic.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn test_stress_concurrent_changes_same_document() {
+    let (service, _socket) = LspService::new(Backend::new);
+
+    let temp_dir = tempfile::tempdir().unwrap();
+    let root_uri = Url::from_file_path(temp_dir.path()).unwrap();
+    service
+        .inner()
+        .initialize(InitializeParams {
+            root_uri: Some(root_uri),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+    let skill_path = temp_dir.path().join("SKILL.md");
+    std::fs::write(
+        &skill_path,
+        "---\nname: concurrent-skill\nversion: 1.0.0\nmodel: sonnet\n---\n\n# Concurrent\n",
+    )
+    .unwrap();
+
+    let uri = Url::from_file_path(&skill_path).unwrap();
+
+    // Open the document first
+    service
+        .inner()
+        .did_open(DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: uri.clone(),
+                language_id: "markdown".to_string(),
+                version: 1,
+                text: std::fs::read_to_string(&skill_path).unwrap(),
+            },
+        })
+        .await;
+
+    let backend = service.inner().clone();
+    let change_count = 30usize;
+
+    let result = tokio::time::timeout(std::time::Duration::from_secs(30), async {
+        let mut handles = Vec::new();
+        for i in 0..change_count {
+            let backend = backend.clone();
+            let uri = uri.clone();
+            handles.push(tokio::spawn(async move {
+                backend
+                    .did_change(DidChangeTextDocumentParams {
+                        text_document: VersionedTextDocumentIdentifier {
+                            uri,
+                            version: (i + 2) as i32,
+                        },
+                        content_changes: vec![TextDocumentContentChangeEvent {
+                            range: None,
+                            range_length: None,
+                            text: format!(
+                                "---\nname: v{i}\nversion: 1.0.0\nmodel: sonnet\n---\n\n# Version {i}\n"
+                            ),
+                        }],
+                    })
+                    .await;
+            }));
+        }
+
+        for handle in handles {
+            handle.await.expect("task should not panic");
+        }
+    })
+    .await;
+
+    assert!(result.is_ok(), "concurrent changes timed out");
+
+    let docs = service.inner().documents.read().await;
+    assert_eq!(
+        docs.len(),
+        1,
+        "exactly 1 entry should be in cache for the document, found {}",
+        docs.len()
+    );
+    assert!(
+        docs.contains_key(&uri),
+        "the URI should still be present in the cache"
+    );
+}
+
+/// Stress test: concurrent config change and generation bump must not
+/// corrupt atomic state or panic.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn test_stress_config_change_during_active_validation() {
+    let (service, _socket) = LspService::new(Backend::new);
+
+    let temp_dir = tempfile::tempdir().unwrap();
+    let root_uri = Url::from_file_path(temp_dir.path()).unwrap();
+    service
+        .inner()
+        .initialize(InitializeParams {
+            root_uri: Some(root_uri),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+    // Open 5 SKILL.md documents
+    for i in 0..5 {
+        let dir = temp_dir.path().join(format!("skill-{i}"));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("SKILL.md");
+        std::fs::write(
+            &path,
+            format!(
+                "---\nname: active-skill-{i}\nversion: 1.0.0\nmodel: sonnet\n---\n\n# Active Skill {i}\n"
+            ),
+        )
+        .unwrap();
+
+        let uri = Url::from_file_path(&path).unwrap();
+        service
+            .inner()
+            .did_open(DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri,
+                    language_id: "markdown".to_string(),
+                    version: 1,
+                    text: std::fs::read_to_string(&path).unwrap(),
+                },
+            })
+            .await;
+    }
+
+    let backend_a = service.inner().clone();
+    let backend_b = service.inner().clone();
+
+    let result = tokio::time::timeout(std::time::Duration::from_secs(30), async {
+        // Task A: fire a config change (which increments config_generation and revalidates)
+        let task_a = tokio::spawn(async move {
+            backend_a
+                .did_change_configuration(DidChangeConfigurationParams {
+                    settings: serde_json::json!({ "severity": "Warning" }),
+                })
+                .await;
+        });
+
+        // Task B: concurrently bump config_generation to a high value
+        let task_b = tokio::spawn(async move {
+            backend_b
+                .config_generation
+                .fetch_add(9_999, Ordering::SeqCst);
+        });
+
+        task_a.await.expect("config change task should not panic");
+        task_b.await.expect("generation bump task should not panic");
+    })
+    .await;
+
+    assert!(result.is_ok(), "concurrent config change timed out");
+
+    // Task A increments config_generation by 1 (fetch_add(1) + 1),
+    // Task B adds 9999 - order is non-deterministic but final value >= 9999
+    let generation = service
+        .inner()
+        .config_generation
+        .load(Ordering::SeqCst);
+    assert!(
+        generation >= 9_999,
+        "config_generation should be >= 9999, got {}",
+        generation
+    );
+
+    let open_docs = service.inner().documents.read().await.len();
+    assert_eq!(
+        open_docs, 5,
+        "all 5 documents should still be in cache, found {}",
+        open_docs
+    );
+}
+
+/// Stress test: concurrent project validation and per-file validation
+/// must not interfere with each other.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn test_stress_concurrent_project_and_file_validation() {
+    let (service, _socket) = LspService::new(Backend::new);
+
+    let temp_dir = tempfile::tempdir().unwrap();
+    let root_uri = Url::from_file_path(temp_dir.path()).unwrap();
+
+    // Create 2 AGENTS.md files to trigger AGM-006
+    std::fs::write(temp_dir.path().join("AGENTS.md"), "# Root AGENTS").unwrap();
+    let sub = temp_dir.path().join("sub");
+    std::fs::create_dir(&sub).unwrap();
+    std::fs::write(sub.join("AGENTS.md"), "# Sub AGENTS").unwrap();
+
+    // Create 5 SKILL.md files
+    for i in 0..5 {
+        let dir = temp_dir.path().join(format!("skill-{i}"));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("SKILL.md"),
+            format!(
+                "---\nname: project-skill-{i}\nversion: 1.0.0\nmodel: sonnet\n---\n\n# Project Skill {i}\n"
+            ),
+        )
+        .unwrap();
+    }
+
+    service
+        .inner()
+        .initialize(InitializeParams {
+            root_uri: Some(root_uri),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+    // Open all 7 files
+    for name in ["AGENTS.md"] {
+        let path = temp_dir.path().join(name);
+        let uri = Url::from_file_path(&path).unwrap();
+        service
+            .inner()
+            .did_open(DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri,
+                    language_id: "markdown".to_string(),
+                    version: 1,
+                    text: std::fs::read_to_string(&path).unwrap(),
+                },
+            })
+            .await;
+    }
+    {
+        let path = sub.join("AGENTS.md");
+        let uri = Url::from_file_path(&path).unwrap();
+        service
+            .inner()
+            .did_open(DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri,
+                    language_id: "markdown".to_string(),
+                    version: 1,
+                    text: std::fs::read_to_string(&path).unwrap(),
+                },
+            })
+            .await;
+    }
+    for i in 0..5 {
+        let path = temp_dir
+            .path()
+            .join(format!("skill-{i}"))
+            .join("SKILL.md");
+        let uri = Url::from_file_path(&path).unwrap();
+        service
+            .inner()
+            .did_open(DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri,
+                    language_id: "markdown".to_string(),
+                    version: 1,
+                    text: std::fs::read_to_string(&path).unwrap(),
+                },
+            })
+            .await;
+    }
+
+    let backend_project = service.inner().clone();
+
+    let result = tokio::time::timeout(std::time::Duration::from_secs(30), async {
+        let mut handles = Vec::new();
+
+        // 1 task: project-level validation
+        handles.push(tokio::spawn(async move {
+            backend_project.validate_project_rules_and_publish().await;
+        }));
+
+        // 5 tasks: concurrent did_change on SKILL files
+        for i in 0..5 {
+            let backend = service.inner().clone();
+            let path = temp_dir
+                .path()
+                .join(format!("skill-{i}"))
+                .join("SKILL.md");
+            let uri = Url::from_file_path(&path).unwrap();
+            handles.push(tokio::spawn(async move {
+                backend
+                    .did_change(DidChangeTextDocumentParams {
+                        text_document: VersionedTextDocumentIdentifier {
+                            uri,
+                            version: 2,
+                        },
+                        content_changes: vec![TextDocumentContentChangeEvent {
+                            range: None,
+                            range_length: None,
+                            text: format!(
+                                "---\nname: updated-skill-{i}\nversion: 1.0.0\nmodel: sonnet\n---\n\n# Updated {i}\n"
+                            ),
+                        }],
+                    })
+                    .await;
+            }));
+        }
+
+        for handle in handles {
+            handle.await.expect("task should not panic");
+        }
+    })
+    .await;
+
+    assert!(result.is_ok(), "concurrent project and file validation timed out");
+
+    // Wait for background project validation to populate diagnostics
+    let mut found_project_diags = false;
+    for _ in 0..80 {
+        let proj_diags = service.inner().project_level_diagnostics.read().await;
+        if !proj_diags.is_empty() {
+            found_project_diags = true;
+            break;
+        }
+        drop(proj_diags);
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    assert!(
+        found_project_diags,
+        "project_level_diagnostics should be non-empty (AGM-006 from duplicate AGENTS.md)"
+    );
+
+    // All 7 documents should still be in cache
+    let open_docs = service.inner().documents.read().await.len();
+    assert_eq!(
+        open_docs, 7,
+        "all 7 documents should still be in cache, found {}",
+        open_docs
+    );
+}
+
+/// Stress test: revalidation of many open documents after a single config
+/// change must complete without panic.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn test_stress_high_document_count_revalidation() {
+    let (service, _socket) = LspService::new(Backend::new);
+
+    let temp_dir = tempfile::tempdir().unwrap();
+    let root_uri = Url::from_file_path(temp_dir.path()).unwrap();
+    service
+        .inner()
+        .initialize(InitializeParams {
+            root_uri: Some(root_uri),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+    let doc_count = 20usize;
+
+    // Open 20 SKILL.md documents
+    for i in 0..doc_count {
+        let dir = temp_dir.path().join(format!("skill-{i}"));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("SKILL.md");
+        std::fs::write(
+            &path,
+            format!(
+                "---\nname: high-count-skill-{i}\nversion: 1.0.0\nmodel: sonnet\n---\n\n# High Count {i}\n"
+            ),
+        )
+        .unwrap();
+
+        let uri = Url::from_file_path(&path).unwrap();
+        service
+            .inner()
+            .did_open(DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri,
+                    language_id: "markdown".to_string(),
+                    version: 1,
+                    text: std::fs::read_to_string(&path).unwrap(),
+                },
+            })
+            .await;
+    }
+
+    // Single config change triggers revalidation of all open documents
+    service
+        .inner()
+        .did_change_configuration(DidChangeConfigurationParams {
+            settings: serde_json::json!({ "severity": "Error" }),
+        })
+        .await;
+
+    let generation = service
+        .inner()
+        .config_generation
+        .load(Ordering::SeqCst);
+    assert_eq!(
+        generation, 1,
+        "config_generation should be 1 after single config change, got {}",
+        generation
+    );
+
+    let open_docs = service.inner().documents.read().await.len();
+    assert_eq!(
+        open_docs, doc_count,
+        "all {} documents should still be in cache, found {}",
+        doc_count, open_docs
+    );
+}
+
+/// Stress test: concurrent hover requests during active validation must
+/// not panic or deadlock.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn test_stress_concurrent_hover_during_validation() {
+    let (service, _socket) = LspService::new(Backend::new);
+
+    let temp_dir = tempfile::tempdir().unwrap();
+    let root_uri = Url::from_file_path(temp_dir.path()).unwrap();
+    service
+        .inner()
+        .initialize(InitializeParams {
+            root_uri: Some(root_uri),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+    let skill_path = temp_dir.path().join("SKILL.md");
+    let content = "---\nname: hover-skill\nversion: 1.0.0\nmodel: sonnet\n---\n\n# Hover Skill\n";
+    std::fs::write(&skill_path, content).unwrap();
+
+    let uri = Url::from_file_path(&skill_path).unwrap();
+
+    // Open the document with frontmatter content
+    service
+        .inner()
+        .did_open(DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: uri.clone(),
+                language_id: "markdown".to_string(),
+                version: 1,
+                text: content.to_string(),
+            },
+        })
+        .await;
+
+    let result = tokio::time::timeout(std::time::Duration::from_secs(30), async {
+        let mut handles = Vec::new();
+
+        // 10 tasks: concurrent did_change
+        for i in 0..10 {
+            let backend = service.inner().clone();
+            let uri = uri.clone();
+            handles.push(tokio::spawn(async move {
+                backend
+                    .did_change(DidChangeTextDocumentParams {
+                        text_document: VersionedTextDocumentIdentifier {
+                            uri,
+                            version: (i + 2) as i32,
+                        },
+                        content_changes: vec![TextDocumentContentChangeEvent {
+                            range: None,
+                            range_length: None,
+                            text: format!(
+                                "---\nname: hover-v{i}\nversion: 1.0.0\nmodel: sonnet\n---\n\n# Hover V{i}\n"
+                            ),
+                        }],
+                    })
+                    .await;
+            }));
+        }
+
+        // 10 tasks: concurrent hover at (1, 0) - the "name" key in frontmatter
+        for _ in 0..10 {
+            let backend = service.inner().clone();
+            let uri = uri.clone();
+            handles.push(tokio::spawn(async move {
+                let _ = backend
+                    .hover(HoverParams {
+                        text_document_position_params: TextDocumentPositionParams {
+                            text_document: TextDocumentIdentifier { uri },
+                            position: Position {
+                                line: 1,
+                                character: 0,
+                            },
+                        },
+                        work_done_progress_params: WorkDoneProgressParams::default(),
+                    })
+                    .await;
+            }));
+        }
+
+        for handle in handles {
+            handle.await.expect("task should not panic");
+        }
+    })
+    .await;
+
+    assert!(result.is_ok(), "concurrent hover during validation timed out");
+
+    let docs = service.inner().documents.read().await;
+    assert!(
+        docs.contains_key(&uri),
+        "document should still be in cache after concurrent hover and changes"
+    );
+}
+
+/// Stress test: 10 concurrent project validation runs must not corrupt
+/// the generation counter or panic.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn test_stress_rapid_project_validation_generation_guard() {
+    let (service, _socket) = LspService::new(Backend::new);
+
+    let temp_dir = tempfile::tempdir().unwrap();
+
+    // Create 2 AGENTS.md files to trigger AGM-006
+    std::fs::write(temp_dir.path().join("AGENTS.md"), "# Root AGENTS").unwrap();
+    let sub = temp_dir.path().join("sub");
+    std::fs::create_dir(&sub).unwrap();
+    std::fs::write(sub.join("AGENTS.md"), "# Sub AGENTS").unwrap();
+
+    let root_uri = Url::from_file_path(temp_dir.path()).unwrap();
+    service
+        .inner()
+        .initialize(InitializeParams {
+            root_uri: Some(root_uri),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+    // Wait for the initial background project validation to complete
+    for _ in 0..80 {
+        let proj_diags = service.inner().project_level_diagnostics.read().await;
+        if !proj_diags.is_empty() {
+            break;
+        }
+        drop(proj_diags);
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+
+    // Open both AGENTS.md files
+    for path in [
+        temp_dir.path().join("AGENTS.md"),
+        sub.join("AGENTS.md"),
+    ] {
+        let uri = Url::from_file_path(&path).unwrap();
+        service
+            .inner()
+            .did_open(DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri,
+                    language_id: "markdown".to_string(),
+                    version: 1,
+                    text: std::fs::read_to_string(&path).unwrap(),
+                },
+            })
+            .await;
+    }
+
+    let validation_count = 10usize;
+
+    let result = tokio::time::timeout(std::time::Duration::from_secs(30), async {
+        let mut handles = Vec::new();
+
+        for _ in 0..validation_count {
+            let backend = service.inner().clone();
+            handles.push(tokio::spawn(async move {
+                backend.validate_project_rules_and_publish().await;
+            }));
+        }
+
+        for handle in handles {
+            handle.await.expect("task should not panic");
+        }
+    })
+    .await;
+
+    assert!(
+        result.is_ok(),
+        "rapid project validation timed out"
+    );
+
+    // Each call to validate_project_rules_and_publish does fetch_add(1),
+    // plus the initial background run from initialize(). The generation
+    // should be at least validation_count (10) but could be higher due to
+    // the initial background run.
+    let generation = service
+        .inner()
+        .project_validation_generation
+        .load(Ordering::SeqCst);
+    assert!(
+        generation >= validation_count as u64,
+        "project_validation_generation should be >= {}, got {}",
+        validation_count,
+        generation
+    );
+}

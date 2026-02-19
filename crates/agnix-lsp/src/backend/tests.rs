@@ -2784,6 +2784,9 @@ async fn test_stress_rapid_config_changes_drop_stale_batches() {
     .await;
 
     assert!(result.is_ok(), "concurrent config_generation stress test timed out");
+    // Probabilistic check: with 4 worker threads and yield_now interleaving,
+    // Task A will have advanced the counter past some probe values before Task B
+    // reads them, so at least one stale detection is expected.
     let stale_detected = result.unwrap();
 
     let final_gen = service.inner().config_generation.load(Ordering::SeqCst);
@@ -2796,6 +2799,21 @@ async fn test_stress_rapid_config_changes_drop_stale_batches() {
         stale_detected > 0,
         "at least some should_publish_diagnostics calls should detect stale generations"
     );
+
+    // Deterministic post-completion check: with the counter now at change_count,
+    // every probe value strictly less than change_count MUST be stale.
+    let backend = service.inner().clone();
+    for probe in 0..change_count - 1 {
+        assert!(
+            !backend
+                .should_publish_diagnostics(&uri, Some(probe), None)
+                .await,
+            "probe_gen {} should be stale when config_generation is {}",
+            probe,
+            final_gen
+        );
+    }
+
     assert_eq!(
         service.inner().documents.read().await.len(),
         1,
@@ -3101,7 +3119,12 @@ async fn test_stress_concurrent_project_and_file_validation() {
 
     assert!(result.is_ok(), "concurrent project and file validation timed out");
 
-    // Wait for background project validation to populate diagnostics
+    // Poll for project diagnostics. The explicit validate_project_rules_and_publish
+    // call above may have been stale-dropped if the background task spawned by
+    // initialize() ran concurrently and incremented project_validation_generation
+    // after the explicit call captured its expected_generation. In that case the
+    // background task will populate diagnostics asynchronously after the explicit
+    // call returns, so polling is required.
     let mut found_project_diags = false;
     for _ in 0..80 {
         let proj_diags = service.inner().project_level_diagnostics.read().await;

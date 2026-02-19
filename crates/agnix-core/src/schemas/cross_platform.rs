@@ -2704,6 +2704,25 @@ Use pnpm install for dependencies.
     }
 
     #[test]
+    fn test_check_markdown_structure_processes_above_64kb_limit() {
+        // check_markdown_structure uses markdown_header_pattern() (r"^#+\s+.+"),
+        // a simple anchored regex applied line-by-line via .lines() - not guarded by
+        // MAX_REGEX_INPUT_SIZE because it cannot exhibit catastrophic backtracking.
+        let header = "# Title\n";
+        let padding = "a ".repeat((MAX_REGEX_INPUT_SIZE - header.len()) / 2 + 1);
+        let content = format!("{}{}", header, padding);
+        assert!(
+            content.len() > MAX_REGEX_INPUT_SIZE,
+            "Content must exceed the limit to be a meaningful regression test"
+        );
+        let issues = check_markdown_structure(&content);
+        assert!(
+            issues.is_empty(),
+            "check_markdown_structure should process content above 64KB (no size guard)"
+        );
+    }
+
+    #[test]
     fn test_categorize_gemini_md_variants() {
         use std::path::PathBuf;
         let files = ["project/GEMINI.md", "project/GEMINI.local.md"];

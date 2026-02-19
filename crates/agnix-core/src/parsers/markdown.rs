@@ -25,7 +25,9 @@ static_regex!(fn xml_tag_regex, r"<(/?)([a-zA-Z_][a-zA-Z0-9_-]*)(?:\s+[^>]*?)?(/
 /// - Matches typical page sizes for text processing
 /// - 2^16 is a clean power-of-2 boundary
 ///
-/// This limit applies to XML tag extraction, import detection, and link parsing.
+/// This limit applies to regex-guarded operations only. `extract_xml_tags` is guarded;
+/// `extract_imports` and `extract_markdown_links` use byte-by-byte scanning and
+/// pulldown-cmark respectively and are NOT subject to this limit.
 /// Files larger than 1 MiB are rejected earlier by `DEFAULT_MAX_FILE_SIZE` in file_utils.rs.
 pub const MAX_REGEX_INPUT_SIZE: usize = 65536; // 64KB
 

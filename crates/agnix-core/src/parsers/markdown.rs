@@ -25,7 +25,9 @@ static_regex!(fn xml_tag_regex, r"<(/?)([a-zA-Z_][a-zA-Z0-9_-]*)(?:\s+[^>]*?)?(/
 /// - Matches typical page sizes for text processing
 /// - 2^16 is a clean power-of-2 boundary
 ///
-/// This limit applies to XML tag extraction, import detection, and link parsing.
+/// This limit applies to regex-guarded operations only. `extract_xml_tags` is guarded;
+/// `extract_imports` and `extract_markdown_links` use byte-by-byte scanning and
+/// pulldown-cmark respectively and are NOT subject to this limit.
 /// Files larger than 1 MiB are rejected earlier by `DEFAULT_MAX_FILE_SIZE` in file_utils.rs.
 pub const MAX_REGEX_INPUT_SIZE: usize = 65536; // 64KB
 
@@ -914,6 +916,94 @@ mod tests {
     fn test_max_regex_input_size_constant() {
         // Verify the constant is set to 64KB as documented
         assert_eq!(MAX_REGEX_INPUT_SIZE, 65536);
+    }
+
+    // ===== Precise Boundary Tests for MAX_REGEX_INPUT_SIZE =====
+
+    #[test]
+    fn test_extract_xml_tags_exactly_at_64kb_limit() {
+        let open = "<example>";
+        let close = "</example>";
+        let overhead = open.len() + close.len(); // 9 + 10 = 19 bytes
+        let content = format!(
+            "{}{}{}",
+            open,
+            "a".repeat(MAX_REGEX_INPUT_SIZE - overhead),
+            close
+        );
+        assert_eq!(
+            content.len(),
+            MAX_REGEX_INPUT_SIZE,
+            "Content must be exactly at the limit"
+        );
+        let tags = extract_xml_tags(&content);
+        assert!(
+            !tags.is_empty(),
+            "Content at exactly the limit should be processed"
+        );
+    }
+
+    #[test]
+    fn test_extract_xml_tags_one_byte_over_limit() {
+        let open = "<example>";
+        let close = "</example>";
+        let overhead = open.len() + close.len(); // 9 + 10 = 19 bytes
+        let content = format!(
+            "{}{}{}",
+            open,
+            "a".repeat(MAX_REGEX_INPUT_SIZE + 1 - overhead),
+            close
+        );
+        assert_eq!(
+            content.len(),
+            MAX_REGEX_INPUT_SIZE + 1,
+            "Content must be one byte over the limit"
+        );
+        let tags = extract_xml_tags(&content);
+        assert!(
+            tags.is_empty(),
+            "Content one byte over the limit should be skipped"
+        );
+    }
+
+    #[test]
+    fn test_extract_imports_processes_above_64kb_limit() {
+        // No exactly-at-64kb companion: extract_imports has no size guard and always
+        // processes content of any size.
+        // extract_imports uses byte-by-byte scanning (not regex) inside pulldown-cmark
+        // token callbacks, so MAX_REGEX_INPUT_SIZE does not apply.
+        let imports_prefix = "@styles.css\n";
+        let needed = MAX_REGEX_INPUT_SIZE - imports_prefix.len() + 1;
+        let content = format!("{}{}", imports_prefix, "a".repeat(needed));
+        assert!(
+            content.len() > MAX_REGEX_INPUT_SIZE,
+            "Content must exceed the limit"
+        );
+        let imports = extract_imports(&content);
+        assert!(
+            !imports.is_empty(),
+            "extract_imports should process content beyond the regex size limit"
+        );
+    }
+
+    #[test]
+    fn test_extract_markdown_links_processes_above_64kb_limit() {
+        // No exactly-at-64kb companion: extract_markdown_links has no size guard and
+        // always processes content of any size.
+        // extract_markdown_links uses pulldown-cmark event iteration (not regex),
+        // so MAX_REGEX_INPUT_SIZE does not apply.
+        let link = "[example](https://example.com)\n";
+        let needed = MAX_REGEX_INPUT_SIZE - link.len() + 1;
+        let content = format!("{}{}", link, "a".repeat(needed));
+        assert!(
+            content.len() > MAX_REGEX_INPUT_SIZE,
+            "Content must exceed the limit"
+        );
+        let links = extract_markdown_links(&content);
+        assert!(
+            !links.is_empty(),
+            "extract_markdown_links should process content beyond the regex size limit"
+        );
     }
 
     // ===== Tests for new helper functions =====

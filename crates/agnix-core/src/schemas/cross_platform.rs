@@ -2516,6 +2516,212 @@ Use pnpm install for dependencies.
             "Oversized content should not detect precedence for ReDoS protection"
         );
     }
+
+    // ===== Precise Boundary Tests for MAX_REGEX_INPUT_SIZE =====
+    //
+    // NOTE: check_markdown_structure intentionally has no MAX_REGEX_INPUT_SIZE guard.
+    // It uses markdown_header_pattern (r"^#+\s+.+"), a simple anchored regex that
+    // is not susceptible to catastrophic backtracking (ReDoS). Only functions using
+    // complex alternation, lookahead, or nested quantifiers require the size guard.
+
+    #[test]
+    fn test_find_claude_specific_features_exactly_at_64kb_limit() {
+        // Tests the claude_hooks_pattern sub-branch (5 sub-patterns exist;
+        // this exercises PreToolExecution).
+        let base = "type: PreToolExecution\n";
+        let needed = MAX_REGEX_INPUT_SIZE - base.len();
+        let content = format!("{}{}", base, "a".repeat(needed));
+        assert_eq!(
+            content.len(),
+            MAX_REGEX_INPUT_SIZE,
+            "Content must be exactly at the limit"
+        );
+        let results = find_claude_specific_features(&content);
+        assert!(
+            !results.is_empty(),
+            "Content at exactly the limit should be processed"
+        );
+    }
+
+    #[test]
+    fn test_find_claude_specific_features_one_byte_over_limit() {
+        let base = "type: PreToolExecution\n";
+        let needed = MAX_REGEX_INPUT_SIZE - base.len() + 1;
+        let content = format!("{}{}", base, "a".repeat(needed));
+        assert_eq!(
+            content.len(),
+            MAX_REGEX_INPUT_SIZE + 1,
+            "Content must be one byte over the limit"
+        );
+        let results = find_claude_specific_features(&content);
+        assert!(
+            results.is_empty(),
+            "Content one byte over the limit should be skipped"
+        );
+    }
+
+    #[test]
+    fn test_find_hard_coded_paths_exactly_at_64kb_limit() {
+        // '/Users/name/project' matches hard_coded_path_pattern via the
+        // '/Users/[a-zA-Z][\w.-]*/' arm.
+        let base = "/Users/name/project\n";
+        let needed = MAX_REGEX_INPUT_SIZE - base.len();
+        let content = format!("{}{}", base, "a".repeat(needed));
+        assert_eq!(
+            content.len(),
+            MAX_REGEX_INPUT_SIZE,
+            "Content must be exactly at the limit"
+        );
+        let results = find_hard_coded_paths(&content);
+        assert!(
+            !results.is_empty(),
+            "Content at exactly the limit should be processed"
+        );
+    }
+
+    #[test]
+    fn test_find_hard_coded_paths_one_byte_over_limit() {
+        let base = "/Users/name/project\n";
+        let needed = MAX_REGEX_INPUT_SIZE - base.len() + 1;
+        let content = format!("{}{}", base, "a".repeat(needed));
+        assert_eq!(
+            content.len(),
+            MAX_REGEX_INPUT_SIZE + 1,
+            "Content must be one byte over the limit"
+        );
+        let results = find_hard_coded_paths(&content);
+        assert!(
+            results.is_empty(),
+            "Content one byte over the limit should be skipped"
+        );
+    }
+
+    #[test]
+    fn test_extract_build_commands_exactly_at_64kb_limit() {
+        let base = "npm install\n";
+        let needed = MAX_REGEX_INPUT_SIZE - base.len();
+        let content = format!("{}{}", base, "a".repeat(needed));
+        assert_eq!(
+            content.len(),
+            MAX_REGEX_INPUT_SIZE,
+            "Content must be exactly at the limit"
+        );
+        let results = extract_build_commands(&content);
+        assert!(
+            !results.is_empty(),
+            "Content at exactly the limit should be processed"
+        );
+    }
+
+    #[test]
+    fn test_extract_build_commands_one_byte_over_limit() {
+        let base = "npm install\n";
+        let needed = MAX_REGEX_INPUT_SIZE - base.len() + 1;
+        let content = format!("{}{}", base, "a".repeat(needed));
+        assert_eq!(
+            content.len(),
+            MAX_REGEX_INPUT_SIZE + 1,
+            "Content must be one byte over the limit"
+        );
+        let results = extract_build_commands(&content);
+        assert!(
+            results.is_empty(),
+            "Content one byte over the limit should be skipped"
+        );
+    }
+
+    #[test]
+    fn test_extract_tool_constraints_exactly_at_64kb_limit() {
+        // 'bash' matches KNOWN_TOOLS 'Bash' via case-insensitive comparison
+        // in extract_tool_names_from_line.
+        let base = "allowed-tools: bash\n";
+        let needed = MAX_REGEX_INPUT_SIZE - base.len();
+        let content = format!("{}{}", base, "a".repeat(needed));
+        assert_eq!(
+            content.len(),
+            MAX_REGEX_INPUT_SIZE,
+            "Content must be exactly at the limit"
+        );
+        let results = extract_tool_constraints(&content);
+        assert!(
+            !results.is_empty(),
+            "Content at exactly the limit should be processed"
+        );
+    }
+
+    #[test]
+    fn test_extract_tool_constraints_one_byte_over_limit() {
+        let base = "allowed-tools: bash\n";
+        let needed = MAX_REGEX_INPUT_SIZE - base.len() + 1;
+        let content = format!("{}{}", base, "a".repeat(needed));
+        assert_eq!(
+            content.len(),
+            MAX_REGEX_INPUT_SIZE + 1,
+            "Content must be one byte over the limit"
+        );
+        let results = extract_tool_constraints(&content);
+        assert!(
+            results.is_empty(),
+            "Content one byte over the limit should be skipped"
+        );
+    }
+
+    #[test]
+    fn test_categorize_layer_exactly_at_64kb_limit() {
+        use std::path::PathBuf;
+        // "precedence" keyword triggers has_precedence_doc
+        let base = "precedence\n";
+        let needed = MAX_REGEX_INPUT_SIZE - base.len();
+        let content = format!("{}{}", base, "a".repeat(needed));
+        assert_eq!(
+            content.len(),
+            MAX_REGEX_INPUT_SIZE,
+            "Content must be exactly at the limit"
+        );
+        let layer = categorize_layer(&PathBuf::from("CLAUDE.md"), &content);
+        assert!(
+            layer.has_precedence_doc,
+            "has_precedence_doc should be true when content.len() == MAX_REGEX_INPUT_SIZE"
+        );
+    }
+
+    #[test]
+    fn test_categorize_layer_one_byte_over_limit() {
+        use std::path::PathBuf;
+        let base = "precedence\n";
+        let needed = MAX_REGEX_INPUT_SIZE - base.len() + 1;
+        let content = format!("{}{}", base, "a".repeat(needed));
+        assert_eq!(
+            content.len(),
+            MAX_REGEX_INPUT_SIZE + 1,
+            "Content must be one byte over the limit"
+        );
+        let layer = categorize_layer(&PathBuf::from("CLAUDE.md"), &content);
+        assert!(
+            !layer.has_precedence_doc,
+            "has_precedence_doc should be false when content.len() == MAX_REGEX_INPUT_SIZE + 1"
+        );
+    }
+
+    #[test]
+    fn test_check_markdown_structure_processes_above_64kb_limit() {
+        // check_markdown_structure uses markdown_header_pattern() (r"^#+\s+.+"),
+        // a simple anchored regex applied line-by-line via .lines() - not guarded by
+        // MAX_REGEX_INPUT_SIZE because it cannot exhibit catastrophic backtracking.
+        let header = "# Title\n";
+        let padding = "a ".repeat((MAX_REGEX_INPUT_SIZE - header.len()) / 2 + 1);
+        let content = format!("{}{}", header, padding);
+        assert!(
+            content.len() > MAX_REGEX_INPUT_SIZE,
+            "Content must exceed the limit to be a meaningful regression test"
+        );
+        let issues = check_markdown_structure(&content);
+        assert!(
+            issues.is_empty(),
+            "check_markdown_structure should process content above 64KB (no size guard)"
+        );
+    }
+
     #[test]
     fn test_categorize_gemini_md_variants() {
         use std::path::PathBuf;

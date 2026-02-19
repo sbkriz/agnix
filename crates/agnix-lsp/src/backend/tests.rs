@@ -2793,9 +2793,10 @@ async fn test_stress_rapid_config_changes_drop_stale_batches() {
     );
 
     // Deterministic post-completion check: with the counter now at change_count,
-    // every probe value strictly less than change_count MUST be stale.
+    // every probe value in [0, change_count) MUST be stale. The range includes
+    // change_count - 1 (one-behind the final value) to catch the boundary case.
     let backend = service.inner().clone();
-    for probe in 0..change_count - 1 {
+    for probe in 0..change_count {
         assert!(
             !backend
                 .should_publish_diagnostics(&uri, Some(probe), None)

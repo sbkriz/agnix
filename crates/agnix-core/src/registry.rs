@@ -47,9 +47,29 @@ pub trait ValidatorProvider: Send + Sync {
 
     /// Return validator factories with optional static names.
     ///
+    /// This is a **performance optimization hook**, not a rename mechanism.
     /// When a name is `Some(name)`, the registry can skip calling `factory()`
-    /// for disabled validators. The default implementation wraps
-    /// [`validators()`](ValidatorProvider::validators) with `None` names.
+    /// entirely for disabled validators, avoiding the heap allocation that
+    /// would otherwise be needed just to read the validator's name.
+    ///
+    /// # Name invariant
+    ///
+    /// Each `Some(name)` **must** equal the value returned by `factory().name()`.
+    /// Violating this silently breaks the disabled-validator mechanism:
+    /// [`register_named()`](ValidatorRegistry::register_named) checks the
+    /// static name against the disabled set, so a mismatch causes the wrong
+    /// validator to be excluded or allows a disabled validator to slip through
+    /// undetected. In debug builds, a `debug_assert_eq!` inside
+    /// `register_named()` catches this early.
+    ///
+    /// # Default implementation
+    ///
+    /// The default implementation calls
+    /// [`validators()`](ValidatorProvider::validators) and maps each entry
+    /// into a `(FileType, None, factory)` tuple, incurring two `Vec` heap
+    /// allocations (one in `validators()`, one in the `collect()` here).
+    /// Providers with many entries can override this method directly to
+    /// avoid the extra allocation.
     ///
     /// Providers that know their validator names at compile time should
     /// override this method and return `Some(name)` for each entry.

@@ -3066,7 +3066,7 @@ async fn test_stress_concurrent_project_and_file_validation() {
     // complete BEFORE starting the concurrent workload. This ensures the
     // explicit validate_project_rules_and_publish() call below is never
     // stale-dropped, making the post-run assertion deterministic.
-    let _ = tokio::time::timeout(std::time::Duration::from_secs(10), async {
+    let sync_result = tokio::time::timeout(std::time::Duration::from_secs(10), async {
         loop {
             {
                 let proj_diags = service.inner().project_level_diagnostics.read().await;
@@ -3078,6 +3078,10 @@ async fn test_stress_concurrent_project_and_file_validation() {
         }
     })
     .await;
+    assert!(
+        sync_result.is_ok(),
+        "initialize() background project validation did not complete within 10s"
+    );
 
     let backend_project = service.inner().clone();
 

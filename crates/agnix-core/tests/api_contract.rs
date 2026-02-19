@@ -983,3 +983,68 @@ fn file_types_detect_file_type_accessible_via_submodule() {
     let via_submodule = agnix_core::file_types::detect_file_type(Path::new("SKILL.md"));
     assert_eq!(via_root, via_submodule);
 }
+
+// ============================================================================
+// named_validators() name invariant - matching names register successfully
+// ============================================================================
+
+#[test]
+fn named_validators_matching_name_registers_successfully() {
+    // A provider that returns Some("TestValidator") where factory().name()
+    // also returns "TestValidator" must register the validator without
+    // triggering the debug_assert_eq! in register_named().
+    struct MatchingValidator;
+    impl agnix_core::Validator for MatchingValidator {
+        fn validate(
+            &self,
+            _: &std::path::Path,
+            _: &str,
+            _: &agnix_core::LintConfig,
+        ) -> Vec<agnix_core::Diagnostic> {
+            vec![]
+        }
+        fn name(&self) -> &'static str {
+            "TestValidator"
+        }
+    }
+
+    fn test_factory() -> Box<dyn agnix_core::Validator> {
+        Box::new(MatchingValidator)
+    }
+
+    struct MatchingProvider;
+    impl agnix_core::ValidatorProvider for MatchingProvider {
+        fn validators(&self) -> Vec<(agnix_core::FileType, agnix_core::ValidatorFactory)> {
+            vec![(agnix_core::FileType::Skill, test_factory)]
+        }
+        fn named_validators(
+            &self,
+        ) -> Vec<(
+            agnix_core::FileType,
+            Option<&'static str>,
+            agnix_core::ValidatorFactory,
+        )> {
+            vec![(
+                agnix_core::FileType::Skill,
+                Some("TestValidator"),
+                test_factory,
+            )]
+        }
+    }
+
+    let registry = agnix_core::ValidatorRegistry::builder()
+        .with_provider(&MatchingProvider)
+        .build();
+
+    let validators = registry.validators_for(agnix_core::FileType::Skill);
+    assert_eq!(
+        validators.len(),
+        1,
+        "Matching named validator must be registered"
+    );
+    assert_eq!(
+        validators[0].name(),
+        "TestValidator",
+        "Registered validator must have the expected name"
+    );
+}

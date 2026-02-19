@@ -1018,7 +1018,13 @@ fn named_validators_matching_name_registers_successfully() {
             // Required by the trait; not exercised by this test path.
             vec![(agnix_core::FileType::Skill, test_factory)]
         }
-        fn named_validators(&self) -> Vec<(agnix_core::FileType, Option<&'static str>, agnix_core::ValidatorFactory)> {
+        fn named_validators(
+            &self,
+        ) -> Vec<(
+            agnix_core::FileType,
+            Option<&'static str>,
+            agnix_core::ValidatorFactory,
+        )> {
             vec![(
                 agnix_core::FileType::Skill,
                 Some("TestValidator"),

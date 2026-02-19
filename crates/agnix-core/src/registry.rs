@@ -179,8 +179,7 @@ impl ValidatorRegistry {
         let instance = factory();
         let runtime_name = instance.name();
         debug_assert_eq!(
-            name,
-            runtime_name,
+            name, runtime_name,
             "ValidatorProvider name/factory mismatch: static name \"{name}\" \
              does not match factory().name() \"{runtime_name}\". The static name \
              passed to named_validators() must equal the value returned by \

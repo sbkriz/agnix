@@ -923,7 +923,12 @@ mod tests {
         let open = "<example>";
         let close = "</example>";
         let overhead = open.len() + close.len(); // 9 + 10 = 19 bytes
-        let content = format!("{}{}{}", open, "a".repeat(MAX_REGEX_INPUT_SIZE - overhead), close);
+        let content = format!(
+            "{}{}{}",
+            open,
+            "a".repeat(MAX_REGEX_INPUT_SIZE - overhead),
+            close
+        );
         assert_eq!(
             content.len(),
             MAX_REGEX_INPUT_SIZE,

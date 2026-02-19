@@ -2518,10 +2518,16 @@ Use pnpm install for dependencies.
     }
 
     // ===== Precise Boundary Tests for MAX_REGEX_INPUT_SIZE =====
+    //
+    // NOTE: check_markdown_structure intentionally has no MAX_REGEX_INPUT_SIZE guard.
+    // It uses markdown_header_pattern (r"^#+\s+.+"), a simple anchored regex that
+    // is not susceptible to catastrophic backtracking (ReDoS). Only functions using
+    // complex alternation, lookahead, or nested quantifiers require the size guard.
 
     #[test]
     fn test_find_claude_specific_features_exactly_at_64kb_limit() {
-        // Claude hooks pattern: "type: PreToolExecution"
+        // Tests the claude_hooks_pattern sub-branch (5 sub-patterns exist;
+        // this exercises PreToolExecution).
         let base = "type: PreToolExecution\n";
         let needed = MAX_REGEX_INPUT_SIZE - base.len();
         let content = format!("{}{}", base, "a".repeat(needed));
@@ -2556,6 +2562,8 @@ Use pnpm install for dependencies.
 
     #[test]
     fn test_find_hard_coded_paths_exactly_at_64kb_limit() {
+        // '/Users/name/project' matches hard_coded_path_pattern via the
+        // '/Users/[a-zA-Z][\w.-]*/' arm.
         let base = "/Users/name/project\n";
         let needed = MAX_REGEX_INPUT_SIZE - base.len();
         let content = format!("{}{}", base, "a".repeat(needed));
@@ -2624,6 +2632,8 @@ Use pnpm install for dependencies.
 
     #[test]
     fn test_extract_tool_constraints_exactly_at_64kb_limit() {
+        // 'bash' matches KNOWN_TOOLS 'Bash' via case-insensitive comparison
+        // in extract_tool_names_from_line.
         let base = "allowed-tools: bash\n";
         let needed = MAX_REGEX_INPUT_SIZE - base.len();
         let content = format!("{}{}", base, "a".repeat(needed));
@@ -2671,7 +2681,7 @@ Use pnpm install for dependencies.
         let layer = categorize_layer(&PathBuf::from("CLAUDE.md"), &content);
         assert!(
             layer.has_precedence_doc,
-            "Content at exactly the limit should detect precedence"
+            "has_precedence_doc should be true when content.len() == MAX_REGEX_INPUT_SIZE"
         );
     }
 
@@ -2689,7 +2699,7 @@ Use pnpm install for dependencies.
         let layer = categorize_layer(&PathBuf::from("CLAUDE.md"), &content);
         assert!(
             !layer.has_precedence_doc,
-            "Content one byte over the limit should not detect precedence"
+            "has_precedence_doc should be false when content.len() == MAX_REGEX_INPUT_SIZE + 1"
         );
     }
 

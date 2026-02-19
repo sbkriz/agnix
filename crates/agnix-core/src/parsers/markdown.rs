@@ -920,9 +920,10 @@ mod tests {
 
     #[test]
     fn test_extract_xml_tags_exactly_at_64kb_limit() {
-        // <example> = 9 bytes, </example> = 10 bytes, total overhead = 19 bytes
-        let filler = "a".repeat(MAX_REGEX_INPUT_SIZE - 19);
-        let content = format!("<example>{}</example>", filler);
+        let open = "<example>";
+        let close = "</example>";
+        let overhead = open.len() + close.len(); // 9 + 10 = 19 bytes
+        let content = format!("{}{}{}", open, "a".repeat(MAX_REGEX_INPUT_SIZE - overhead), close);
         assert_eq!(
             content.len(),
             MAX_REGEX_INPUT_SIZE,
@@ -937,9 +938,15 @@ mod tests {
 
     #[test]
     fn test_extract_xml_tags_one_byte_over_limit() {
-        // One byte over: filler is 1 byte larger
-        let filler = "a".repeat(MAX_REGEX_INPUT_SIZE - 18);
-        let content = format!("<example>{}</example>", filler);
+        let open = "<example>";
+        let close = "</example>";
+        let overhead = open.len() + close.len(); // 9 + 10 = 19 bytes
+        let content = format!(
+            "{}{}{}",
+            open,
+            "a".repeat(MAX_REGEX_INPUT_SIZE + 1 - overhead),
+            close
+        );
         assert_eq!(
             content.len(),
             MAX_REGEX_INPUT_SIZE + 1,
@@ -954,7 +961,10 @@ mod tests {
 
     #[test]
     fn test_extract_imports_processes_above_64kb_limit() {
-        // extract_imports uses pulldown-cmark parsing, not regex - no size limit
+        // No exactly-at-64kb companion: extract_imports has no size guard and always
+        // processes content of any size.
+        // extract_imports uses byte-by-byte scanning (not regex) inside pulldown-cmark
+        // token callbacks, so MAX_REGEX_INPUT_SIZE does not apply.
         let imports_prefix = "@styles.css\n";
         let needed = MAX_REGEX_INPUT_SIZE - imports_prefix.len() + 1;
         let content = format!("{}{}", imports_prefix, "a".repeat(needed));
@@ -971,7 +981,10 @@ mod tests {
 
     #[test]
     fn test_extract_markdown_links_processes_above_64kb_limit() {
-        // extract_markdown_links uses pulldown-cmark, not regex - no size limit
+        // No exactly-at-64kb companion: extract_markdown_links has no size guard and
+        // always processes content of any size.
+        // extract_markdown_links uses pulldown-cmark event iteration (not regex),
+        // so MAX_REGEX_INPUT_SIZE does not apply.
         let link = "[example](https://example.com)\n";
         let needed = MAX_REGEX_INPUT_SIZE - link.len() + 1;
         let content = format!("{}{}", link, "a".repeat(needed));

@@ -1151,8 +1151,8 @@ Code could be cleaner.
 
     #[test]
     fn test_find_critical_in_middle_exactly_at_64kb_limit() {
-        // Build 20 lines with "critical" at line 10. After padding, total_lines = 21
-        // (20 original + 1 filler line); line 10 is at ~47.6%, within the 40-60% middle zone.
+        // Build 20 lines with "critical" at line 10. The filler appended below contains no
+        // newlines, so total_lines = 20; line 10 is at exactly 50.0%, within the 40-60% middle zone.
         let mut lines: Vec<String> = (0..20).map(|i| format!("Line {}", i)).collect();
         lines[10] = "This is critical information.".to_string();
         let base = lines.join("\n");

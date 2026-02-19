@@ -2703,9 +2703,13 @@ async fn test_stress_concurrent_document_open_close() {
 /// directly driving the AtomicU64 counter while concurrently querying the
 /// staleness predicate.
 ///
-/// Note: going through did_change_configuration would block because tower-lsp's
-/// internal notification channel has capacity 1 and tests do not consume the
-/// socket. This test exercises the same generation-guard mechanism directly.
+/// Note: calling did_change_configuration once works fine (see
+/// test_did_change_configuration_triggers_revalidation_for_multiple_documents),
+/// but calling it N times in a tight loop would fill the bounded channel
+/// (capacity 1) because each call unconditionally sends a log_message via
+/// send_notification_unchecked and the test socket is not consumed. This test
+/// drives the same AtomicU64 counter directly to exercise N concurrent probes
+/// without going through the notification path.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_stress_rapid_config_changes_drop_stale_batches() {
     let (service, _socket) = LspService::new(Backend::new);
@@ -3058,6 +3062,23 @@ async fn test_stress_concurrent_project_and_file_validation() {
             .await;
     }
 
+    // Wait for the background project validation spawned by initialize() to
+    // complete BEFORE starting the concurrent workload. This ensures the
+    // explicit validate_project_rules_and_publish() call below is never
+    // stale-dropped, making the post-run assertion deterministic.
+    let _ = tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        loop {
+            {
+                let proj_diags = service.inner().project_level_diagnostics.read().await;
+                if !proj_diags.is_empty() {
+                    break;
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
+    })
+    .await;
+
     let backend_project = service.inner().clone();
 
     let result = tokio::time::timeout(std::time::Duration::from_secs(30), async {
@@ -3106,26 +3127,15 @@ async fn test_stress_concurrent_project_and_file_validation() {
         "concurrent project and file validation timed out"
     );
 
-    // Poll for project diagnostics. The explicit validate_project_rules_and_publish
-    // call above may have been stale-dropped if the background task spawned by
-    // initialize() ran concurrently and incremented project_validation_generation
-    // after the explicit call captured its expected_generation. In that case the
-    // background task will populate diagnostics asynchronously after the explicit
-    // call returns, so polling is required.
-    let mut found_project_diags = false;
-    for _ in 0..80 {
-        let proj_diags = service.inner().project_level_diagnostics.read().await;
-        if !proj_diags.is_empty() {
-            found_project_diags = true;
-            break;
-        }
-        drop(proj_diags);
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    }
+    // Because we waited for initialize()'s background validation to complete
+    // before the concurrent block, the explicit validate_project_rules_and_publish
+    // call above will not be stale-dropped. Assert diagnostics directly.
+    let proj_diags = service.inner().project_level_diagnostics.read().await;
     assert!(
-        found_project_diags,
+        !proj_diags.is_empty(),
         "project_level_diagnostics should be non-empty (AGM-006 from duplicate AGENTS.md)"
     );
+    drop(proj_diags);
 
     // All 7 documents should still be in cache
     let open_docs = service.inner().documents.read().await.len();

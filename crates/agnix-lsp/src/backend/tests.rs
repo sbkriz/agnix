@@ -2781,20 +2781,15 @@ async fn test_stress_rapid_config_changes_drop_stale_batches() {
         result.is_ok(),
         "concurrent config_generation stress test timed out"
     );
-    // Probabilistic check: with 4 worker threads and yield_now interleaving,
-    // Task A will have advanced the counter past some probe values before Task B
-    // reads them, so at least one stale detection is expected.
-    let stale_detected = result.unwrap();
+    // Discard the concurrent stale-count: it is scheduler-dependent and covered
+    // deterministically by the post-completion loop below.
+    let _ = result.unwrap();
 
     let final_gen = service.inner().config_generation.load(Ordering::SeqCst);
     assert_eq!(
         final_gen, change_count,
         "config_generation should be {} after {} increments, got {}",
         change_count, change_count, final_gen
-    );
-    assert!(
-        stale_detected > 0,
-        "at least some should_publish_diagnostics calls should detect stale generations"
     );
 
     // Deterministic post-completion check: with the counter now at change_count,
@@ -3186,13 +3181,21 @@ async fn test_stress_high_document_count_revalidation() {
             .await;
     }
 
-    // Single config change triggers revalidation of all open documents
-    service
-        .inner()
-        .did_change_configuration(DidChangeConfigurationParams {
-            settings: serde_json::json!({ "severity": "Error" }),
-        })
-        .await;
+    // Single config change triggers revalidation of all open documents.
+    // Wrapped in a timeout to catch deadlocks in for_each_bounded under load.
+    let result = tokio::time::timeout(std::time::Duration::from_secs(30), async {
+        service
+            .inner()
+            .did_change_configuration(DidChangeConfigurationParams {
+                settings: serde_json::json!({ "severity": "Error" }),
+            })
+            .await;
+    })
+    .await;
+    assert!(
+        result.is_ok(),
+        "high document count revalidation timed out after 30s"
+    );
 
     let generation = service.inner().config_generation.load(Ordering::SeqCst);
     assert_eq!(

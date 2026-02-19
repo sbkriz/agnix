@@ -2655,10 +2655,7 @@ async fn test_stress_concurrent_document_open_close() {
         let mut handles = Vec::new();
         for i in 0..doc_count {
             let backend = backend.clone();
-            let path = temp_dir
-                .path()
-                .join(format!("skill-{i}"))
-                .join("SKILL.md");
+            let path = temp_dir.path().join(format!("skill-{i}")).join("SKILL.md");
             // Read content before spawning to avoid blocking I/O on a tokio worker thread.
             let content = std::fs::read_to_string(&path).unwrap();
             let uri = Url::from_file_path(&path).unwrap();
@@ -2774,16 +2771,16 @@ async fn test_stress_rapid_config_changes_drop_stale_batches() {
         stale_count
     });
 
-    let result = tokio::time::timeout(
-        std::time::Duration::from_secs(10),
-        async move {
-            task_a.await.unwrap();
-            task_b.await.unwrap()
-        },
-    )
+    let result = tokio::time::timeout(std::time::Duration::from_secs(10), async move {
+        task_a.await.unwrap();
+        task_b.await.unwrap()
+    })
     .await;
 
-    assert!(result.is_ok(), "concurrent config_generation stress test timed out");
+    assert!(
+        result.is_ok(),
+        "concurrent config_generation stress test timed out"
+    );
     // Probabilistic check: with 4 worker threads and yield_now interleaving,
     // Task A will have advanced the counter past some probe values before Task B
     // reads them, so at least one stale detection is expected.
@@ -2982,10 +2979,7 @@ async fn test_stress_config_change_during_active_validation() {
     // Task A does fetch_add(1) (config_generation 0→1) and Task B does
     // fetch_add(9_999). Both tasks always run to completion before the assertion,
     // so the total is always 0 + 1 + 9_999 = 10_000 regardless of ordering.
-    let generation = service
-        .inner()
-        .config_generation
-        .load(Ordering::SeqCst);
+    let generation = service.inner().config_generation.load(Ordering::SeqCst);
     assert_eq!(
         generation, 10_000,
         "config_generation should be 10000 (1 from config change + 9999 from bump), got {}",
@@ -3038,10 +3032,7 @@ async fn test_stress_concurrent_project_and_file_validation() {
         .unwrap();
 
     // Open all 7 files: 2 AGENTS.md + 5 SKILL.md
-    for path in [
-        temp_dir.path().join("AGENTS.md"),
-        sub.join("AGENTS.md"),
-    ] {
+    for path in [temp_dir.path().join("AGENTS.md"), sub.join("AGENTS.md")] {
         let uri = Url::from_file_path(&path).unwrap();
         service
             .inner()
@@ -3056,10 +3047,7 @@ async fn test_stress_concurrent_project_and_file_validation() {
             .await;
     }
     for i in 0..5 {
-        let path = temp_dir
-            .path()
-            .join(format!("skill-{i}"))
-            .join("SKILL.md");
+        let path = temp_dir.path().join(format!("skill-{i}")).join("SKILL.md");
         let uri = Url::from_file_path(&path).unwrap();
         service
             .inner()
@@ -3117,7 +3105,10 @@ async fn test_stress_concurrent_project_and_file_validation() {
     })
     .await;
 
-    assert!(result.is_ok(), "concurrent project and file validation timed out");
+    assert!(
+        result.is_ok(),
+        "concurrent project and file validation timed out"
+    );
 
     // Poll for project diagnostics. The explicit validate_project_rules_and_publish
     // call above may have been stale-dropped if the background task spawned by
@@ -3203,10 +3194,7 @@ async fn test_stress_high_document_count_revalidation() {
         })
         .await;
 
-    let generation = service
-        .inner()
-        .config_generation
-        .load(Ordering::SeqCst);
+    let generation = service.inner().config_generation.load(Ordering::SeqCst);
     assert_eq!(
         generation, 1,
         "config_generation should be 1 after single config change, got {}",
@@ -3309,7 +3297,10 @@ async fn test_stress_concurrent_hover_during_validation() {
     })
     .await;
 
-    assert!(result.is_ok(), "concurrent hover during validation timed out");
+    assert!(
+        result.is_ok(),
+        "concurrent hover during validation timed out"
+    );
 
     let docs = service.inner().documents.read().await;
     assert!(
@@ -3353,10 +3344,7 @@ async fn test_stress_rapid_project_validation_generation_guard() {
     }
 
     // Open both AGENTS.md files
-    for path in [
-        temp_dir.path().join("AGENTS.md"),
-        sub.join("AGENTS.md"),
-    ] {
+    for path in [temp_dir.path().join("AGENTS.md"), sub.join("AGENTS.md")] {
         let uri = Url::from_file_path(&path).unwrap();
         service
             .inner()
@@ -3389,10 +3377,7 @@ async fn test_stress_rapid_project_validation_generation_guard() {
     })
     .await;
 
-    assert!(
-        result.is_ok(),
-        "rapid project validation timed out"
-    );
+    assert!(result.is_ok(), "rapid project validation timed out");
 
     // Each call to validate_project_rules_and_publish does fetch_add(1),
     // plus the initial background run from initialize(). The generation

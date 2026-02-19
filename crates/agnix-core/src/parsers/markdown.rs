@@ -916,6 +916,76 @@ mod tests {
         assert_eq!(MAX_REGEX_INPUT_SIZE, 65536);
     }
 
+    // ===== Precise Boundary Tests for MAX_REGEX_INPUT_SIZE =====
+
+    #[test]
+    fn test_extract_xml_tags_exactly_at_64kb_limit() {
+        // <example> = 9 bytes, </example> = 10 bytes, total overhead = 19 bytes
+        let filler = "a".repeat(MAX_REGEX_INPUT_SIZE - 19);
+        let content = format!("<example>{}</example>", filler);
+        assert_eq!(
+            content.len(),
+            MAX_REGEX_INPUT_SIZE,
+            "Content must be exactly at the limit"
+        );
+        let tags = extract_xml_tags(&content);
+        assert!(
+            !tags.is_empty(),
+            "Content at exactly the limit should be processed"
+        );
+    }
+
+    #[test]
+    fn test_extract_xml_tags_one_byte_over_limit() {
+        // One byte over: filler is 1 byte larger
+        let filler = "a".repeat(MAX_REGEX_INPUT_SIZE - 18);
+        let content = format!("<example>{}</example>", filler);
+        assert_eq!(
+            content.len(),
+            MAX_REGEX_INPUT_SIZE + 1,
+            "Content must be one byte over the limit"
+        );
+        let tags = extract_xml_tags(&content);
+        assert!(
+            tags.is_empty(),
+            "Content one byte over the limit should be skipped"
+        );
+    }
+
+    #[test]
+    fn test_extract_imports_processes_above_64kb_limit() {
+        // extract_imports uses pulldown-cmark parsing, not regex - no size limit
+        let imports_prefix = "@styles.css\n";
+        let needed = MAX_REGEX_INPUT_SIZE - imports_prefix.len() + 1;
+        let content = format!("{}{}", imports_prefix, "a".repeat(needed));
+        assert!(
+            content.len() > MAX_REGEX_INPUT_SIZE,
+            "Content must exceed the limit"
+        );
+        let imports = extract_imports(&content);
+        assert!(
+            !imports.is_empty(),
+            "extract_imports should process content beyond the regex size limit"
+        );
+    }
+
+    #[test]
+    fn test_extract_markdown_links_processes_above_64kb_limit() {
+        // extract_markdown_links uses pulldown-cmark, not regex - no size limit
+        let link = "[example](https://example.com)\n";
+        let needed = MAX_REGEX_INPUT_SIZE - link.len() + 1;
+        let content = format!("{}{}", link, "a".repeat(needed));
+        assert!(
+            content.len() > MAX_REGEX_INPUT_SIZE,
+            "Content must exceed the limit"
+        );
+        let links = extract_markdown_links(&content);
+        assert!(
+            !links.is_empty(),
+            "extract_markdown_links should process content beyond the regex size limit"
+        );
+    }
+
     // ===== Tests for new helper functions =====
 
     #[test]

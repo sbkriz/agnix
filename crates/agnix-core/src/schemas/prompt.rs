@@ -1146,4 +1146,218 @@ Code could be cleaner.
         assert!(redundant.is_empty());
         assert!(negative.is_empty());
     }
+
+    // ===== Precise Boundary Tests for MAX_REGEX_INPUT_SIZE =====
+
+    #[test]
+    fn test_find_critical_in_middle_exactly_at_64kb_limit() {
+        // Build 20 lines with "critical" at line 10 (50% - in the lost-in-middle zone)
+        let mut lines: Vec<String> = (0..20).map(|i| format!("Line {}", i)).collect();
+        lines[10] = "This is critical information.".to_string();
+        let base = lines.join("\n");
+        // Pad final line to reach exactly MAX_REGEX_INPUT_SIZE
+        let needed = MAX_REGEX_INPUT_SIZE - base.len();
+        let content = format!("{}{}", base, "a".repeat(needed));
+        assert_eq!(
+            content.len(),
+            MAX_REGEX_INPUT_SIZE,
+            "Content must be exactly at the limit"
+        );
+        let results = find_critical_in_middle_pe(&content);
+        assert!(
+            !results.is_empty(),
+            "Content at exactly the limit should be processed"
+        );
+    }
+
+    #[test]
+    fn test_find_critical_in_middle_one_byte_over_limit() {
+        let mut lines: Vec<String> = (0..20).map(|i| format!("Line {}", i)).collect();
+        lines[10] = "This is critical information.".to_string();
+        let base = lines.join("\n");
+        let needed = MAX_REGEX_INPUT_SIZE - base.len() + 1;
+        let content = format!("{}{}", base, "a".repeat(needed));
+        assert_eq!(
+            content.len(),
+            MAX_REGEX_INPUT_SIZE + 1,
+            "Content must be one byte over the limit"
+        );
+        let results = find_critical_in_middle_pe(&content);
+        assert!(
+            results.is_empty(),
+            "Content one byte over the limit should be skipped"
+        );
+    }
+
+    #[test]
+    fn test_find_cot_on_simple_tasks_exactly_at_64kb_limit() {
+        // "read the file" near "think step by step" within 5 lines
+        let base = "When you read the file, think step by step.\n";
+        let needed = MAX_REGEX_INPUT_SIZE - base.len();
+        let content = format!("{}{}", base, "a".repeat(needed));
+        assert_eq!(
+            content.len(),
+            MAX_REGEX_INPUT_SIZE,
+            "Content must be exactly at the limit"
+        );
+        let results = find_cot_on_simple_tasks(&content);
+        assert!(
+            !results.is_empty(),
+            "Content at exactly the limit should be processed"
+        );
+    }
+
+    #[test]
+    fn test_find_cot_on_simple_tasks_one_byte_over_limit() {
+        let base = "When you read the file, think step by step.\n";
+        let needed = MAX_REGEX_INPUT_SIZE - base.len() + 1;
+        let content = format!("{}{}", base, "a".repeat(needed));
+        assert_eq!(
+            content.len(),
+            MAX_REGEX_INPUT_SIZE + 1,
+            "Content must be one byte over the limit"
+        );
+        let results = find_cot_on_simple_tasks(&content);
+        assert!(
+            results.is_empty(),
+            "Content one byte over the limit should be skipped"
+        );
+    }
+
+    #[test]
+    fn test_find_weak_imperative_language_exactly_at_64kb_limit() {
+        // Need a critical section header followed by weak language
+        let base = "# Critical Rules\nYou should follow the style.\n";
+        let needed = MAX_REGEX_INPUT_SIZE - base.len();
+        let content = format!("{}{}", base, "a".repeat(needed));
+        assert_eq!(
+            content.len(),
+            MAX_REGEX_INPUT_SIZE,
+            "Content must be exactly at the limit"
+        );
+        let results = find_weak_imperative_language(&content);
+        assert!(
+            !results.is_empty(),
+            "Content at exactly the limit should be processed"
+        );
+    }
+
+    #[test]
+    fn test_find_weak_imperative_language_one_byte_over_limit() {
+        let base = "# Critical Rules\nYou should follow the style.\n";
+        let needed = MAX_REGEX_INPUT_SIZE - base.len() + 1;
+        let content = format!("{}{}", base, "a".repeat(needed));
+        assert_eq!(
+            content.len(),
+            MAX_REGEX_INPUT_SIZE + 1,
+            "Content must be one byte over the limit"
+        );
+        let results = find_weak_imperative_language(&content);
+        assert!(
+            results.is_empty(),
+            "Content one byte over the limit should be skipped"
+        );
+    }
+
+    #[test]
+    fn test_find_ambiguous_instructions_exactly_at_64kb_limit() {
+        let base = "Usually format the output as JSON.\n";
+        let needed = MAX_REGEX_INPUT_SIZE - base.len();
+        let content = format!("{}{}", base, "a".repeat(needed));
+        assert_eq!(
+            content.len(),
+            MAX_REGEX_INPUT_SIZE,
+            "Content must be exactly at the limit"
+        );
+        let results = find_ambiguous_instructions(&content);
+        assert!(
+            !results.is_empty(),
+            "Content at exactly the limit should be processed"
+        );
+    }
+
+    #[test]
+    fn test_find_ambiguous_instructions_one_byte_over_limit() {
+        let base = "Usually format the output as JSON.\n";
+        let needed = MAX_REGEX_INPUT_SIZE - base.len() + 1;
+        let content = format!("{}{}", base, "a".repeat(needed));
+        assert_eq!(
+            content.len(),
+            MAX_REGEX_INPUT_SIZE + 1,
+            "Content must be one byte over the limit"
+        );
+        let results = find_ambiguous_instructions(&content);
+        assert!(
+            results.is_empty(),
+            "Content one byte over the limit should be skipped"
+        );
+    }
+
+    #[test]
+    fn test_find_redundant_instructions_exactly_at_64kb_limit() {
+        let base = "Be helpful in all interactions.\n";
+        let needed = MAX_REGEX_INPUT_SIZE - base.len();
+        let content = format!("{}{}", base, "a".repeat(needed));
+        assert_eq!(
+            content.len(),
+            MAX_REGEX_INPUT_SIZE,
+            "Content must be exactly at the limit"
+        );
+        let results = find_redundant_instructions(&content);
+        assert!(
+            !results.is_empty(),
+            "Content at exactly the limit should be processed"
+        );
+    }
+
+    #[test]
+    fn test_find_redundant_instructions_one_byte_over_limit() {
+        let base = "Be helpful in all interactions.\n";
+        let needed = MAX_REGEX_INPUT_SIZE - base.len() + 1;
+        let content = format!("{}{}", base, "a".repeat(needed));
+        assert_eq!(
+            content.len(),
+            MAX_REGEX_INPUT_SIZE + 1,
+            "Content must be one byte over the limit"
+        );
+        let results = find_redundant_instructions(&content);
+        assert!(
+            results.is_empty(),
+            "Content one byte over the limit should be skipped"
+        );
+    }
+
+    #[test]
+    fn test_find_negative_only_instructions_exactly_at_64kb_limit() {
+        let base = "Don't use globals.\n";
+        let needed = MAX_REGEX_INPUT_SIZE - base.len();
+        let content = format!("{}{}", base, "a".repeat(needed));
+        assert_eq!(
+            content.len(),
+            MAX_REGEX_INPUT_SIZE,
+            "Content must be exactly at the limit"
+        );
+        let results = find_negative_only_instructions(&content);
+        assert!(
+            !results.is_empty(),
+            "Content at exactly the limit should be processed"
+        );
+    }
+
+    #[test]
+    fn test_find_negative_only_instructions_one_byte_over_limit() {
+        let base = "Don't use globals.\n";
+        let needed = MAX_REGEX_INPUT_SIZE - base.len() + 1;
+        let content = format!("{}{}", base, "a".repeat(needed));
+        assert_eq!(
+            content.len(),
+            MAX_REGEX_INPUT_SIZE + 1,
+            "Content must be one byte over the limit"
+        );
+        let results = find_negative_only_instructions(&content);
+        assert!(
+            results.is_empty(),
+            "Content one byte over the limit should be skipped"
+        );
+    }
 }

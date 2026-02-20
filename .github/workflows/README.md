@@ -45,7 +45,7 @@ rhysd/actionlint@v1.7.1:       62dc61a45fc95efe8c800af7a557ab0b9165d63b
 # Rust Tooling
 dtolnay/rust-toolchain@stable: 4be9e76fd7c4901c61fb841f559994984270fce7
 Swatinem/rust-cache@v2:        779680da715d629ac1d338a641029a2f4372abb5
-taiki-e/install-action@v2:     288875dd3d64326724fa6d9593062d9f8ba0b131
+taiki-e/install-action@v2.67.30:     288875dd3d64326724fa6d9593062d9f8ba0b131
 taiki-e/install-action@nextest: cd05dcd6eb73067dda063b97a15b7060049dacd9
 
 # Security

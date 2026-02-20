@@ -285,9 +285,11 @@ impl Validator for AgentValidator {
             Ok(s) => s,
             Err(e) => {
                 if config.is_rule_enabled("CC-AG-007") {
+                    // serde_yaml lines are relative to the frontmatter string;
+                    // add 1 to account for the `---` delimiter line.
                     let (line, column) = e
                         .location()
-                        .map(|loc| (loc.line(), loc.column()))
+                        .map(|loc| (loc.line() + 1, loc.column()))
                         .unwrap_or((1, 0));
                     let raw_error = e.to_string();
                     let friendly_error = humanize_yaml_error(&raw_error);
@@ -2371,9 +2373,9 @@ Body"#;
             .collect();
 
         assert_eq!(parse_errors.len(), 1);
-        assert!(
-            parse_errors[0].line > 1,
-            "Expected error line > 1, got {}",
+        assert_eq!(
+            parse_errors[0].line, 2,
+            "Expected error on line 2 (invalid YAML key), got {}",
             parse_errors[0].line
         );
     }

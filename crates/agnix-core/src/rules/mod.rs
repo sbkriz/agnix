@@ -109,6 +109,11 @@ pub trait Validator: Send + Sync + 'static {
 /// Both ParsedFrontmatter (copilot) and ParsedMdcFrontmatter (cursor) implement this.
 pub(crate) trait FrontmatterRanges {
     fn raw_content(&self) -> &str;
+    /// Return the 1-based line number of the opening `---` delimiter in the full file.
+    ///
+    /// This anchors frontmatter-relative line indices to absolute file positions:
+    /// `find_yaml_value_range` computes `start_line() + 1 + idx` to locate the
+    /// absolute line of each frontmatter key.
     fn start_line(&self) -> usize;
 }
 
@@ -141,17 +146,13 @@ pub(crate) fn line_byte_range(content: &str, line_number: usize) -> Option<(usiz
 
 /// Compute the byte offset where frontmatter content begins - after the opening
 /// `---` delimiter and its line ending. This is the correct insertion point for
-/// new frontmatter keys. Handles both LF and CRLF line endings.
-pub(crate) fn frontmatter_content_offset(content: &str, frontmatter_start: usize) -> usize {
-    let mut pos = frontmatter_start;
-    let bytes = content.as_bytes();
-    if bytes.get(pos) == Some(&b'\r') {
-        pos += 1;
-    }
-    if bytes.get(pos) == Some(&b'\n') {
-        pos += 1;
-    }
-    pos
+/// new frontmatter keys.
+///
+/// Since `split_frontmatter` already advances `frontmatter_start` past the
+/// newline following `---`, this function simply returns the value as-is.
+/// The signature is kept for backward compatibility.
+pub(crate) fn frontmatter_content_offset(_content: &str, frontmatter_start: usize) -> usize {
+    frontmatter_start
 }
 
 /// Find the byte range of a YAML value for a given key in frontmatter.

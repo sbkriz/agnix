@@ -46,9 +46,6 @@ const VALID_AMP_SETTINGS_KEYS: &[&str] = &[
 ];
 
 /// Adapter to use raw frontmatter with `find_yaml_value_range`.
-/// `split_frontmatter()` returns `parts.frontmatter` with a leading `\n`
-/// (the first `.lines()` entry is empty), so `start_line` is 0 to avoid
-/// off-by-one errors in `find_yaml_value_range`'s line-number calculation.
 struct YamlFrontmatterAdapter<'a> {
     raw: &'a str,
 }
@@ -58,7 +55,7 @@ impl crate::rules::FrontmatterRanges for YamlFrontmatterAdapter<'_> {
         self.raw
     }
     fn start_line(&self) -> usize {
-        0
+        1 // Opening --- is file line 1; frontmatter content starts at line 2
     }
 }
 
@@ -111,7 +108,9 @@ fn validate_amp_check(path: &Path, content: &str, config: &LintConfig) -> Vec<Di
         Ok(value) => value,
         Err(error) => {
             if amp_001_enabled {
-                let line = error.location().map_or(1, |loc| loc.line());
+                // serde_yaml lines are relative to the frontmatter string;
+                // add 1 to account for the `---` delimiter line.
+                let line = error.location().map_or(1, |loc| loc.line() + 1);
                 let column = error.location().map_or(0, |loc| loc.column());
                 diagnostics.push(
                     Diagnostic::error(
@@ -488,7 +487,9 @@ fn frontmatter_key_line(frontmatter: &str, key: &str) -> usize {
             let trimmed = line.trim_start();
             let after = trimmed.strip_prefix(key)?;
             if after.trim_start().starts_with(':') {
-                Some(idx + 1)
+                // idx is 0-based within frontmatter; add 2 to convert to
+                // 1-based file line number (1 for the `---` line, 1 for 0-index).
+                Some(idx + 2)
             } else {
                 None
             }
@@ -540,6 +541,10 @@ mod tests {
         let amp_001: Vec<_> = diagnostics.iter().filter(|d| d.rule == "AMP-001").collect();
         assert_eq!(amp_001.len(), 1);
         assert!(amp_001[0].message.contains("Invalid YAML frontmatter"));
+        assert_eq!(
+            amp_001[0].line, 3,
+            "serde_yaml reports loc.line()=2 for this error (libyaml places the unclosed-bracket error at EOF, serde_yaml adds its own +1); code then adds 1 for the opening --- delimiter, giving line 3"
+        );
     }
 
     #[test]
@@ -796,5 +801,14 @@ mod tests {
         );
         assert!(!amp_002[0].fixes[0].safe, "AMP-002 fix should be unsafe");
         assert_eq!(amp_002[0].fixes[0].replacement, "high");
+
+        // Apply the fix and verify the resulting content is correct
+        let fix = &amp_002[0].fixes[0];
+        let mut fixed = content.to_string();
+        fixed.replace_range(fix.start_byte..fix.end_byte, &fix.replacement);
+        assert!(
+            fixed.contains("severity-default: high"),
+            "Applied fix should produce valid content"
+        );
     }
 }

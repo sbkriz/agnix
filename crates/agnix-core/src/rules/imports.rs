@@ -282,7 +282,7 @@ impl<'a> ImportScanner<'a> {
 
         self.stack.push(file_path.clone());
 
-        for import in imports {
+        for import in &imports {
             self.process_import(
                 import,
                 file_path,

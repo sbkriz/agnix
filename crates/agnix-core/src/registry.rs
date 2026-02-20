@@ -23,10 +23,7 @@ pub type ValidatorFactory = fn() -> Box<dyn Validator>;
 ///
 /// impl ValidatorProvider for MyProvider {
 ///     fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
-///         // Return custom validators here.
-///         // Override named_validators() instead when validator names are
-///         // known at compile time, to enable the zero-allocation fast path
-///         // for disabled-validator filtering.
+///         // Return custom validators here
 ///         vec![]
 ///     }
 /// }
@@ -46,21 +43,7 @@ pub trait ValidatorProvider: Send + Sync {
     }
 
     /// Return the validator factories supplied by this provider.
-    ///
-    /// The default implementation strips names from
-    /// [`named_validators`](ValidatorProvider::named_validators).
-    ///
-    /// # Circularity note
-    ///
-    /// `validators()` and `named_validators()` each have a default that
-    /// delegates to the other. A provider that overrides **neither** method
-    /// will cause infinite recursion at runtime. Always override at least one.
-    fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
-        self.named_validators()
-            .into_iter()
-            .map(|(ft, _, f)| (ft, f))
-            .collect()
-    }
+    fn validators(&self) -> Vec<(FileType, ValidatorFactory)>;
 
     /// Return validator factories with optional static names.
     ///
@@ -103,6 +86,13 @@ pub trait ValidatorProvider: Send + Sync {
 pub(crate) struct BuiltinProvider;
 
 impl ValidatorProvider for BuiltinProvider {
+    fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
+        self.named_validators()
+            .into_iter()
+            .map(|(ft, _, f)| (ft, f))
+            .collect()
+    }
+
     fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
         let providers: &[&dyn ValidatorProvider] = &[
             &SkillProvider,
@@ -421,6 +411,13 @@ const EXPECTED_BUILTIN_COUNT: usize = 62;
 struct SkillProvider;
 
 impl ValidatorProvider for SkillProvider {
+    fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
+        self.named_validators()
+            .into_iter()
+            .map(|(ft, _, f)| (ft, f))
+            .collect()
+    }
+
     fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
         vec![
             (FileType::Skill, Some("SkillValidator"), skill_validator),
@@ -439,6 +436,13 @@ impl ValidatorProvider for SkillProvider {
 struct ClaudeProvider;
 
 impl ValidatorProvider for ClaudeProvider {
+    fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
+        self.named_validators()
+            .into_iter()
+            .map(|(ft, _, f)| (ft, f))
+            .collect()
+    }
+
     fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
         vec![
             (
@@ -486,6 +490,13 @@ impl ValidatorProvider for ClaudeProvider {
 struct CopilotProvider;
 
 impl ValidatorProvider for CopilotProvider {
+    fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
+        self.named_validators()
+            .into_iter()
+            .map(|(ft, _, f)| (ft, f))
+            .collect()
+    }
+
     fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
         vec![
             (
@@ -525,6 +536,13 @@ impl ValidatorProvider for CopilotProvider {
 struct CursorProvider;
 
 impl ValidatorProvider for CursorProvider {
+    fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
+        self.named_validators()
+            .into_iter()
+            .map(|(ft, _, f)| (ft, f))
+            .collect()
+    }
+
     fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
         vec![
             (
@@ -580,6 +598,13 @@ impl ValidatorProvider for CursorProvider {
 struct GeminiProvider;
 
 impl ValidatorProvider for GeminiProvider {
+    fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
+        self.named_validators()
+            .into_iter()
+            .map(|(ft, _, f)| (ft, f))
+            .collect()
+    }
+
     fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
         vec![
             (
@@ -626,6 +651,13 @@ impl ValidatorProvider for GeminiProvider {
 struct RooProvider;
 
 impl ValidatorProvider for RooProvider {
+    fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
+        self.named_validators()
+            .into_iter()
+            .map(|(ft, _, f)| (ft, f))
+            .collect()
+    }
+
     fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
         vec![
             (FileType::RooRules, Some("RooCodeValidator"), roo_validator),
@@ -645,6 +677,13 @@ impl ValidatorProvider for RooProvider {
 struct WindsurfProvider;
 
 impl ValidatorProvider for WindsurfProvider {
+    fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
+        self.named_validators()
+            .into_iter()
+            .map(|(ft, _, f)| (ft, f))
+            .collect()
+    }
+
     fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
         vec![
             (
@@ -670,6 +709,13 @@ impl ValidatorProvider for WindsurfProvider {
 struct MiscProvider;
 
 impl ValidatorProvider for MiscProvider {
+    fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
+        self.named_validators()
+            .into_iter()
+            .map(|(ft, _, f)| (ft, f))
+            .collect()
+    }
+
     fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
         vec![
             (FileType::AmpCheck, Some("AmpValidator"), amp_validator),
@@ -1506,6 +1552,10 @@ mod tests {
 
         struct NamedCountingProvider;
         impl ValidatorProvider for NamedCountingProvider {
+            fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
+                vec![(FileType::Skill, named_skip_counting_validator_factory)]
+            }
+
             fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
                 vec![(
                     FileType::Skill,

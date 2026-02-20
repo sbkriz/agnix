@@ -1049,3 +1049,90 @@ fn named_validators_matching_name_registers_successfully() {
         "Registered validator must have the expected name"
     );
 }
+
+// ============================================================================
+// normalize_line_endings is a stable public API
+// ============================================================================
+
+#[test]
+fn normalize_line_endings_crlf_is_owned() {
+    use std::borrow::Cow;
+
+    use agnix_core::normalize_line_endings;
+
+    let crlf = normalize_line_endings("foo\r\nbar");
+    assert_eq!(crlf, "foo\nbar");
+    assert!(
+        matches!(crlf, Cow::Owned(_)),
+        "CRLF input must return Cow::Owned"
+    );
+
+    let crlf_trail = normalize_line_endings("foo\r\nbar\r\n");
+    assert_eq!(crlf_trail, "foo\nbar\n");
+    assert!(
+        matches!(crlf_trail, Cow::Owned(_)),
+        "CRLF input must return Cow::Owned"
+    );
+}
+
+#[test]
+fn normalize_line_endings_lone_cr_is_owned() {
+    use std::borrow::Cow;
+
+    use agnix_core::normalize_line_endings;
+
+    let lone_cr = normalize_line_endings("foo\rbar");
+    assert_eq!(lone_cr, "foo\nbar");
+    assert!(
+        matches!(lone_cr, Cow::Owned(_)),
+        "Lone CR input must return Cow::Owned"
+    );
+}
+
+#[test]
+fn normalize_line_endings_mixed_is_owned() {
+    use std::borrow::Cow;
+
+    use agnix_core::normalize_line_endings;
+
+    let mixed = normalize_line_endings("a\r\nb\rc\n");
+    assert_eq!(mixed, "a\nb\nc\n");
+    assert!(
+        matches!(mixed, Cow::Owned(_)),
+        "Mixed line endings must return Cow::Owned"
+    );
+}
+
+#[test]
+fn normalize_line_endings_empty_is_borrowed() {
+    use std::borrow::Cow;
+
+    use agnix_core::normalize_line_endings;
+
+    let empty = normalize_line_endings("");
+    assert_eq!(empty, "");
+    assert!(
+        matches!(empty, Cow::Borrowed(_)),
+        "Empty string must return Cow::Borrowed"
+    );
+}
+
+#[test]
+fn normalize_line_endings_lf_only_is_borrowed_and_zero_copy() {
+    use std::borrow::Cow;
+
+    use agnix_core::normalize_line_endings;
+
+    let lf_only = "foo\nbar";
+    let result = normalize_line_endings(lf_only);
+    assert_eq!(result, "foo\nbar");
+    assert!(
+        matches!(result, Cow::Borrowed(_)),
+        "LF-only input must return Cow::Borrowed (zero allocation)"
+    );
+    // Verify the borrow points to the exact same memory (truly zero-copy)
+    assert!(
+        std::ptr::eq(result.as_ptr(), lf_only.as_ptr()),
+        "Cow::Borrowed must point to the original allocation"
+    );
+}

@@ -598,7 +598,12 @@ fn builder_build_lenient_allows_unknown_rule_prefixes() {
         .disable_rule("FAKE-001")
         .build_lenient()
         .expect("build_lenient() should accept unknown rule prefixes");
-    assert!(config.rules().disabled_rules.contains(&"FAKE-001".to_string()));
+    assert!(
+        config
+            .rules()
+            .disabled_rules
+            .contains(&"FAKE-001".to_string())
+    );
 }
 
 #[test]

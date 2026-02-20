@@ -232,6 +232,19 @@ struct ImportScanner<'a> {
     seen_diagnostics: &'a mut HashSet<DiagnosticKey>,
 }
 
+struct ScanContext<'a> {
+    file_path: &'a Path,
+    base_dir: &'a Path,
+    normalized_base: &'a Path,
+    rule_not_found: &'static str,
+    rule_cycle: &'static str,
+    rule_depth: &'static str,
+    check_not_found: bool,
+    check_cycle: bool,
+    check_depth: bool,
+    depth: usize,
+}
+
 impl<'a> ImportScanner<'a> {
     fn visit(&mut self, file_path: &Path, content_override: Option<&str>) {
         let depth = self.stack.len();
@@ -272,51 +285,30 @@ impl<'a> ImportScanner<'a> {
             return;
         }
 
-        let rule_not_found = if is_claude_md {
-            "CC-MEM-001"
-        } else {
-            "REF-001"
+        let ctx = ScanContext {
+            file_path,
+            base_dir,
+            normalized_base: &normalized_base,
+            rule_not_found: if is_claude_md { "CC-MEM-001" } else { "REF-001" },
+            rule_cycle: "CC-MEM-002",
+            rule_depth: "CC-MEM-003",
+            check_not_found,
+            check_cycle,
+            check_depth,
+            depth,
         };
-        let rule_cycle = "CC-MEM-002";
-        let rule_depth = "CC-MEM-003";
 
         self.stack.push(file_path.to_path_buf());
 
         for import in &imports {
-            self.process_import(
-                import,
-                file_path,
-                base_dir,
-                &normalized_base,
-                rule_not_found,
-                rule_cycle,
-                rule_depth,
-                check_not_found,
-                check_cycle,
-                check_depth,
-                depth,
-            );
+            self.process_import(import, &ctx);
         }
 
         self.stack.pop();
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn process_import(
-        &mut self,
-        import: &Import,
-        file_path: &Path,
-        base_dir: &Path,
-        normalized_base: &Path,
-        rule_not_found: &str,
-        rule_cycle: &str,
-        rule_depth: &str,
-        check_not_found: bool,
-        check_cycle: bool,
-        check_depth: bool,
-        depth: usize,
-    ) {
-        let resolved = resolve_import_path(&import.path, base_dir);
+    fn process_import(&mut self, import: &Import, ctx: &ScanContext) {
+        let resolved = resolve_import_path(&import.path, ctx.base_dir);
         let normalized_root = self.project_root;
 
         // Validate path to prevent traversal attacks
@@ -327,15 +319,15 @@ impl<'a> ImportScanner<'a> {
             || import.path.starts_with('\\')
             || import.path.starts_with('~')
         {
-            if check_not_found {
+            if ctx.check_not_found {
                 push_unique_diagnostic(
                     self.diagnostics,
                     self.seen_diagnostics,
                     Diagnostic::error(
-                        file_path.to_path_buf(),
+                        ctx.file_path.to_path_buf(),
                         import.line,
                         import.column,
-                        rule_not_found,
+                        ctx.rule_not_found,
                         t!("rules.cc_mem_001.absolute", path = import.path.as_str()),
                     )
                     .with_suggestion(t!("rules.cc_mem_001.absolute_suggestion")),
@@ -344,17 +336,17 @@ impl<'a> ImportScanner<'a> {
             return;
         }
 
-        let normalized_resolved = normalize_join(normalized_base, &import.path);
+        let normalized_resolved = normalize_join(ctx.normalized_base, &import.path);
         if !normalized_resolved.starts_with(normalized_root) {
-            if check_not_found {
+            if ctx.check_not_found {
                 push_unique_diagnostic(
                     self.diagnostics,
                     self.seen_diagnostics,
                     Diagnostic::error(
-                        file_path.to_path_buf(),
+                        ctx.file_path.to_path_buf(),
                         import.line,
                         import.column,
-                        rule_not_found,
+                        ctx.rule_not_found,
                         t!("rules.cc_mem_001.escapes", path = import.path.as_str()),
                     )
                     .with_suggestion(t!("rules.cc_mem_001.escapes_suggestion")),
@@ -366,15 +358,15 @@ impl<'a> ImportScanner<'a> {
         let normalized = if self.fs.exists(&resolved) {
             let canonical_resolved = normalize_existing_path(&resolved, self.fs);
             if !canonical_resolved.starts_with(normalized_root) {
-                if check_not_found {
+                if ctx.check_not_found {
                     push_unique_diagnostic(
                         self.diagnostics,
                         self.seen_diagnostics,
                         Diagnostic::error(
-                            file_path.to_path_buf(),
+                            ctx.file_path.to_path_buf(),
                             import.line,
                             import.column,
-                            rule_not_found,
+                            ctx.rule_not_found,
                             t!("rules.cc_mem_001.escapes", path = import.path.as_str()),
                         )
                         .with_suggestion(t!("rules.cc_mem_001.escapes_suggestion")),
@@ -405,15 +397,15 @@ impl<'a> ImportScanner<'a> {
         let import_exists = self.fs.exists(&normalized);
 
         if !import_exists {
-            if check_not_found {
+            if ctx.check_not_found {
                 push_unique_diagnostic(
                     self.diagnostics,
                     self.seen_diagnostics,
                     Diagnostic::error(
-                        file_path.to_path_buf(),
+                        ctx.file_path.to_path_buf(),
                         import.line,
                         import.column,
-                        rule_not_found,
+                        ctx.rule_not_found,
                         t!("rules.cc_mem_001.not_found", path = import.path.as_str()),
                     )
                     .with_suggestion(format!(
@@ -427,19 +419,19 @@ impl<'a> ImportScanner<'a> {
 
         // Always check for cycles/depth to prevent infinite recursion
         let has_cycle = self.stack.contains(&normalized);
-        let exceeds_depth = depth + 1 > MAX_IMPORT_DEPTH;
+        let exceeds_depth = ctx.depth + 1 > MAX_IMPORT_DEPTH;
 
         // Emit diagnostics if rules are enabled for this file type
-        if check_cycle && has_cycle {
+        if ctx.check_cycle && has_cycle {
             let cycle = format_cycle(self.stack, &normalized);
             push_unique_diagnostic(
                 self.diagnostics,
                 self.seen_diagnostics,
                 Diagnostic::error(
-                    file_path.to_path_buf(),
+                    ctx.file_path.to_path_buf(),
                     import.line,
                     import.column,
-                    rule_cycle,
+                    ctx.rule_cycle,
                     t!("rules.cc_mem_002.message", chain = cycle),
                 )
                 .with_suggestion(t!("rules.cc_mem_002.suggestion")),
@@ -447,18 +439,18 @@ impl<'a> ImportScanner<'a> {
             return;
         }
 
-        if check_depth && exceeds_depth {
+        if ctx.check_depth && exceeds_depth {
             push_unique_diagnostic(
                 self.diagnostics,
                 self.seen_diagnostics,
                 Diagnostic::error(
-                    file_path.to_path_buf(),
+                    ctx.file_path.to_path_buf(),
                     import.line,
                     import.column,
-                    rule_depth,
+                    ctx.rule_depth,
                     t!(
                         "rules.cc_mem_003.message",
-                        depth = depth + 1,
+                        depth = ctx.depth + 1,
                         max = MAX_IMPORT_DEPTH
                     ),
                 )

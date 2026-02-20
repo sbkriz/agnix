@@ -87,14 +87,35 @@ pub(crate) struct BuiltinProvider;
 
 impl ValidatorProvider for BuiltinProvider {
     fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
-        DEFAULTS.iter().map(|&(ft, _, f)| (ft, f)).collect()
+        self.named_validators()
+            .into_iter()
+            .map(|(ft, _, f)| (ft, f))
+            .collect()
     }
 
     fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
-        DEFAULTS
+        let providers: &[&dyn ValidatorProvider] = &[
+            &SkillProvider,
+            &ClaudeProvider,
+            &CopilotProvider,
+            &CursorProvider,
+            &GeminiProvider,
+            &RooProvider,
+            &WindsurfProvider,
+            &MiscProvider,
+        ];
+        let result: Vec<_> = providers
             .iter()
-            .map(|&(ft, name, f)| (ft, Some(name), f))
-            .collect()
+            .flat_map(|p| p.named_validators())
+            .collect();
+        debug_assert_eq!(
+            result.len(),
+            EXPECTED_BUILTIN_COUNT,
+            "BuiltinProvider produced {} entries but expected {}",
+            result.len(),
+            EXPECTED_BUILTIN_COUNT
+        );
+        result
     }
 }
 
@@ -256,8 +277,11 @@ impl ValidatorRegistry {
     }
 
     fn register_defaults(&mut self) {
-        for &(file_type, name, factory) in DEFAULTS {
-            self.register_named(file_type, name, factory);
+        for (file_type, name, factory) in BuiltinProvider.named_validators() {
+            match name {
+                Some(n) => self.register_named(file_type, n, factory),
+                None => self.register(file_type, factory),
+            }
         }
     }
 }
@@ -370,168 +394,378 @@ impl ValidatorRegistryBuilder {
 // Built-in defaults
 // ============================================================================
 
-const DEFAULTS: &[(FileType, &str, ValidatorFactory)] = &[
-    (FileType::Skill, "SkillValidator", skill_validator),
-    (
-        FileType::Skill,
-        "PerClientSkillValidator",
-        per_client_skill_validator,
-    ),
-    (FileType::Skill, "XmlValidator", xml_validator),
-    (FileType::Skill, "ImportsValidator", imports_validator),
-    (FileType::AmpCheck, "AmpValidator", amp_validator),
-    (FileType::ClaudeMd, "ClaudeMdValidator", claude_md_validator),
-    (
-        FileType::ClaudeMd,
-        "CrossPlatformValidator",
-        cross_platform_validator,
-    ),
-    (FileType::ClaudeMd, "AgentsMdValidator", agents_md_validator),
-    (FileType::ClaudeMd, "AmpValidator", amp_validator),
-    (FileType::ClaudeMd, "XmlValidator", xml_validator),
-    (FileType::ClaudeMd, "ImportsValidator", imports_validator),
-    (FileType::ClaudeMd, "PromptValidator", prompt_validator),
-    (FileType::Agent, "AgentValidator", agent_validator),
-    (FileType::Agent, "XmlValidator", xml_validator),
-    (FileType::Hooks, "HooksValidator", hooks_validator),
-    (FileType::Plugin, "PluginValidator", plugin_validator),
-    (FileType::Mcp, "McpValidator", mcp_validator),
-    (FileType::Copilot, "CopilotValidator", copilot_validator),
-    (FileType::Copilot, "XmlValidator", xml_validator),
-    (
-        FileType::CopilotScoped,
-        "CopilotValidator",
-        copilot_validator,
-    ),
-    (FileType::CopilotScoped, "XmlValidator", xml_validator),
-    (
-        FileType::CopilotAgent,
-        "CopilotValidator",
-        copilot_validator,
-    ),
-    (FileType::CopilotAgent, "XmlValidator", xml_validator),
-    (
-        FileType::CopilotPrompt,
-        "CopilotValidator",
-        copilot_validator,
-    ),
-    (FileType::CopilotPrompt, "XmlValidator", xml_validator),
-    (
-        FileType::CopilotHooks,
-        "CopilotValidator",
-        copilot_validator,
-    ),
-    (
-        FileType::ClaudeRule,
-        "ClaudeRulesValidator",
-        claude_rules_validator,
-    ),
-    (FileType::CursorRule, "CursorValidator", cursor_validator),
-    (FileType::CursorRule, "PromptValidator", prompt_validator),
-    (
-        FileType::CursorRule,
-        "ClaudeMdValidator",
-        claude_md_validator,
-    ),
-    (FileType::CursorHooks, "CursorValidator", cursor_validator),
-    (FileType::CursorAgent, "CursorValidator", cursor_validator),
-    (
-        FileType::CursorEnvironment,
-        "CursorValidator",
-        cursor_validator,
-    ),
-    (
-        FileType::CursorRulesLegacy,
-        "CursorValidator",
-        cursor_validator,
-    ),
-    (
-        FileType::CursorRulesLegacy,
-        "PromptValidator",
-        prompt_validator,
-    ),
-    (
-        FileType::CursorRulesLegacy,
-        "ClaudeMdValidator",
-        claude_md_validator,
-    ),
-    (FileType::ClineRules, "ClineValidator", cline_validator),
-    (
-        FileType::ClineRulesFolder,
-        "ClineValidator",
-        cline_validator,
-    ),
-    (
-        FileType::OpenCodeConfig,
-        "OpenCodeValidator",
-        opencode_validator,
-    ),
-    (FileType::GeminiMd, "GeminiMdValidator", gemini_md_validator),
-    (FileType::GeminiMd, "PromptValidator", prompt_validator),
-    (FileType::GeminiMd, "XmlValidator", xml_validator),
-    (FileType::GeminiMd, "ImportsValidator", imports_validator),
-    (
-        FileType::GeminiMd,
-        "CrossPlatformValidator",
-        cross_platform_validator,
-    ),
-    (
-        FileType::GeminiSettings,
-        "GeminiSettingsValidator",
-        gemini_settings_validator,
-    ),
-    (FileType::AmpSettings, "AmpValidator", amp_validator),
-    (
-        FileType::GeminiExtension,
-        "GeminiExtensionValidator",
-        gemini_extension_validator,
-    ),
-    (
-        FileType::GeminiIgnore,
-        "GeminiIgnoreValidator",
-        gemini_ignore_validator,
-    ),
-    (FileType::CodexConfig, "CodexValidator", codex_validator),
-    // CodexValidator on ClaudeMd catches AGENTS.override.md files (CDX-003).
-    // The validator early-returns for all other ClaudeMd filenames.
-    (FileType::ClaudeMd, "CodexValidator", codex_validator),
-    (FileType::RooRules, "RooCodeValidator", roo_validator),
-    (FileType::RooModes, "RooCodeValidator", roo_validator),
-    (FileType::RooIgnore, "RooCodeValidator", roo_validator),
-    (FileType::RooModeRules, "RooCodeValidator", roo_validator),
-    (FileType::RooMcp, "RooCodeValidator", roo_validator),
-    (
-        FileType::WindsurfRule,
-        "WindsurfValidator",
-        windsurf_validator,
-    ),
-    (
-        FileType::WindsurfWorkflow,
-        "WindsurfValidator",
-        windsurf_validator,
-    ),
-    (
-        FileType::WindsurfRulesLegacy,
-        "WindsurfValidator",
-        windsurf_validator,
-    ),
-    (
-        FileType::KiroSteering,
-        "KiroSteeringValidator",
-        kiro_steering_validator,
-    ),
-    (
-        FileType::GenericMarkdown,
-        "CrossPlatformValidator",
-        cross_platform_validator,
-    ),
-    (FileType::GenericMarkdown, "XmlValidator", xml_validator),
-    (
-        FileType::GenericMarkdown,
-        "ImportsValidator",
-        imports_validator,
-    ),
-];
+/// Expected number of validator registrations across all built-in providers.
+///
+/// Used by `BuiltinProvider` (via `debug_assert_eq!`) and tests to catch
+/// accidental additions or removals without updating all providers.
+const EXPECTED_BUILTIN_COUNT: usize = 62;
+
+// -- Category providers -----------------------------------------------------
+//
+// Each struct groups validators for a related family of file types and
+// implements `ValidatorProvider` with `named_validators()` returning
+// `Some(name)` for the fast-path optimization (skip factory call for
+// disabled validators).
+
+/// Skill file validators.
+struct SkillProvider;
+
+impl ValidatorProvider for SkillProvider {
+    fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
+        self.named_validators()
+            .into_iter()
+            .map(|(ft, _, f)| (ft, f))
+            .collect()
+    }
+
+    fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
+        vec![
+            (FileType::Skill, Some("SkillValidator"), skill_validator),
+            (
+                FileType::Skill,
+                Some("PerClientSkillValidator"),
+                per_client_skill_validator,
+            ),
+            (FileType::Skill, Some("XmlValidator"), xml_validator),
+            (FileType::Skill, Some("ImportsValidator"), imports_validator),
+        ]
+    }
+}
+
+/// Claude family validators: ClaudeMd, Agent, ClaudeRule.
+struct ClaudeProvider;
+
+impl ValidatorProvider for ClaudeProvider {
+    fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
+        self.named_validators()
+            .into_iter()
+            .map(|(ft, _, f)| (ft, f))
+            .collect()
+    }
+
+    fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
+        vec![
+            (
+                FileType::ClaudeMd,
+                Some("ClaudeMdValidator"),
+                claude_md_validator,
+            ),
+            (
+                FileType::ClaudeMd,
+                Some("CrossPlatformValidator"),
+                cross_platform_validator,
+            ),
+            (
+                FileType::ClaudeMd,
+                Some("AgentsMdValidator"),
+                agents_md_validator,
+            ),
+            (FileType::ClaudeMd, Some("AmpValidator"), amp_validator),
+            (FileType::ClaudeMd, Some("XmlValidator"), xml_validator),
+            (
+                FileType::ClaudeMd,
+                Some("ImportsValidator"),
+                imports_validator,
+            ),
+            (
+                FileType::ClaudeMd,
+                Some("PromptValidator"),
+                prompt_validator,
+            ),
+            // CodexValidator on ClaudeMd catches AGENTS.override.md files (CDX-003).
+            // The validator early-returns for all other ClaudeMd filenames.
+            (FileType::ClaudeMd, Some("CodexValidator"), codex_validator),
+            (FileType::Agent, Some("AgentValidator"), agent_validator),
+            (FileType::Agent, Some("XmlValidator"), xml_validator),
+            (
+                FileType::ClaudeRule,
+                Some("ClaudeRulesValidator"),
+                claude_rules_validator,
+            ),
+        ]
+    }
+}
+
+/// Copilot family validators.
+struct CopilotProvider;
+
+impl ValidatorProvider for CopilotProvider {
+    fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
+        self.named_validators()
+            .into_iter()
+            .map(|(ft, _, f)| (ft, f))
+            .collect()
+    }
+
+    fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
+        vec![
+            (
+                FileType::Copilot,
+                Some("CopilotValidator"),
+                copilot_validator,
+            ),
+            (FileType::Copilot, Some("XmlValidator"), xml_validator),
+            (
+                FileType::CopilotScoped,
+                Some("CopilotValidator"),
+                copilot_validator,
+            ),
+            (FileType::CopilotScoped, Some("XmlValidator"), xml_validator),
+            (
+                FileType::CopilotAgent,
+                Some("CopilotValidator"),
+                copilot_validator,
+            ),
+            (FileType::CopilotAgent, Some("XmlValidator"), xml_validator),
+            (
+                FileType::CopilotPrompt,
+                Some("CopilotValidator"),
+                copilot_validator,
+            ),
+            (FileType::CopilotPrompt, Some("XmlValidator"), xml_validator),
+            (
+                FileType::CopilotHooks,
+                Some("CopilotValidator"),
+                copilot_validator,
+            ),
+        ]
+    }
+}
+
+/// Cursor family validators.
+struct CursorProvider;
+
+impl ValidatorProvider for CursorProvider {
+    fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
+        self.named_validators()
+            .into_iter()
+            .map(|(ft, _, f)| (ft, f))
+            .collect()
+    }
+
+    fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
+        vec![
+            (
+                FileType::CursorRule,
+                Some("CursorValidator"),
+                cursor_validator,
+            ),
+            (
+                FileType::CursorRule,
+                Some("PromptValidator"),
+                prompt_validator,
+            ),
+            (
+                FileType::CursorRule,
+                Some("ClaudeMdValidator"),
+                claude_md_validator,
+            ),
+            (
+                FileType::CursorHooks,
+                Some("CursorValidator"),
+                cursor_validator,
+            ),
+            (
+                FileType::CursorAgent,
+                Some("CursorValidator"),
+                cursor_validator,
+            ),
+            (
+                FileType::CursorEnvironment,
+                Some("CursorValidator"),
+                cursor_validator,
+            ),
+            (
+                FileType::CursorRulesLegacy,
+                Some("CursorValidator"),
+                cursor_validator,
+            ),
+            (
+                FileType::CursorRulesLegacy,
+                Some("PromptValidator"),
+                prompt_validator,
+            ),
+            (
+                FileType::CursorRulesLegacy,
+                Some("ClaudeMdValidator"),
+                claude_md_validator,
+            ),
+        ]
+    }
+}
+
+/// Gemini family validators.
+struct GeminiProvider;
+
+impl ValidatorProvider for GeminiProvider {
+    fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
+        self.named_validators()
+            .into_iter()
+            .map(|(ft, _, f)| (ft, f))
+            .collect()
+    }
+
+    fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
+        vec![
+            (
+                FileType::GeminiMd,
+                Some("GeminiMdValidator"),
+                gemini_md_validator,
+            ),
+            (
+                FileType::GeminiMd,
+                Some("PromptValidator"),
+                prompt_validator,
+            ),
+            (FileType::GeminiMd, Some("XmlValidator"), xml_validator),
+            (
+                FileType::GeminiMd,
+                Some("ImportsValidator"),
+                imports_validator,
+            ),
+            (
+                FileType::GeminiMd,
+                Some("CrossPlatformValidator"),
+                cross_platform_validator,
+            ),
+            (
+                FileType::GeminiSettings,
+                Some("GeminiSettingsValidator"),
+                gemini_settings_validator,
+            ),
+            (
+                FileType::GeminiExtension,
+                Some("GeminiExtensionValidator"),
+                gemini_extension_validator,
+            ),
+            (
+                FileType::GeminiIgnore,
+                Some("GeminiIgnoreValidator"),
+                gemini_ignore_validator,
+            ),
+        ]
+    }
+}
+
+/// Roo Code validators.
+struct RooProvider;
+
+impl ValidatorProvider for RooProvider {
+    fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
+        self.named_validators()
+            .into_iter()
+            .map(|(ft, _, f)| (ft, f))
+            .collect()
+    }
+
+    fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
+        vec![
+            (FileType::RooRules, Some("RooCodeValidator"), roo_validator),
+            (FileType::RooModes, Some("RooCodeValidator"), roo_validator),
+            (FileType::RooIgnore, Some("RooCodeValidator"), roo_validator),
+            (
+                FileType::RooModeRules,
+                Some("RooCodeValidator"),
+                roo_validator,
+            ),
+            (FileType::RooMcp, Some("RooCodeValidator"), roo_validator),
+        ]
+    }
+}
+
+/// Windsurf validators.
+struct WindsurfProvider;
+
+impl ValidatorProvider for WindsurfProvider {
+    fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
+        self.named_validators()
+            .into_iter()
+            .map(|(ft, _, f)| (ft, f))
+            .collect()
+    }
+
+    fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
+        vec![
+            (
+                FileType::WindsurfRule,
+                Some("WindsurfValidator"),
+                windsurf_validator,
+            ),
+            (
+                FileType::WindsurfWorkflow,
+                Some("WindsurfValidator"),
+                windsurf_validator,
+            ),
+            (
+                FileType::WindsurfRulesLegacy,
+                Some("WindsurfValidator"),
+                windsurf_validator,
+            ),
+        ]
+    }
+}
+
+/// Miscellaneous validators that do not belong to a larger family.
+struct MiscProvider;
+
+impl ValidatorProvider for MiscProvider {
+    fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
+        self.named_validators()
+            .into_iter()
+            .map(|(ft, _, f)| (ft, f))
+            .collect()
+    }
+
+    fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
+        vec![
+            (FileType::AmpCheck, Some("AmpValidator"), amp_validator),
+            (FileType::Hooks, Some("HooksValidator"), hooks_validator),
+            (FileType::Plugin, Some("PluginValidator"), plugin_validator),
+            (FileType::Mcp, Some("McpValidator"), mcp_validator),
+            (
+                FileType::ClineRules,
+                Some("ClineValidator"),
+                cline_validator,
+            ),
+            (
+                FileType::ClineRulesFolder,
+                Some("ClineValidator"),
+                cline_validator,
+            ),
+            (
+                FileType::OpenCodeConfig,
+                Some("OpenCodeValidator"),
+                opencode_validator,
+            ),
+            (FileType::AmpSettings, Some("AmpValidator"), amp_validator),
+            (
+                FileType::CodexConfig,
+                Some("CodexValidator"),
+                codex_validator,
+            ),
+            (
+                FileType::KiroSteering,
+                Some("KiroSteeringValidator"),
+                kiro_steering_validator,
+            ),
+            (
+                FileType::GenericMarkdown,
+                Some("CrossPlatformValidator"),
+                cross_platform_validator,
+            ),
+            (
+                FileType::GenericMarkdown,
+                Some("XmlValidator"),
+                xml_validator,
+            ),
+            (
+                FileType::GenericMarkdown,
+                Some("ImportsValidator"),
+                imports_validator,
+            ),
+        ]
+    }
+}
 
 // ============================================================================
 // Factory functions
@@ -654,8 +888,8 @@ mod tests {
         let entries = provider.validators();
         assert_eq!(
             entries.len(),
-            DEFAULTS.len(),
-            "BuiltinProvider should return the same number of entries as DEFAULTS"
+            EXPECTED_BUILTIN_COUNT,
+            "BuiltinProvider should return the same number of entries as EXPECTED_BUILTIN_COUNT"
         );
     }
 
@@ -1023,8 +1257,8 @@ mod tests {
         let registry = ValidatorRegistry::with_defaults();
         assert_eq!(
             registry.total_validator_count(),
-            DEFAULTS.len(),
-            "with_defaults() should register exactly as many validators as DEFAULTS"
+            EXPECTED_BUILTIN_COUNT,
+            "with_defaults() should register exactly as many validators as EXPECTED_BUILTIN_COUNT"
         );
     }
 
@@ -1227,24 +1461,25 @@ mod tests {
             "XmlValidator should be removed from all file types"
         );
 
-        // XmlValidator appears in 9 file types in DEFAULTS. Count via function
-        // pointer comparison (no allocations) and verify the total decreases
-        // by exactly that amount.
-        let xml_occurrences_in_defaults = DEFAULTS
+        // XmlValidator appears in 9 file types across built-in providers. Count
+        // via the static names and verify the total decreases by exactly that
+        // amount.
+        let xml_occurrences = BuiltinProvider
+            .named_validators()
             .iter()
-            .filter(|(_, _, factory)| *factory as usize == xml_validator as usize)
+            .filter(|(_, name, _)| *name == Some("XmlValidator"))
             .count();
         assert_eq!(
-            xml_occurrences_in_defaults, 9,
-            "Expected XmlValidator in 9 DEFAULTS entries"
+            xml_occurrences, 9,
+            "Expected XmlValidator in 9 BuiltinProvider entries"
         );
         let total_after = registry.total_validator_count();
         assert_eq!(
             total_before - total_after,
-            xml_occurrences_in_defaults,
+            xml_occurrences,
             "Disabling XmlValidator should remove exactly {} instances, \
              but removed {}",
-            xml_occurrences_in_defaults,
+            xml_occurrences,
             total_before - total_after
         );
     }
@@ -1269,15 +1504,16 @@ mod tests {
 
     #[test]
     fn defaults_names_match_factory_names() {
-        // Every static name in DEFAULTS must exactly match the name returned
-        // by the factory-produced instance. A mismatch would silently break
-        // the disabled-validator fast path.
-        for &(file_type, static_name, factory) in DEFAULTS {
+        // Every static name in BuiltinProvider must exactly match the name
+        // returned by the factory-produced instance. A mismatch would silently
+        // break the disabled-validator fast path.
+        for (file_type, static_name, factory) in BuiltinProvider.named_validators() {
+            let static_name = static_name.expect("BuiltinProvider entries must have Some(name)");
             let instance = factory();
             let runtime_name = instance.name();
             assert_eq!(
                 static_name, runtime_name,
-                "DEFAULTS name mismatch for {file_type:?}: \
+                "BuiltinProvider name mismatch for {file_type:?}: \
                  static=\"{static_name}\" vs runtime=\"{runtime_name}\""
             );
         }
@@ -1319,6 +1555,7 @@ mod tests {
             fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
                 vec![(FileType::Skill, named_skip_counting_validator_factory)]
             }
+
             fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
                 vec![(
                     FileType::Skill,
@@ -1352,11 +1589,11 @@ mod tests {
 
         assert_eq!(
             named.len(),
-            DEFAULTS.len(),
-            "named_validators() should return the same number of entries as DEFAULTS"
+            EXPECTED_BUILTIN_COUNT,
+            "named_validators() should return EXPECTED_BUILTIN_COUNT entries"
         );
 
-        // Every entry must have Some(name)
+        // Every entry must have Some(name).
         for (i, (ft, name, _factory)) in named.iter().enumerate() {
             assert!(
                 name.is_some(),
@@ -1364,14 +1601,18 @@ mod tests {
             );
         }
 
-        // Cross-check: names must match DEFAULTS static names
-        for (named_entry, default_entry) in named.iter().zip(DEFAULTS.iter()) {
-            let (_, named_name, _) = named_entry;
-            let (_, default_name, _) = default_entry;
+        // Self-consistency: validators() and named_validators() must agree on
+        // count and file types.
+        let unnamed = provider.validators();
+        assert_eq!(
+            unnamed.len(),
+            named.len(),
+            "validators() and named_validators() must return the same count"
+        );
+        for ((ft_unnamed, _), (ft_named, _, _)) in unnamed.iter().zip(named.iter()) {
             assert_eq!(
-                named_name.unwrap(),
-                *default_name,
-                "named_validators() name should match DEFAULTS"
+                ft_unnamed, ft_named,
+                "validators() and named_validators() file types must match"
             );
         }
     }
@@ -1529,6 +1770,230 @@ mod tests {
             slipped_through[0].name(),
             "ActualName",
             "The registered validator must be the mismatched one"
+        );
+    }
+
+    // ---- Category provider tests ----
+
+    #[test]
+    fn skill_provider_count() {
+        assert_eq!(SkillProvider.named_validators().len(), 4);
+    }
+
+    #[test]
+    fn claude_provider_count() {
+        assert_eq!(ClaudeProvider.named_validators().len(), 11);
+    }
+
+    #[test]
+    fn copilot_provider_count() {
+        assert_eq!(CopilotProvider.named_validators().len(), 9);
+    }
+
+    #[test]
+    fn cursor_provider_count() {
+        assert_eq!(CursorProvider.named_validators().len(), 9);
+    }
+
+    #[test]
+    fn gemini_provider_count() {
+        assert_eq!(GeminiProvider.named_validators().len(), 8);
+    }
+
+    #[test]
+    fn roo_provider_count() {
+        assert_eq!(RooProvider.named_validators().len(), 5);
+    }
+
+    #[test]
+    fn windsurf_provider_count() {
+        assert_eq!(WindsurfProvider.named_validators().len(), 3);
+    }
+
+    #[test]
+    fn misc_provider_count() {
+        assert_eq!(MiscProvider.named_validators().len(), 13);
+    }
+
+    #[test]
+    fn all_category_providers_sum_to_expected_count() {
+        let total = SkillProvider.named_validators().len()
+            + ClaudeProvider.named_validators().len()
+            + CopilotProvider.named_validators().len()
+            + CursorProvider.named_validators().len()
+            + GeminiProvider.named_validators().len()
+            + RooProvider.named_validators().len()
+            + WindsurfProvider.named_validators().len()
+            + MiscProvider.named_validators().len();
+        assert_eq!(
+            total, EXPECTED_BUILTIN_COUNT,
+            "Sum of all category provider counts must equal EXPECTED_BUILTIN_COUNT"
+        );
+    }
+
+    #[test]
+    fn all_category_provider_entries_have_names() {
+        let providers: &[&dyn ValidatorProvider] = &[
+            &SkillProvider,
+            &ClaudeProvider,
+            &CopilotProvider,
+            &CursorProvider,
+            &GeminiProvider,
+            &RooProvider,
+            &WindsurfProvider,
+            &MiscProvider,
+        ];
+        for provider in providers {
+            for (i, (ft, name, _)) in provider.named_validators().iter().enumerate() {
+                assert!(
+                    name.is_some(),
+                    "{}: entry {i} ({ft:?}) should have Some(name), got None",
+                    provider.name()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn category_provider_validators_count_matches_named() {
+        let providers: &[&dyn ValidatorProvider] = &[
+            &SkillProvider,
+            &ClaudeProvider,
+            &CopilotProvider,
+            &CursorProvider,
+            &GeminiProvider,
+            &RooProvider,
+            &WindsurfProvider,
+            &MiscProvider,
+        ];
+        for provider in providers {
+            assert_eq!(
+                provider.validators().len(),
+                provider.named_validators().len(),
+                "{}: validators() and named_validators() counts must match",
+                provider.name()
+            );
+        }
+    }
+
+    #[test]
+    fn claude_provider_includes_codex_on_claude_md() {
+        // CDX-003: CodexValidator on ClaudeMd catches AGENTS.override.md files.
+        let entries = ClaudeProvider.named_validators();
+        let has_codex_on_claude_md = entries
+            .iter()
+            .any(|(ft, name, _)| *ft == FileType::ClaudeMd && *name == Some("CodexValidator"));
+        assert!(
+            has_codex_on_claude_md,
+            "ClaudeProvider must include CodexValidator on ClaudeMd (CDX-003)"
+        );
+    }
+
+    #[test]
+    fn codex_validator_only_on_expected_file_types() {
+        // CodexValidator must only appear on ClaudeMd (CDX-003) and CodexConfig.
+        // Any other registration would be a misconfiguration.
+        let entries = BuiltinProvider.named_validators();
+        for (ft, name, _) in &entries {
+            if *name == Some("CodexValidator") {
+                assert!(
+                    *ft == FileType::ClaudeMd || *ft == FileType::CodexConfig,
+                    "CodexValidator must only be registered for ClaudeMd or CodexConfig, found {:?}",
+                    ft
+                );
+            }
+        }
+        let codex_count = entries
+            .iter()
+            .filter(|(_, name, _)| *name == Some("CodexValidator"))
+            .count();
+        assert_eq!(
+            codex_count, 2,
+            "CodexValidator should appear exactly twice (ClaudeMd + CodexConfig)"
+        );
+    }
+
+    #[test]
+    fn builder_second_build_has_no_disabled_validators() {
+        // build() consumes the disabled set via mem::take. A second call
+        // produces a registry where previously-disabled validators are active.
+        let mut builder = ValidatorRegistry::builder();
+        builder.with_defaults().without_validator("XmlValidator");
+
+        let first = builder.build();
+        let second = builder.build();
+
+        // XmlValidator appears 9 times in the default set; first registry has them removed.
+        let xml_count = BuiltinProvider
+            .named_validators()
+            .iter()
+            .filter(|(_, name, _)| *name == Some("XmlValidator"))
+            .count();
+        assert_eq!(
+            second.total_validator_count() - first.total_validator_count(),
+            xml_count,
+            "First registry should have exactly {xml_count} fewer validators (one per XmlValidator registration)"
+        );
+        // Second registry has the full count because the disabled set was consumed.
+        assert_eq!(
+            second.total_validator_count(),
+            EXPECTED_BUILTIN_COUNT,
+            "Second build() must produce a full registry (disabled set was consumed by first build)"
+        );
+    }
+
+    #[test]
+    fn builtin_provider_output_matches_sub_provider_concatenation() {
+        // BuiltinProvider::named_validators() must be a pure flat_map of all
+        // 8 sub-providers in declaration order with no reordering or deduplication.
+        let expected: Vec<_> = [
+            SkillProvider.named_validators(),
+            ClaudeProvider.named_validators(),
+            CopilotProvider.named_validators(),
+            CursorProvider.named_validators(),
+            GeminiProvider.named_validators(),
+            RooProvider.named_validators(),
+            WindsurfProvider.named_validators(),
+            MiscProvider.named_validators(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+
+        let actual = BuiltinProvider.named_validators();
+
+        assert_eq!(
+            actual.len(),
+            expected.len(),
+            "BuiltinProvider entry count must equal sum of sub-providers"
+        );
+        for (i, ((aft, aname, _), (eft, ename, _))) in
+            actual.iter().zip(expected.iter()).enumerate()
+        {
+            assert_eq!(
+                aft, eft,
+                "Entry {i}: file type mismatch (actual={aft:?}, expected={eft:?})"
+            );
+            assert_eq!(
+                aname, ename,
+                "Entry {i}: name mismatch (actual={aname:?}, expected={ename:?})"
+            );
+        }
+    }
+
+    #[test]
+    fn builder_with_defaults_called_twice_registers_all_validators_twice() {
+        // with_defaults() is additive. Calling it twice duplicates every
+        // built-in validator. This is the documented behaviour (see
+        // ValidatorRegistryBuilder::with_defaults doc comment).
+        let registry = ValidatorRegistry::builder()
+            .with_defaults()
+            .with_defaults()
+            .build();
+        assert_eq!(
+            registry.total_validator_count(),
+            EXPECTED_BUILTIN_COUNT * 2,
+            "Calling with_defaults() twice must register all validators twice"
         );
     }
 }

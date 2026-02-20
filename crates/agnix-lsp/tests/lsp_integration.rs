@@ -1588,8 +1588,9 @@ mod document_version_tests {
                     uri: uri.clone(),
                     language_id: "markdown".to_string(),
                     version: 1,
-                    text: "---\nname: ver-test\ndescription: Use when testing versions\n---\n# Test\n"
-                        .to_string(),
+                    text:
+                        "---\nname: ver-test\ndescription: Use when testing versions\n---\n# Test\n"
+                            .to_string(),
                 },
             })
             .await;
@@ -1659,5 +1660,4 @@ mod document_version_tests {
             "Hover should return None after document is closed"
         );
     }
-
 }

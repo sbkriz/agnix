@@ -195,9 +195,7 @@ impl Backend {
                 // Read version just-in-time to minimize TOCTOU window
                 let version = self.get_document_version(&uri).await;
                 // Publish empty diagnostics to clear any stale results
-                self.client
-                    .publish_diagnostics(uri, vec![], version)
-                    .await;
+                self.client.publish_diagnostics(uri, vec![], version).await;
                 return;
             }
         }

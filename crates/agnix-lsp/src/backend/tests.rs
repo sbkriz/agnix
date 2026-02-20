@@ -3664,7 +3664,9 @@ async fn test_document_version_lifecycle_through_events() {
                 uri: uri.clone(),
                 language_id: "markdown".to_string(),
                 version: 1,
-                text: "---\nname: lifecycle\nversion: 1.0.0\nmodel: sonnet\n---\n# Lifecycle Test\n".to_string(),
+                text:
+                    "---\nname: lifecycle\nversion: 1.0.0\nmodel: sonnet\n---\n# Lifecycle Test\n"
+                        .to_string(),
             },
         })
         .await;

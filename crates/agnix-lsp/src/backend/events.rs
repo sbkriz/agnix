@@ -51,10 +51,7 @@ impl Backend {
         } else {
             // Even when content_changes is empty, the version from
             // VersionedTextDocumentIdentifier is authoritative per LSP spec.
-            self.document_versions
-                .write()
-                .await
-                .insert(uri, version);
+            self.document_versions.write().await.insert(uri, version);
         }
     }
 
@@ -80,8 +77,6 @@ impl Backend {
         self.document_versions.write().await.remove(&uri);
         // Clearing diagnostics for a closed document - version is intentionally None
         // since the document is no longer tracked.
-        self.client
-            .publish_diagnostics(uri, vec![], None)
-            .await;
+        self.client.publish_diagnostics(uri, vec![], None).await;
     }
 }

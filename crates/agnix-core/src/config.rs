@@ -167,7 +167,11 @@ impl std::fmt::Display for ConfigError {
                 write!(f, "path traversal in pattern '{}'", pattern)
             }
             ConfigError::AbsolutePathPattern { pattern } => {
-                write!(f, "absolute path in pattern '{}': use relative paths only", pattern)
+                write!(
+                    f,
+                    "absolute path in pattern '{}': use relative paths only",
+                    pattern
+                )
             }
             ConfigError::ValidationFailed(warnings) => {
                 if warnings.is_empty() {

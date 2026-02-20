@@ -3518,9 +3518,7 @@ fn test_build_lenient_allows_unknown_tools() {
 #[test]
 fn test_build_lenient_allows_deprecated_target() {
     // build() rejects deprecated target field; build_lenient() should accept it
-    let result_strict = LintConfig::builder()
-        .target(TargetTool::ClaudeCode)
-        .build();
+    let result_strict = LintConfig::builder().target(TargetTool::ClaudeCode).build();
     assert!(
         result_strict.is_err(),
         "build() should reject deprecated target"
@@ -3554,9 +3552,7 @@ fn test_build_lenient_allows_deprecated_mcp_version() {
 #[test]
 fn test_build_lenient_allows_unknown_rule_prefixes() {
     // build() rejects unknown rule prefixes; build_lenient() should accept them
-    let result_strict = LintConfig::builder()
-        .disable_rule("FAKE-001")
-        .build();
+    let result_strict = LintConfig::builder().disable_rule("FAKE-001").build();
     assert!(
         result_strict.is_err(),
         "build() should reject unknown rule prefix"
@@ -3583,7 +3579,11 @@ fn test_build_lenient_rejects_invalid_glob() {
     match result.unwrap_err() {
         ConfigError::InvalidGlobPattern { pattern, error } => {
             assert_eq!(pattern, "[invalid");
-            assert!(error.contains("exclude"), "error should name the field: {}", error);
+            assert!(
+                error.contains("exclude"),
+                "error should name the field: {}",
+                error
+            );
         }
         other => panic!("Expected InvalidGlobPattern, got: {:?}", other),
     }

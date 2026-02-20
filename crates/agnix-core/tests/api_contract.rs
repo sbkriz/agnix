@@ -1049,3 +1049,16 @@ fn named_validators_matching_name_registers_successfully() {
         "Registered validator must have the expected name"
     );
 }
+
+// ============================================================================
+// normalize_line_endings is a stable public API
+// ============================================================================
+
+#[test]
+fn normalize_line_endings_is_public_api() {
+    use agnix_core::normalize_line_endings;
+
+    assert_eq!(normalize_line_endings("foo\r\nbar"), "foo\nbar");
+    assert_eq!(normalize_line_endings("foo\nbar"), "foo\nbar");
+    assert_eq!(normalize_line_endings("foo\r\nbar\r\n"), "foo\nbar\n");
+}

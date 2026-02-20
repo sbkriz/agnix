@@ -1576,10 +1576,9 @@ mod document_version_tests {
 
         let uri = Url::from_file_path(&skill_path).unwrap();
 
-        // Before opening, the internal version map should have no entry.
-        // We cannot directly access the Backend internals from the integration
-        // test, so we verify correctness indirectly through the event sequence
-        // completing without error and the internal state being consistent.
+        // This test exercises the version lifecycle through the LanguageServer
+        // trait boundary and uses hover as a behavioral indicator of document
+        // cache state (hover returns Some when cached, None after close).
 
         // Phase 1: Open with version 1
         service
@@ -1661,77 +1660,4 @@ mod document_version_tests {
         );
     }
 
-    /// Integration test: verify document version is accessible via direct
-    /// `get_document_version` calls through the full open -> change -> close lifecycle.
-    #[tokio::test]
-    async fn test_document_version_direct_access() {
-        let (service, _socket) = LspService::new(Backend::new);
-
-        let temp_dir = tempfile::tempdir().unwrap();
-        let skill_path = temp_dir.path().join("SKILL.md");
-        std::fs::write(
-            &skill_path,
-            "---\nname: direct-ver\ndescription: Use when testing direct version access\n---\n# Test\n",
-        )
-        .unwrap();
-
-        let uri = Url::from_file_path(&skill_path).unwrap();
-
-        // Open with version 3
-        service
-            .inner()
-            .did_open(DidOpenTextDocumentParams {
-                text_document: TextDocumentItem {
-                    uri: uri.clone(),
-                    language_id: "markdown".to_string(),
-                    version: 3,
-                    text: "---\nname: direct-ver\ndescription: Use when testing direct version access\n---\n# Test\n"
-                        .to_string(),
-                },
-            })
-            .await;
-
-        assert_eq!(
-            service.inner().get_document_version(&uri).await,
-            Some(3),
-            "Version should be 3 after did_open"
-        );
-
-        // Change to version 7
-        service
-            .inner()
-            .did_change(DidChangeTextDocumentParams {
-                text_document: VersionedTextDocumentIdentifier {
-                    uri: uri.clone(),
-                    version: 7,
-                },
-                content_changes: vec![TextDocumentContentChangeEvent {
-                    range: None,
-                    range_length: None,
-                    text: "---\nname: direct-ver-updated\ndescription: Use when testing direct version access\n---\n# Updated\n"
-                        .to_string(),
-                }],
-            })
-            .await;
-
-        assert_eq!(
-            service.inner().get_document_version(&uri).await,
-            Some(7),
-            "Version should be 7 after did_change"
-        );
-
-        // Close the document
-        service
-            .inner()
-            .did_close(DidCloseTextDocumentParams {
-                text_document: TextDocumentIdentifier { uri: uri.clone() },
-            })
-            .await;
-
-        assert_eq!(
-            service.inner().get_document_version(&uri).await,
-            None,
-            "Version should be None after did_close"
-        );
-    }
 }

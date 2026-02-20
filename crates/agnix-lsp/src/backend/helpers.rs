@@ -89,7 +89,7 @@ impl Backend {
     /// Get the latest document version reported by the client for a URI.
     ///
     /// Returns `None` if the document has not been opened or has been closed.
-    pub async fn get_document_version(&self, uri: &Url) -> Option<i32> {
+    pub(crate) async fn get_document_version(&self, uri: &Url) -> Option<i32> {
         self.document_versions.read().await.get(uri).copied()
     }
 }

@@ -14,14 +14,15 @@ impl Backend {
             std::borrow::Cow::Borrowed(_) => raw,
             std::borrow::Cow::Owned(normalized) => normalized,
         };
+        // Acquire both locks before releasing either so readers never see a
+        // state where content is updated but version is not (or vice versa).
         {
             let mut docs = self.documents.write().await;
+            let mut versions = self.document_versions.write().await;
             docs.insert(uri.clone(), Arc::new(text));
+            versions.insert(uri.clone(), version);
+            // Both guards released here atomically
         }
-        self.document_versions
-            .write()
-            .await
-            .insert(uri.clone(), version);
         self.validate_from_content_and_publish(uri, None).await;
     }
 
@@ -37,15 +38,23 @@ impl Backend {
                 std::borrow::Cow::Borrowed(_) => raw,
                 std::borrow::Cow::Owned(normalized) => normalized,
             };
+            // Acquire both locks before releasing either so readers never see a
+            // state where content is updated but version is not (or vice versa).
             {
                 let mut docs = self.documents.write().await;
+                let mut versions = self.document_versions.write().await;
                 docs.insert(uri.clone(), Arc::new(text));
+                versions.insert(uri.clone(), version);
+                // Both guards released here atomically
             }
+            self.validate_from_content_and_publish(uri, None).await;
+        } else {
+            // Even when content_changes is empty, the version from
+            // VersionedTextDocumentIdentifier is authoritative per LSP spec.
             self.document_versions
                 .write()
                 .await
-                .insert(uri.clone(), version);
-            self.validate_from_content_and_publish(uri, None).await;
+                .insert(uri, version);
         }
     }
 

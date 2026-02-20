@@ -3534,13 +3534,13 @@ async fn test_document_version_returns_none_for_unknown_uri() {
     assert_eq!(backend.get_document_version(&uri).await, None);
 }
 
-/// Test that an empty content_changes vec does not update the tracked version.
+/// Test that the version is updated even when content_changes is empty.
 ///
-/// In handle_did_change, the version insert is inside `if let Some(change)`,
-/// so an empty content_changes vec means the version map is not touched.
-/// This documents that current behavior and guards against regressions.
+/// Per LSP spec, VersionedTextDocumentIdentifier.version is the authoritative
+/// post-change version regardless of content. The version must always be stored
+/// so that published diagnostics carry the correct version tag.
 #[tokio::test]
-async fn test_document_version_unchanged_on_empty_content_changes() {
+async fn test_document_version_updated_even_on_empty_content_changes() {
     let backend = Backend::new_test();
 
     let temp_dir = tempfile::tempdir().unwrap();
@@ -3573,9 +3573,9 @@ async fn test_document_version_unchanged_on_empty_content_changes() {
         })
         .await;
 
-    // Version should remain 1 because the version insert is gated on
-    // content_changes being non-empty.
-    assert_eq!(backend.get_document_version(&uri).await, Some(1));
+    // Version should be 2 because the version from VersionedTextDocumentIdentifier
+    // is always authoritative per LSP spec.
+    assert_eq!(backend.get_document_version(&uri).await, Some(2));
 }
 
 /// Test that multiple documents track independent versions.

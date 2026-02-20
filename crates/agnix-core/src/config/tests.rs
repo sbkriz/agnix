@@ -2896,6 +2896,54 @@ fn test_builder_path_traversal_returns_error() {
 }
 
 #[test]
+fn test_build_lenient_rejects_absolute_path_pattern() {
+    let result = LintConfig::builder()
+        .exclude(vec!["/etc/passwd".to_string()])
+        .build_lenient();
+    match result.unwrap_err() {
+        ConfigError::AbsolutePathPattern { pattern } => {
+            assert_eq!(pattern, "/etc/passwd");
+        }
+        other => panic!("Expected AbsolutePathPattern, got: {:?}", other),
+    }
+}
+
+#[test]
+fn test_build_lenient_rejects_invalid_glob_in_files_config() {
+    let files = FilesConfig {
+        include_as_memory: vec!["[invalid-in-memory".to_string()],
+        ..FilesConfig::default()
+    };
+    let result = LintConfig::builder().files(files).build_lenient();
+    match result.unwrap_err() {
+        ConfigError::InvalidGlobPattern { pattern, error } => {
+            assert_eq!(pattern, "[invalid-in-memory");
+            assert!(
+                error.contains("files.include_as_memory"),
+                "error should name the field: {}",
+                error
+            );
+        }
+        other => panic!("Expected InvalidGlobPattern, got: {:?}", other),
+    }
+}
+
+#[test]
+fn test_build_lenient_rejects_path_traversal_in_files_config() {
+    let files = FilesConfig {
+        exclude: vec!["../../../escape/**".to_string()],
+        ..FilesConfig::default()
+    };
+    let result = LintConfig::builder().files(files).build_lenient();
+    match result.unwrap_err() {
+        ConfigError::PathTraversal { pattern } => {
+            assert_eq!(pattern, "../../../escape/**");
+        }
+        other => panic!("Expected PathTraversal, got: {:?}", other),
+    }
+}
+
+#[test]
 fn test_builder_disable_rule() {
     let config = LintConfig::builder()
         .disable_rule("AS-001")
@@ -3118,6 +3166,13 @@ fn test_config_error_display() {
     };
     let msg = err.to_string();
     assert!(msg.contains("../etc/passwd"));
+
+    let err = ConfigError::AbsolutePathPattern {
+        pattern: "/etc/passwd".to_string(),
+    };
+    let msg = err.to_string();
+    assert!(msg.contains("/etc/passwd"));
+    assert!(msg.contains("relative"));
 
     let warnings = vec![ConfigWarning {
         field: "test".to_string(),
@@ -3525,10 +3580,10 @@ fn test_build_lenient_rejects_invalid_glob() {
         .exclude(vec!["[invalid".to_string()])
         .build_lenient();
 
-    assert!(result.is_err(), "build_lenient() should reject invalid glob");
     match result.unwrap_err() {
-        ConfigError::InvalidGlobPattern { pattern, .. } => {
+        ConfigError::InvalidGlobPattern { pattern, error } => {
             assert_eq!(pattern, "[invalid");
+            assert!(error.contains("exclude"), "error should name the field: {}", error);
         }
         other => panic!("Expected InvalidGlobPattern, got: {:?}", other),
     }
@@ -3540,10 +3595,6 @@ fn test_build_lenient_rejects_path_traversal() {
         .exclude(vec!["../secret/**".to_string()])
         .build_lenient();
 
-    assert!(
-        result.is_err(),
-        "build_lenient() should reject path traversal"
-    );
     match result.unwrap_err() {
         ConfigError::PathTraversal { pattern } => {
             assert_eq!(pattern, "../secret/**");

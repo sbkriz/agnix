@@ -110,6 +110,11 @@ pub fn validate(filename: &str, content: &str, tool: Option<String>) -> JsValue 
     // while still enforcing security-critical checks (glob syntax, path
     // traversal). This lets the WASM playground accept newer/unknown tools
     // without a core library update.
+    //
+    // Safety: build_lenient() can only fail if glob patterns are invalid or
+    // contain path traversal. The only field set above is `tools` (a plain
+    // string list), which validate_patterns() does not inspect. Therefore
+    // build_lenient() will always succeed at this call site.
     let config = builder.build_lenient().unwrap_or_default();
 
     let diagnostics = validate_content(path, content, &config, &REGISTRY);

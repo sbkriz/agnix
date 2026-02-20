@@ -476,11 +476,13 @@ fn builder_accessible_from_outside_crate() {
 
 #[test]
 fn builder_via_lint_config_factory() {
-    // target is deprecated so build() would reject it; use build_unchecked()
+    // target is deprecated so build() would reject it; build_lenient() skips
+    // semantic warnings while still enforcing security-critical validation.
     let config = agnix_core::LintConfig::builder()
         .target(agnix_core::config::TargetTool::ClaudeCode)
         .tools(vec!["claude-code".to_string()])
-        .build_unchecked();
+        .build_lenient()
+        .expect("build_lenient() should accept deprecated target");
 
     assert_eq!(config.target(), agnix_core::config::TargetTool::ClaudeCode);
     assert_eq!(config.tools(), &["claude-code"]);
@@ -504,14 +506,12 @@ fn builder_invalid_glob_returns_config_error() {
         .exclude(vec!["[bad-pattern".to_string()])
         .build();
 
-    assert!(result.is_err());
-    let err = result.unwrap_err();
-    let msg = err.to_string();
-    assert!(
-        msg.contains("[bad-pattern"),
-        "Error should mention the pattern: {}",
-        msg
-    );
+    match result.unwrap_err() {
+        agnix_core::config::ConfigError::InvalidGlobPattern { pattern, .. } => {
+            assert_eq!(pattern, "[bad-pattern");
+        }
+        other => panic!("Expected InvalidGlobPattern, got: {:?}", other),
+    }
 }
 
 #[test]
@@ -520,14 +520,12 @@ fn builder_path_traversal_returns_config_error() {
         .exclude(vec!["../secret/**".to_string()])
         .build();
 
-    assert!(result.is_err());
-    let err = result.unwrap_err();
-    let msg = err.to_string();
-    assert!(
-        msg.contains("../secret/**"),
-        "Error should mention the pattern: {}",
-        msg
-    );
+    match result.unwrap_err() {
+        agnix_core::config::ConfigError::PathTraversal { pattern } => {
+            assert_eq!(pattern, "../secret/**");
+        }
+        other => panic!("Expected PathTraversal, got: {:?}", other),
+    }
 }
 
 #[test]
@@ -584,17 +582,63 @@ fn builder_build_lenient_allows_unknown_tools() {
 }
 
 #[test]
+fn builder_build_lenient_allows_deprecated_target() {
+    // build_lenient() skips deprecated-field warnings
+    let config = agnix_core::LintConfig::builder()
+        .target(agnix_core::config::TargetTool::ClaudeCode)
+        .build_lenient()
+        .expect("build_lenient() should accept deprecated target");
+    assert_eq!(config.target(), agnix_core::config::TargetTool::ClaudeCode);
+}
+
+#[test]
+fn builder_build_lenient_allows_unknown_rule_prefixes() {
+    // build_lenient() skips unknown rule prefix warnings
+    let config = agnix_core::LintConfig::builder()
+        .disable_rule("FAKE-001")
+        .build_lenient()
+        .expect("build_lenient() should accept unknown rule prefixes");
+    assert!(config.rules().disabled_rules.contains(&"FAKE-001".to_string()));
+}
+
+#[test]
 fn builder_build_lenient_rejects_invalid_glob() {
     // build_lenient() still enforces security-critical glob validation
     let result = agnix_core::LintConfig::builder()
         .exclude(vec!["[invalid".to_string()])
         .build_lenient();
-    assert!(result.is_err(), "build_lenient() should reject invalid glob");
-    let err = result.unwrap_err();
-    let msg = err.to_string();
-    assert!(
-        msg.contains("[invalid"),
-        "Error should mention the pattern: {}",
-        msg
-    );
+    match result.unwrap_err() {
+        agnix_core::config::ConfigError::InvalidGlobPattern { pattern, .. } => {
+            assert_eq!(pattern, "[invalid");
+        }
+        other => panic!("Expected InvalidGlobPattern, got: {:?}", other),
+    }
+}
+
+#[test]
+fn builder_build_lenient_rejects_path_traversal() {
+    // build_lenient() still enforces path traversal rejection
+    let result = agnix_core::LintConfig::builder()
+        .exclude(vec!["../escape/**".to_string()])
+        .build_lenient();
+    match result.unwrap_err() {
+        agnix_core::config::ConfigError::PathTraversal { pattern } => {
+            assert_eq!(pattern, "../escape/**");
+        }
+        other => panic!("Expected PathTraversal, got: {:?}", other),
+    }
+}
+
+#[test]
+fn builder_build_lenient_rejects_absolute_path() {
+    // build_lenient() rejects absolute paths (security-critical check)
+    let result = agnix_core::LintConfig::builder()
+        .exclude(vec!["/etc/passwd".to_string()])
+        .build_lenient();
+    match result.unwrap_err() {
+        agnix_core::config::ConfigError::AbsolutePathPattern { pattern } => {
+            assert_eq!(pattern, "/etc/passwd");
+        }
+        other => panic!("Expected AbsolutePathPattern, got: {:?}", other),
+    }
 }

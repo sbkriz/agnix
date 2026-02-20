@@ -246,6 +246,15 @@ impl LintConfigBuilder {
                         pattern: pattern.clone(),
                     });
                 }
+                if normalized.starts_with('/')
+                    || (normalized.len() >= 3
+                        && normalized.as_bytes()[0].is_ascii_alphabetic()
+                        && normalized.as_bytes().get(1..3) == Some(b":/"))
+                {
+                    return Err(ConfigError::AbsolutePathPattern {
+                        pattern: pattern.clone(),
+                    });
+                }
             }
         }
         Ok(())

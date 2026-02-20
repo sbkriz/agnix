@@ -148,6 +148,11 @@ pub enum ConfigError {
         /// The pattern containing path traversal.
         pattern: String,
     },
+    /// A glob pattern uses an absolute path (e.g. `/etc/passwd` or `C:/Windows/**`).
+    AbsolutePathPattern {
+        /// The absolute-path pattern.
+        pattern: String,
+    },
     /// Validation produced warnings that were promoted to errors.
     ValidationFailed(Vec<ConfigWarning>),
 }
@@ -160,6 +165,9 @@ impl std::fmt::Display for ConfigError {
             }
             ConfigError::PathTraversal { pattern } => {
                 write!(f, "path traversal in pattern '{}'", pattern)
+            }
+            ConfigError::AbsolutePathPattern { pattern } => {
+                write!(f, "absolute path in pattern '{}': use relative paths only", pattern)
             }
             ConfigError::ValidationFailed(warnings) => {
                 if warnings.is_empty() {

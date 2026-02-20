@@ -233,7 +233,7 @@ struct ImportScanner<'a> {
 }
 
 impl<'a> ImportScanner<'a> {
-    fn visit(&mut self, file_path: &PathBuf, content_override: Option<&str>) {
+    fn visit(&mut self, file_path: &Path, content_override: Option<&str>) {
         let depth = self.stack.len();
         if let Some(prev_depth) = self.visited_depth.get(file_path) {
             // Skip only when we have already visited this file at an equal or
@@ -243,7 +243,7 @@ impl<'a> ImportScanner<'a> {
                 return;
             }
         }
-        self.visited_depth.insert(file_path.clone(), depth);
+        self.visited_depth.insert(file_path.to_path_buf(), depth);
 
         let imports = get_imports_for_file(
             file_path,
@@ -280,7 +280,7 @@ impl<'a> ImportScanner<'a> {
         let rule_cycle = "CC-MEM-002";
         let rule_depth = "CC-MEM-003";
 
-        self.stack.push(file_path.clone());
+        self.stack.push(file_path.to_path_buf());
 
         for import in &imports {
             self.process_import(
@@ -305,9 +305,9 @@ impl<'a> ImportScanner<'a> {
     fn process_import(
         &mut self,
         import: &Import,
-        file_path: &PathBuf,
+        file_path: &Path,
         base_dir: &Path,
-        normalized_base: &PathBuf,
+        normalized_base: &Path,
         rule_not_found: &str,
         rule_cycle: &str,
         rule_depth: &str,
@@ -332,7 +332,7 @@ impl<'a> ImportScanner<'a> {
                     self.diagnostics,
                     self.seen_diagnostics,
                     Diagnostic::error(
-                        file_path.clone(),
+                        file_path.to_path_buf(),
                         import.line,
                         import.column,
                         rule_not_found,
@@ -351,7 +351,7 @@ impl<'a> ImportScanner<'a> {
                     self.diagnostics,
                     self.seen_diagnostics,
                     Diagnostic::error(
-                        file_path.clone(),
+                        file_path.to_path_buf(),
                         import.line,
                         import.column,
                         rule_not_found,
@@ -371,7 +371,7 @@ impl<'a> ImportScanner<'a> {
                         self.diagnostics,
                         self.seen_diagnostics,
                         Diagnostic::error(
-                            file_path.clone(),
+                            file_path.to_path_buf(),
                             import.line,
                             import.column,
                             rule_not_found,
@@ -410,7 +410,7 @@ impl<'a> ImportScanner<'a> {
                     self.diagnostics,
                     self.seen_diagnostics,
                     Diagnostic::error(
-                        file_path.clone(),
+                        file_path.to_path_buf(),
                         import.line,
                         import.column,
                         rule_not_found,
@@ -436,7 +436,7 @@ impl<'a> ImportScanner<'a> {
                 self.diagnostics,
                 self.seen_diagnostics,
                 Diagnostic::error(
-                    file_path.clone(),
+                    file_path.to_path_buf(),
                     import.line,
                     import.column,
                     rule_cycle,
@@ -452,7 +452,7 @@ impl<'a> ImportScanner<'a> {
                 self.diagnostics,
                 self.seen_diagnostics,
                 Diagnostic::error(
-                    file_path.clone(),
+                    file_path.to_path_buf(),
                     import.line,
                     import.column,
                     rule_depth,

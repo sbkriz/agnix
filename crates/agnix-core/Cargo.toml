@@ -17,6 +17,9 @@ filesystem = ["dep:rayon", "dep:ignore", "dep:dirs"]
 ## Exposes `LintConfigBuilder::build_unchecked()` outside of `#[cfg(test)]`.
 ## This is intentionally undocumented - prefer `build_lenient()` in production code.
 __internal_unchecked = []
+# Exposes the __internal module with doc(hidden) parser/schema re-exports.
+# Used by fuzz targets, benchmarks, and integration tests.
+__internal = []
 
 [dependencies]
 agnix-rules.workspace = true
@@ -45,6 +48,7 @@ tracking-allocator = "0.4"
 [[bench]]
 name = "validation"
 harness = false
+required-features = ["__internal"]
 
 [[bench]]
 name = "iai_validation"

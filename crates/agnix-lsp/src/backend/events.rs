@@ -1,4 +1,4 @@
-use agnix_core::__internal::normalize_line_endings;
+use agnix_core::normalize_line_endings;
 
 use super::*;
 

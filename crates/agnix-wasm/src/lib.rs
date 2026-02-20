@@ -115,7 +115,9 @@ pub fn validate(filename: &str, content: &str, tool: Option<String>) -> JsValue 
     // contain path traversal. The only field set above is `tools` (a plain
     // string list), which validate_patterns() does not inspect. Therefore
     // build_lenient() will always succeed at this call site.
-    let config = builder.build_lenient().unwrap_or_default();
+    let config = builder
+        .build_lenient()
+        .expect("build_lenient() cannot fail when only tools() is set");
 
     let diagnostics = validate_content(path, content, &config, &REGISTRY);
 

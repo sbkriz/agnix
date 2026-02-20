@@ -134,7 +134,11 @@ pub struct FilesConfig {
 ///
 /// These are hard errors (not warnings) that indicate the configuration
 /// cannot be used as-is. For soft issues, see [`ConfigWarning`].
+///
+/// This enum is `#[non_exhaustive]`: match with a wildcard arm to handle
+/// future variants without breaking changes.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub enum ConfigError {
     /// A glob pattern in the configuration is syntactically invalid.
     InvalidGlobPattern {

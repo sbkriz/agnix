@@ -1114,7 +1114,8 @@ mod validate_content_tests {
     fn respects_tool_filter() {
         let config = LintConfig::builder()
             .tools(vec!["cursor".to_string()])
-            .build_unchecked();
+            .build()
+            .unwrap();
         let registry = ValidatorRegistry::with_defaults();
         let path = Path::new("CLAUDE.md");
         let content = "# Project\n\nSome instructions.";
@@ -1416,7 +1417,8 @@ mod tests {
         // With AGM-006 disabled, expect zero AGM-006 diagnostics
         let config = LintConfig::builder()
             .disable_rule("AGM-006")
-            .build_unchecked();
+            .build()
+            .unwrap();
         let diagnostics = run_project_level_checks(&agents_md_paths, &[], &config, temp.path());
         let agm006: Vec<_> = diagnostics.iter().filter(|d| d.rule == "AGM-006").collect();
         assert!(
@@ -1451,7 +1453,8 @@ mod tests {
         // Disable XP-004 (other XP rules remain enabled by default)
         let config = LintConfig::builder()
             .disable_rule("XP-004")
-            .build_unchecked();
+            .build()
+            .unwrap();
         let diagnostics =
             run_project_level_checks(&[], &instruction_file_paths, &config, temp.path());
 
@@ -1477,7 +1480,8 @@ mod tests {
             .disable_rule("XP-004")
             .disable_rule("XP-005")
             .disable_rule("XP-006")
-            .build_unchecked();
+            .build()
+            .unwrap();
         let diagnostics =
             run_project_level_checks(&[], &instruction_file_paths, &config, temp.path());
 
@@ -1510,7 +1514,8 @@ mod tests {
 
         let config = LintConfig::builder()
             .disable_rule("VER-001")
-            .build_unchecked();
+            .build()
+            .unwrap();
         let diagnostics = run_project_level_checks(&[], &[], &config, temp.path());
 
         let ver001: Vec<_> = diagnostics.iter().filter(|d| d.rule == "VER-001").collect();

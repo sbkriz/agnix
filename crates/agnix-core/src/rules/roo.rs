@@ -1133,7 +1133,7 @@ mod tests {
             "# Custom designer mode",
         );
 
-        let config = LintConfig::builder().fs(fs).build_unchecked();
+        let config = LintConfig::builder().fs(fs).build().unwrap();
 
         let diagnostics = validate_with_config(
             ".roo/rules-custom-designer/SKILL.md",
@@ -1154,7 +1154,7 @@ mod tests {
         let fs = Arc::new(MockFileSystem::new());
         fs.add_file(".roo/rules-unknown-mode/SKILL.md", "# Unknown mode");
 
-        let config = LintConfig::builder().fs(fs).build_unchecked();
+        let config = LintConfig::builder().fs(fs).build().unwrap();
 
         let diagnostics = validate_with_config(
             ".roo/rules-unknown-mode/SKILL.md",
@@ -1188,7 +1188,7 @@ mod tests {
         );
         fs.add_file(".roo/rules-different-mode/SKILL.md", "# Different mode");
 
-        let config = LintConfig::builder().fs(fs).build_unchecked();
+        let config = LintConfig::builder().fs(fs).build().unwrap();
 
         let diagnostics = validate_with_config(
             ".roo/rules-different-mode/SKILL.md",

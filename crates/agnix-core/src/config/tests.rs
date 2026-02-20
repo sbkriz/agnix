@@ -3137,7 +3137,8 @@ fn test_builder_tool_versions() {
     };
     let config = LintConfig::builder()
         .tool_versions(tv.clone())
-        .build_unchecked();
+        .build()
+        .unwrap();
     assert_eq!(config.tool_versions().claude_code, tv.claude_code);
 }
 
@@ -3149,7 +3150,8 @@ fn test_builder_spec_revisions() {
     };
     let config = LintConfig::builder()
         .spec_revisions(sr.clone())
-        .build_unchecked();
+        .build()
+        .unwrap();
     assert_eq!(config.spec_revisions().mcp_protocol, sr.mcp_protocol);
 }
 
@@ -3159,7 +3161,7 @@ fn test_builder_rules() {
     rules.skills = false;
     rules.hooks = false;
     rules.amp_checks = false;
-    let config = LintConfig::builder().rules(rules).build_unchecked();
+    let config = LintConfig::builder().rules(rules).build().unwrap();
     assert!(!config.rules().skills);
     assert!(!config.rules().hooks);
     assert!(!config.rules().amp_checks);
@@ -3168,7 +3170,7 @@ fn test_builder_rules() {
 #[test]
 fn test_builder_import_cache() {
     let cache = crate::parsers::ImportCache::default();
-    let config = LintConfig::builder().import_cache(cache).build_unchecked();
+    let config = LintConfig::builder().import_cache(cache).build().unwrap();
     assert!(config.import_cache().is_some());
 }
 
@@ -3176,7 +3178,7 @@ fn test_builder_import_cache() {
 fn test_builder_fs() {
     use crate::fs::MockFileSystem;
     let fs = Arc::new(MockFileSystem::new());
-    let config = LintConfig::builder().fs(fs).build_unchecked();
+    let config = LintConfig::builder().fs(fs).build().unwrap();
     // Verify fs was set (we can't directly compare Arc<dyn FileSystem>,
     // but if it compiled and didn't panic, the builder method works)
     let _ = config.fs();
@@ -3274,7 +3276,7 @@ fn test_builder_reuse_after_build() {
 
 #[test]
 fn test_builder_empty_exclude() {
-    let config = LintConfig::builder().exclude(vec![]).build_unchecked();
+    let config = LintConfig::builder().exclude(vec![]).build().unwrap();
     assert!(config.exclude().is_empty());
 }
 
@@ -3299,10 +3301,11 @@ fn test_path_traversal_edge_cases() {
     assert!(matches!(result, Err(ConfigError::PathTraversal { .. })));
 
     // "..foo" is NOT path traversal (just a name starting with ..)
-    let result = LintConfig::builder()
+    let config = LintConfig::builder()
         .exclude(vec!["..foo".to_string()])
-        .build_unchecked();
-    assert_eq!(result.exclude(), &["..foo".to_string()]);
+        .build()
+        .unwrap();
+    assert_eq!(config.exclude(), &["..foo".to_string()]);
 }
 
 // ===== Arc<ConfigData> Sharing Tests =====

@@ -5046,7 +5046,7 @@ fn test_validate_project_collects_file_read_error_as_diagnostic() {
         return;
     }
 
-    let config = LintConfig::builder().build_unchecked();
+    let config = LintConfig::builder().build().unwrap();
     let result = validate_project(dir.path(), &config).unwrap();
 
     // Restore permissions before cleanup so the tempdir can be deleted

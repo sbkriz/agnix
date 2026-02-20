@@ -28,17 +28,17 @@ cache poisoning from pull requests.
 
 ## SHA Pin Reference
 
-When updating actions, use these SHA commits (last verified: 2025-02):
+When updating actions, use these SHA commits (last verified: 2026-02):
 
 ```yaml
 # GitHub Official Actions
 actions/checkout@v4:           34e114876b0b11c390a56381ad16ebd13914f8d5
 actions/upload-artifact@v4:    ea165f8d65b6e75b540449e92b4886f43607fa02
-actions/download-artifact@v4:  d3f86a106a0bac45b974a628896c90dbdf5c8093
-actions/setup-python@v5:       a26af69be951a213d495a4c3e4e4022e16d87065
-actions/setup-node@v4:         49933ea5288caeca8642d1e84afbd3f7d6820020
+actions/download-artifact@v7.0.0: 37930b1c2abaa49bbe596cd826c3c89aef350131
+actions/setup-python@v6.2.0:    a309ff8b426b58ec0e2a45f0f869d46889d02405
+actions/setup-node@v6.2.0:      6044e13b5dc448c55e2357c09f80417699197238
 actions/configure-pages@v5:    983d7736d9b0ae728b81ab479565c72886d7745b
-actions/upload-pages-artifact@v3: 56afc609e74202658d3ffba0e8f6dda462b719fa
+actions/upload-pages-artifact@v4.0.0: 7b1f4a764d45c48632c6b24a0339c27f5614fb0b
 actions/deploy-pages@v4:       d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
 rhysd/actionlint@v1.7.1:       62dc61a45fc95efe8c800af7a557ab0b9165d63b
 
@@ -52,7 +52,7 @@ taiki-e/install-action@nextest: cd05dcd6eb73067dda063b97a15b7060049dacd9
 github/codeql-action@v3:       2588666de8825e1e9dc4e2329a4c985457d55b32
 
 # Coverage
-codecov/codecov-action@v5:     671740ac38dd9b0130fbe1cec585b89eea48d3de
+codecov/codecov-action@v5.5.2:  671740ac38dd9b0130fbe1cec585b89eea48d3de
 
 # Release
 softprops/action-gh-release@v2: a06a81a03ee405af7f2048a818ed3f03bbf83c7b

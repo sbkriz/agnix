@@ -53,6 +53,9 @@ pub struct Backend {
     /// Canonicalized workspace root cached at initialize() to avoid blocking I/O on hot paths.
     pub(crate) workspace_root_canonical: Arc<RwLock<Option<PathBuf>>>,
     pub(crate) documents: Arc<RwLock<HashMap<Url, Arc<String>>>>,
+    /// Tracks the latest document version from the client (did_open / did_change).
+    /// Used to tag published diagnostics with the version they were computed against.
+    pub(crate) document_versions: Arc<RwLock<HashMap<Url, i32>>>,
     /// Monotonic generation incremented on each config change.
     /// Used to drop stale diagnostics from older revalidation batches.
     pub(crate) config_generation: Arc<AtomicU64>,
@@ -78,6 +81,7 @@ impl Backend {
             workspace_root: Arc::new(RwLock::new(None)),
             workspace_root_canonical: Arc::new(RwLock::new(None)),
             documents: Arc::new(RwLock::new(HashMap::new())),
+            document_versions: Arc::new(RwLock::new(HashMap::new())),
             config_generation: Arc::new(AtomicU64::new(0)),
             project_validation_generation: Arc::new(AtomicU64::new(0)),
             registry: Arc::new(agnix_core::ValidatorRegistry::with_defaults()),
@@ -181,6 +185,9 @@ impl Backend {
             }
         }
 
+        // Look up the document version once for all publish calls in this method.
+        let version = self.get_document_version(&uri).await;
+
         // Skip generic markdown files in LSP to avoid false positives on
         // developer docs, project specs, etc. Only validate files that are
         // specifically identified as agent configuration files.
@@ -189,7 +196,9 @@ impl Backend {
             let file_type = agnix_core::resolve_file_type(&file_path, &config);
             if file_type.is_generic() {
                 // Publish empty diagnostics to clear any stale results
-                self.client.publish_diagnostics(uri, vec![], None).await;
+                self.client
+                    .publish_diagnostics(uri, vec![], version)
+                    .await;
                 return;
             }
         }
@@ -213,7 +222,7 @@ impl Backend {
                         return;
                     }
                     self.client
-                        .publish_diagnostics(uri, diagnostics, None)
+                        .publish_diagnostics(uri, diagnostics, version)
                         .await;
                     return;
                 }
@@ -260,7 +269,7 @@ impl Backend {
         }
 
         self.client
-            .publish_diagnostics(uri, diagnostics, None)
+            .publish_diagnostics(uri, diagnostics, version)
             .await;
     }
 }

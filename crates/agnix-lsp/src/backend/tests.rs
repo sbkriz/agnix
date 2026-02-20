@@ -3423,3 +3423,262 @@ async fn test_stress_rapid_project_validation_generation_guard() {
         generation
     );
 }
+
+// ===== Document Version Tracking Tests =====
+
+/// Test that document version is tracked when a document is opened.
+#[tokio::test]
+async fn test_document_version_tracked_on_open() {
+    let backend = Backend::new_test();
+
+    let temp_dir = tempfile::tempdir().unwrap();
+    let skill_path = temp_dir.path().join("SKILL.md");
+    std::fs::write(&skill_path, "# Test").unwrap();
+    let uri = Url::from_file_path(&skill_path).unwrap();
+
+    backend
+        .handle_did_open(DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: uri.clone(),
+                language_id: "markdown".to_string(),
+                version: 1,
+                text: "# Test".to_string(),
+            },
+        })
+        .await;
+
+    let version = backend.get_document_version(&uri).await;
+    assert_eq!(version, Some(1));
+}
+
+/// Test that document version is updated when a document changes.
+#[tokio::test]
+async fn test_document_version_updated_on_change() {
+    let backend = Backend::new_test();
+
+    let temp_dir = tempfile::tempdir().unwrap();
+    let skill_path = temp_dir.path().join("SKILL.md");
+    std::fs::write(&skill_path, "# Test").unwrap();
+    let uri = Url::from_file_path(&skill_path).unwrap();
+
+    backend
+        .handle_did_open(DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: uri.clone(),
+                language_id: "markdown".to_string(),
+                version: 1,
+                text: "# Test".to_string(),
+            },
+        })
+        .await;
+
+    assert_eq!(backend.get_document_version(&uri).await, Some(1));
+
+    backend
+        .handle_did_change(DidChangeTextDocumentParams {
+            text_document: VersionedTextDocumentIdentifier {
+                uri: uri.clone(),
+                version: 2,
+            },
+            content_changes: vec![TextDocumentContentChangeEvent {
+                range: None,
+                range_length: None,
+                text: "# Updated".to_string(),
+            }],
+        })
+        .await;
+
+    assert_eq!(backend.get_document_version(&uri).await, Some(2));
+}
+
+/// Test that document version is cleared when a document is closed.
+#[tokio::test]
+async fn test_document_version_cleared_on_close() {
+    let backend = Backend::new_test();
+
+    let temp_dir = tempfile::tempdir().unwrap();
+    let skill_path = temp_dir.path().join("SKILL.md");
+    std::fs::write(&skill_path, "# Test").unwrap();
+    let uri = Url::from_file_path(&skill_path).unwrap();
+
+    backend
+        .handle_did_open(DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: uri.clone(),
+                language_id: "markdown".to_string(),
+                version: 1,
+                text: "# Test".to_string(),
+            },
+        })
+        .await;
+
+    assert_eq!(backend.get_document_version(&uri).await, Some(1));
+
+    backend
+        .handle_did_close(DidCloseTextDocumentParams {
+            text_document: TextDocumentIdentifier { uri: uri.clone() },
+        })
+        .await;
+
+    assert_eq!(backend.get_document_version(&uri).await, None);
+}
+
+/// Test that get_document_version returns None for a URI that was never opened.
+#[tokio::test]
+async fn test_document_version_returns_none_for_unknown_uri() {
+    let backend = Backend::new_test();
+
+    let uri = Url::parse("file:///tmp/never-opened.md").unwrap();
+    assert_eq!(backend.get_document_version(&uri).await, None);
+}
+
+/// Test that multiple documents track independent versions.
+#[tokio::test]
+async fn test_multiple_documents_track_independent_versions() {
+    let backend = Backend::new_test();
+
+    let temp_dir = tempfile::tempdir().unwrap();
+
+    let path_a = temp_dir.path().join("a").join("SKILL.md");
+    let path_b = temp_dir.path().join("b").join("SKILL.md");
+    std::fs::create_dir_all(path_a.parent().unwrap()).unwrap();
+    std::fs::create_dir_all(path_b.parent().unwrap()).unwrap();
+    std::fs::write(&path_a, "# A").unwrap();
+    std::fs::write(&path_b, "# B").unwrap();
+
+    let uri_a = Url::from_file_path(&path_a).unwrap();
+    let uri_b = Url::from_file_path(&path_b).unwrap();
+
+    backend
+        .handle_did_open(DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: uri_a.clone(),
+                language_id: "markdown".to_string(),
+                version: 5,
+                text: "# A".to_string(),
+            },
+        })
+        .await;
+
+    backend
+        .handle_did_open(DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: uri_b.clone(),
+                language_id: "markdown".to_string(),
+                version: 10,
+                text: "# B".to_string(),
+            },
+        })
+        .await;
+
+    assert_eq!(backend.get_document_version(&uri_a).await, Some(5));
+    assert_eq!(backend.get_document_version(&uri_b).await, Some(10));
+
+    // Update only document A
+    backend
+        .handle_did_change(DidChangeTextDocumentParams {
+            text_document: VersionedTextDocumentIdentifier {
+                uri: uri_a.clone(),
+                version: 6,
+            },
+            content_changes: vec![TextDocumentContentChangeEvent {
+                range: None,
+                range_length: None,
+                text: "# A updated".to_string(),
+            }],
+        })
+        .await;
+
+    assert_eq!(backend.get_document_version(&uri_a).await, Some(6));
+    assert_eq!(backend.get_document_version(&uri_b).await, Some(10));
+}
+
+/// Integration-style test: open, change, and close a document and verify
+/// the version state tracks correctly through the full lifecycle.
+#[tokio::test]
+async fn test_document_version_lifecycle_through_events() {
+    let backend = Backend::new_test();
+
+    let temp_dir = tempfile::tempdir().unwrap();
+    let skill_path = temp_dir.path().join("SKILL.md");
+    std::fs::write(
+        &skill_path,
+        "---\nname: lifecycle\nversion: 1.0.0\nmodel: sonnet\n---\n# Lifecycle Test\n",
+    )
+    .unwrap();
+    let uri = Url::from_file_path(&skill_path).unwrap();
+
+    // Phase 1: Not opened yet - no version tracked
+    assert_eq!(backend.get_document_version(&uri).await, None);
+
+    // Phase 2: Open with version 1
+    backend
+        .handle_did_open(DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: uri.clone(),
+                language_id: "markdown".to_string(),
+                version: 1,
+                text: "---\nname: lifecycle\nversion: 1.0.0\nmodel: sonnet\n---\n# Lifecycle Test\n".to_string(),
+            },
+        })
+        .await;
+
+    assert_eq!(backend.get_document_version(&uri).await, Some(1));
+
+    // Phase 3: Change to version 2
+    backend
+        .handle_did_change(DidChangeTextDocumentParams {
+            text_document: VersionedTextDocumentIdentifier {
+                uri: uri.clone(),
+                version: 2,
+            },
+            content_changes: vec![TextDocumentContentChangeEvent {
+                range: None,
+                range_length: None,
+                text: "---\nname: lifecycle\nversion: 2.0.0\nmodel: sonnet\n---\n# Lifecycle Test v2\n".to_string(),
+            }],
+        })
+        .await;
+
+    assert_eq!(backend.get_document_version(&uri).await, Some(2));
+
+    // Phase 4: Another change to version 5 (versions may skip)
+    backend
+        .handle_did_change(DidChangeTextDocumentParams {
+            text_document: VersionedTextDocumentIdentifier {
+                uri: uri.clone(),
+                version: 5,
+            },
+            content_changes: vec![TextDocumentContentChangeEvent {
+                range: None,
+                range_length: None,
+                text: "---\nname: lifecycle\nversion: 3.0.0\nmodel: sonnet\n---\n# Lifecycle Test v3\n".to_string(),
+            }],
+        })
+        .await;
+
+    assert_eq!(backend.get_document_version(&uri).await, Some(5));
+
+    // Phase 5: Close the document
+    backend
+        .handle_did_close(DidCloseTextDocumentParams {
+            text_document: TextDocumentIdentifier { uri: uri.clone() },
+        })
+        .await;
+
+    assert_eq!(backend.get_document_version(&uri).await, None);
+
+    // Phase 6: Re-open with a new version - simulates client re-opening
+    backend
+        .handle_did_open(DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: uri.clone(),
+                language_id: "markdown".to_string(),
+                version: 1,
+                text: "---\nname: lifecycle\nversion: 1.0.0\nmodel: sonnet\n---\n# Lifecycle Reopened\n".to_string(),
+            },
+        })
+        .await;
+
+    assert_eq!(backend.get_document_version(&uri).await, Some(1));
+}

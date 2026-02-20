@@ -85,4 +85,11 @@ impl Backend {
     pub(crate) async fn get_document_content(&self, uri: &Url) -> Option<Arc<String>> {
         self.documents.read().await.get(uri).cloned()
     }
+
+    /// Get the latest document version reported by the client for a URI.
+    ///
+    /// Returns `None` if the document has not been opened or has been closed.
+    pub(crate) async fn get_document_version(&self, uri: &Url) -> Option<i32> {
+        self.document_versions.read().await.get(uri).copied()
+    }
 }

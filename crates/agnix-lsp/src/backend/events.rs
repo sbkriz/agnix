@@ -4,6 +4,7 @@ use super::*;
 
 impl Backend {
     pub(crate) async fn handle_did_open(&self, params: DidOpenTextDocumentParams) {
+        let version = params.text_document.version;
         let uri = params.text_document.uri;
         // Normalize CRLF so the cached content matches the LF-relative byte offsets
         // produced by validate_content and used by code actions for fix ranges.
@@ -17,10 +18,15 @@ impl Backend {
             let mut docs = self.documents.write().await;
             docs.insert(uri.clone(), Arc::new(text));
         }
+        self.document_versions
+            .write()
+            .await
+            .insert(uri.clone(), version);
         self.validate_from_content_and_publish(uri, None).await;
     }
 
     pub(crate) async fn handle_did_change(&self, params: DidChangeTextDocumentParams) {
+        let version = params.text_document.version;
         let uri = params.text_document.uri;
         if let Some(change) = params.content_changes.into_iter().next() {
             // Normalize CRLF so the cached content matches the LF-relative byte offsets
@@ -35,6 +41,10 @@ impl Backend {
                 let mut docs = self.documents.write().await;
                 docs.insert(uri.clone(), Arc::new(text));
             }
+            self.document_versions
+                .write()
+                .await
+                .insert(uri.clone(), version);
             self.validate_from_content_and_publish(uri, None).await;
         }
     }
@@ -57,6 +67,12 @@ impl Backend {
             let mut docs = self.documents.write().await;
             docs.remove(&params.text_document.uri);
         }
+        self.document_versions
+            .write()
+            .await
+            .remove(&params.text_document.uri);
+        // Clearing diagnostics for a closed document - version is intentionally None
+        // since the document is no longer tracked.
         self.client
             .publish_diagnostics(params.text_document.uri, vec![], None)
             .await;

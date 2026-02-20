@@ -1056,9 +1056,23 @@ fn named_validators_matching_name_registers_successfully() {
 
 #[test]
 fn normalize_line_endings_is_public_api() {
+    use std::borrow::Cow;
+
     use agnix_core::normalize_line_endings;
 
+    // CRLF input is normalized (Cow::Owned)
     assert_eq!(normalize_line_endings("foo\r\nbar"), "foo\nbar");
-    assert_eq!(normalize_line_endings("foo\nbar"), "foo\nbar");
     assert_eq!(normalize_line_endings("foo\r\nbar\r\n"), "foo\nbar\n");
+
+    // Lone CR is also normalized (Cow::Owned)
+    assert_eq!(normalize_line_endings("foo\rbar"), "foo\nbar");
+
+    // LF-only input is returned as Cow::Borrowed (zero allocation)
+    let lf_only = "foo\nbar";
+    let result = normalize_line_endings(lf_only);
+    assert_eq!(result, "foo\nbar");
+    assert!(
+        matches!(result, Cow::Borrowed(_)),
+        "LF-only input must return Cow::Borrowed (zero allocation)"
+    );
 }

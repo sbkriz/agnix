@@ -23,7 +23,10 @@ pub type ValidatorFactory = fn() -> Box<dyn Validator>;
 ///
 /// impl ValidatorProvider for MyProvider {
 ///     fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
-///         // Return custom validators here
+///         // Return custom validators here.
+///         // Override named_validators() instead when validator names are
+///         // known at compile time, to enable the zero-allocation fast path
+///         // for disabled-validator filtering.
 ///         vec![]
 ///     }
 /// }
@@ -43,7 +46,21 @@ pub trait ValidatorProvider: Send + Sync {
     }
 
     /// Return the validator factories supplied by this provider.
-    fn validators(&self) -> Vec<(FileType, ValidatorFactory)>;
+    ///
+    /// The default implementation strips names from
+    /// [`named_validators`](ValidatorProvider::named_validators).
+    ///
+    /// # Circularity note
+    ///
+    /// `validators()` and `named_validators()` each have a default that
+    /// delegates to the other. A provider that overrides **neither** method
+    /// will cause infinite recursion at runtime. Always override at least one.
+    fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
+        self.named_validators()
+            .into_iter()
+            .map(|(ft, _, f)| (ft, f))
+            .collect()
+    }
 
     /// Return validator factories with optional static names.
     ///
@@ -86,13 +103,6 @@ pub trait ValidatorProvider: Send + Sync {
 pub(crate) struct BuiltinProvider;
 
 impl ValidatorProvider for BuiltinProvider {
-    fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
-        self.named_validators()
-            .into_iter()
-            .map(|(ft, _, f)| (ft, f))
-            .collect()
-    }
-
     fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
         let providers: &[&dyn ValidatorProvider] = &[
             &SkillProvider,
@@ -408,13 +418,6 @@ const EXPECTED_BUILTIN_COUNT: usize = 62;
 struct SkillProvider;
 
 impl ValidatorProvider for SkillProvider {
-    fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
-        self.named_validators()
-            .into_iter()
-            .map(|(ft, _, f)| (ft, f))
-            .collect()
-    }
-
     fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
         vec![
             (FileType::Skill, Some("SkillValidator"), skill_validator),
@@ -433,13 +436,6 @@ impl ValidatorProvider for SkillProvider {
 struct ClaudeProvider;
 
 impl ValidatorProvider for ClaudeProvider {
-    fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
-        self.named_validators()
-            .into_iter()
-            .map(|(ft, _, f)| (ft, f))
-            .collect()
-    }
-
     fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
         vec![
             (
@@ -487,13 +483,6 @@ impl ValidatorProvider for ClaudeProvider {
 struct CopilotProvider;
 
 impl ValidatorProvider for CopilotProvider {
-    fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
-        self.named_validators()
-            .into_iter()
-            .map(|(ft, _, f)| (ft, f))
-            .collect()
-    }
-
     fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
         vec![
             (
@@ -545,13 +534,6 @@ impl ValidatorProvider for CopilotProvider {
 struct CursorProvider;
 
 impl ValidatorProvider for CursorProvider {
-    fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
-        self.named_validators()
-            .into_iter()
-            .map(|(ft, _, f)| (ft, f))
-            .collect()
-    }
-
     fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
         vec![
             (
@@ -607,13 +589,6 @@ impl ValidatorProvider for CursorProvider {
 struct GeminiProvider;
 
 impl ValidatorProvider for GeminiProvider {
-    fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
-        self.named_validators()
-            .into_iter()
-            .map(|(ft, _, f)| (ft, f))
-            .collect()
-    }
-
     fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
         vec![
             (
@@ -660,13 +635,6 @@ impl ValidatorProvider for GeminiProvider {
 struct RooProvider;
 
 impl ValidatorProvider for RooProvider {
-    fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
-        self.named_validators()
-            .into_iter()
-            .map(|(ft, _, f)| (ft, f))
-            .collect()
-    }
-
     fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
         vec![
             (
@@ -698,13 +666,6 @@ impl ValidatorProvider for RooProvider {
 struct WindsurfProvider;
 
 impl ValidatorProvider for WindsurfProvider {
-    fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
-        self.named_validators()
-            .into_iter()
-            .map(|(ft, _, f)| (ft, f))
-            .collect()
-    }
-
     fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
         vec![
             (
@@ -730,13 +691,6 @@ impl ValidatorProvider for WindsurfProvider {
 struct MiscProvider;
 
 impl ValidatorProvider for MiscProvider {
-    fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
-        self.named_validators()
-            .into_iter()
-            .map(|(ft, _, f)| (ft, f))
-            .collect()
-    }
-
     fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
         vec![
             (FileType::AmpCheck, Some("AmpValidator"), amp_validator),
@@ -1906,6 +1860,108 @@ mod tests {
         assert!(
             has_codex_on_claude_md,
             "ClaudeProvider must include CodexValidator on ClaudeMd (CDX-003)"
+        );
+    }
+
+    #[test]
+    fn codex_validator_only_on_expected_file_types() {
+        // CodexValidator must only appear on ClaudeMd (CDX-003) and CodexConfig.
+        // Any other registration would be a misconfiguration.
+        let entries = BuiltinProvider.named_validators();
+        for (ft, name, _) in &entries {
+            if *name == Some("CodexValidator") {
+                assert!(
+                    *ft == FileType::ClaudeMd || *ft == FileType::CodexConfig,
+                    "CodexValidator must only be registered for ClaudeMd or CodexConfig, found {:?}",
+                    ft
+                );
+            }
+        }
+        let codex_count = entries
+            .iter()
+            .filter(|(_, name, _)| *name == Some("CodexValidator"))
+            .count();
+        assert_eq!(
+            codex_count, 2,
+            "CodexValidator should appear exactly twice (ClaudeMd + CodexConfig)"
+        );
+    }
+
+    #[test]
+    fn builder_second_build_has_no_disabled_validators() {
+        // build() consumes the disabled set via mem::take. A second call
+        // produces a registry where previously-disabled validators are active.
+        let mut builder = ValidatorRegistry::builder();
+        builder.with_defaults().without_validator("XmlValidator");
+
+        let first = builder.build();
+        let second = builder.build();
+
+        // First registry has XmlValidator removed (9 fewer validators).
+        assert!(
+            first.total_validator_count() < second.total_validator_count(),
+            "First registry should have fewer validators due to XmlValidator being disabled"
+        );
+        // Second registry has the full count because the disabled set was consumed.
+        assert_eq!(
+            second.total_validator_count(),
+            EXPECTED_BUILTIN_COUNT,
+            "Second build() must produce a full registry (disabled set was consumed by first build)"
+        );
+    }
+
+    #[test]
+    fn builtin_provider_output_matches_sub_provider_concatenation() {
+        // BuiltinProvider::named_validators() must be a pure flat_map of all
+        // 8 sub-providers in declaration order with no reordering or deduplication.
+        let expected: Vec<_> = [
+            SkillProvider.named_validators(),
+            ClaudeProvider.named_validators(),
+            CopilotProvider.named_validators(),
+            CursorProvider.named_validators(),
+            GeminiProvider.named_validators(),
+            RooProvider.named_validators(),
+            WindsurfProvider.named_validators(),
+            MiscProvider.named_validators(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+
+        let actual = BuiltinProvider.named_validators();
+
+        assert_eq!(
+            actual.len(),
+            expected.len(),
+            "BuiltinProvider entry count must equal sum of sub-providers"
+        );
+        for (i, ((aft, aname, _), (eft, ename, _))) in
+            actual.iter().zip(expected.iter()).enumerate()
+        {
+            assert_eq!(
+                aft, eft,
+                "Entry {i}: file type mismatch (actual={aft:?}, expected={eft:?})"
+            );
+            assert_eq!(
+                aname, ename,
+                "Entry {i}: name mismatch (actual={aname:?}, expected={ename:?})"
+            );
+        }
+    }
+
+    #[test]
+    fn builder_with_defaults_called_twice_registers_all_validators_twice() {
+        // with_defaults() is additive. Calling it twice duplicates every
+        // built-in validator. This is the documented behaviour (see
+        // ValidatorRegistryBuilder::with_defaults doc comment).
+        let registry = ValidatorRegistry::builder()
+            .with_defaults()
+            .with_defaults()
+            .build();
+        assert_eq!(
+            registry.total_validator_count(),
+            EXPECTED_BUILTIN_COUNT * 2,
+            "Calling with_defaults() twice must register all validators twice"
         );
     }
 }

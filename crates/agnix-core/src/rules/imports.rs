@@ -289,7 +289,11 @@ impl<'a> ImportScanner<'a> {
             file_path,
             base_dir,
             normalized_base: &normalized_base,
-            rule_not_found: if is_claude_md { "CC-MEM-001" } else { "REF-001" },
+            rule_not_found: if is_claude_md {
+                "CC-MEM-001"
+            } else {
+                "REF-001"
+            },
             rule_cycle: "CC-MEM-002",
             rule_depth: "CC-MEM-003",
             check_not_found,

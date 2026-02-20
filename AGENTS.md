@@ -138,6 +138,8 @@ impl LintConfigBuilder {
     pub fn build(&mut self) -> Result<LintConfig, ConfigError>;
     pub fn build_lenient(&mut self) -> Result<LintConfig, ConfigError>;
     // build_unchecked() exists but is #[cfg(any(test, feature = "__internal_unchecked"))]
+    // __internal module exists but is #[cfg(any(test, feature = "__internal"))]
+    // normalize_line_endings is stable at crate root: agnix_core::normalize_line_endings
 }
 
 impl LintConfig {

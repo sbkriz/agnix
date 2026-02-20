@@ -1527,9 +1527,6 @@ mod tests {
 
         struct NamedCountingProvider;
         impl ValidatorProvider for NamedCountingProvider {
-            fn validators(&self) -> Vec<(FileType, ValidatorFactory)> {
-                vec![(FileType::Skill, named_skip_counting_validator_factory)]
-            }
             fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
                 vec![(
                     FileType::Skill,
@@ -1897,10 +1894,16 @@ mod tests {
         let first = builder.build();
         let second = builder.build();
 
-        // First registry has XmlValidator removed (9 fewer validators).
-        assert!(
-            first.total_validator_count() < second.total_validator_count(),
-            "First registry should have fewer validators due to XmlValidator being disabled"
+        // XmlValidator appears 9 times in the default set; first registry has them removed.
+        let xml_count = BuiltinProvider
+            .named_validators()
+            .iter()
+            .filter(|(_, name, _)| *name == Some("XmlValidator"))
+            .count();
+        assert_eq!(
+            second.total_validator_count() - first.total_validator_count(),
+            xml_count,
+            "First registry should have exactly {xml_count} fewer validators (one per XmlValidator registration)"
         );
         // Second registry has the full count because the disabled set was consumed.
         assert_eq!(

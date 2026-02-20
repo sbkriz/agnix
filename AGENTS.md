@@ -136,7 +136,8 @@ impl LintConfigBuilder {
     pub fn disable_rule(&mut self, id: impl Into<String>) -> &mut Self;
     pub fn disable_validator(&mut self, name: impl Into<String>) -> &mut Self;
     pub fn build(&mut self) -> Result<LintConfig, ConfigError>;
-    pub fn build_unchecked(&mut self) -> LintConfig;
+    pub fn build_lenient(&mut self) -> Result<LintConfig, ConfigError>;
+    // build_unchecked() exists but is #[cfg(any(test, feature = "__internal_unchecked"))]
 }
 
 impl LintConfig {

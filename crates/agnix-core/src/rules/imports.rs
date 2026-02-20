@@ -181,20 +181,19 @@ impl Validator for ImportsValidator {
             local_cache.entry(root_path.clone()).or_insert(root_imports);
         }
 
-        visit_imports(
-            &root_path,
-            None,
-            shared_cache,
-            &mut local_cache,
-            &mut visited_depth,
-            &mut stack,
-            &mut diagnostics,
-            &mut seen_diagnostics,
+        let mut scanner = ImportScanner {
             config,
-            is_claude_md,
-            &project_root,
-            fs.as_ref(),
-        );
+            fs: fs.as_ref(),
+            project_root: &project_root,
+            root_is_claude_md: is_claude_md,
+            shared_cache,
+            local_cache: &mut local_cache,
+            visited_depth: &mut visited_depth,
+            stack: &mut stack,
+            diagnostics: &mut diagnostics,
+            seen_diagnostics: &mut seen_diagnostics,
+        };
+        scanner.visit(&root_path, None);
 
         // Validate markdown links (REF-002)
         // Only check agent config files, not generic markdown. Generic markdown
@@ -220,66 +219,105 @@ impl Validator for ImportsValidator {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-fn visit_imports(
-    file_path: &PathBuf,
-    content_override: Option<&str>,
-    shared_cache: Option<&ImportCache>,
-    local_cache: &mut HashMap<PathBuf, Vec<Import>>,
-    visited_depth: &mut HashMap<PathBuf, usize>,
-    stack: &mut Vec<PathBuf>,
-    diagnostics: &mut Vec<Diagnostic>,
-    seen_diagnostics: &mut HashSet<DiagnosticKey>,
-    config: &LintConfig,
+struct ImportScanner<'a> {
+    config: &'a LintConfig,
+    fs: &'a dyn FileSystem,
+    project_root: &'a Path,
     root_is_claude_md: bool,
-    project_root: &Path,
-    fs: &dyn FileSystem,
-) {
-    let depth = stack.len();
-    if let Some(prev_depth) = visited_depth.get(file_path) {
-        // Skip only when we have already visited this file at an equal or
-        // shallower depth. If we discover a shallower path later, revisit it
-        // so traversal can continue with the tighter depth budget.
-        if *prev_depth <= depth {
+    shared_cache: Option<&'a ImportCache>,
+    local_cache: &'a mut HashMap<PathBuf, Vec<Import>>,
+    visited_depth: &'a mut HashMap<PathBuf, usize>,
+    stack: &'a mut Vec<PathBuf>,
+    diagnostics: &'a mut Vec<Diagnostic>,
+    seen_diagnostics: &'a mut HashSet<DiagnosticKey>,
+}
+
+impl<'a> ImportScanner<'a> {
+    fn visit(&mut self, file_path: &PathBuf, content_override: Option<&str>) {
+        let depth = self.stack.len();
+        if let Some(prev_depth) = self.visited_depth.get(file_path) {
+            // Skip only when we have already visited this file at an equal or
+            // shallower depth. If we discover a shallower path later, revisit it
+            // so traversal can continue with the tighter depth budget.
+            if *prev_depth <= depth {
+                return;
+            }
+        }
+        self.visited_depth.insert(file_path.clone(), depth);
+
+        let imports = get_imports_for_file(
+            file_path,
+            content_override,
+            self.shared_cache,
+            self.local_cache,
+            self.fs,
+        );
+        let Some(imports) = imports else { return };
+
+        let base_dir = file_path.parent().unwrap_or(Path::new("."));
+        let normalized_base = normalize_existing_path(base_dir, self.fs);
+
+        // Determine file type for current file to route its own diagnostics
+        let filename = file_path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        let is_claude_md = matches!(filename, "CLAUDE.md" | "CLAUDE.local.md");
+
+        // Check rules based on CURRENT file type for missing imports
+        // Check rules based on ROOT file type for cycles/depth (applies to entire chain)
+        let check_not_found = (is_claude_md && self.config.is_rule_enabled("CC-MEM-001"))
+            || (!is_claude_md && self.config.is_rule_enabled("REF-001"));
+        let check_cycle = self.root_is_claude_md && self.config.is_rule_enabled("CC-MEM-002");
+        let check_depth = self.root_is_claude_md && self.config.is_rule_enabled("CC-MEM-003");
+
+        if !(check_not_found || check_cycle || check_depth) {
             return;
         }
+
+        let rule_not_found = if is_claude_md {
+            "CC-MEM-001"
+        } else {
+            "REF-001"
+        };
+        let rule_cycle = "CC-MEM-002";
+        let rule_depth = "CC-MEM-003";
+
+        self.stack.push(file_path.clone());
+
+        for import in imports {
+            self.process_import(
+                import,
+                file_path,
+                base_dir,
+                &normalized_base,
+                rule_not_found,
+                rule_cycle,
+                rule_depth,
+                check_not_found,
+                check_cycle,
+                check_depth,
+                depth,
+            );
+        }
+
+        self.stack.pop();
     }
-    visited_depth.insert(file_path.clone(), depth);
 
-    let imports = get_imports_for_file(file_path, content_override, shared_cache, local_cache, fs);
-    let Some(imports) = imports else { return };
-
-    let base_dir = file_path.parent().unwrap_or(Path::new("."));
-    let normalized_base = normalize_existing_path(base_dir, fs);
-    let normalized_root = project_root;
-
-    // Determine file type for current file to route its own diagnostics
-    let filename = file_path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-    let is_claude_md = matches!(filename, "CLAUDE.md" | "CLAUDE.local.md");
-
-    // Check rules based on CURRENT file type for missing imports
-    // Check rules based on ROOT file type for cycles/depth (applies to entire chain)
-    let check_not_found = (is_claude_md && config.is_rule_enabled("CC-MEM-001"))
-        || (!is_claude_md && config.is_rule_enabled("REF-001"));
-    let check_cycle = root_is_claude_md && config.is_rule_enabled("CC-MEM-002");
-    let check_depth = root_is_claude_md && config.is_rule_enabled("CC-MEM-003");
-
-    if !(check_not_found || check_cycle || check_depth) {
-        return;
-    }
-
-    let rule_not_found = if is_claude_md {
-        "CC-MEM-001"
-    } else {
-        "REF-001"
-    };
-    let rule_cycle = "CC-MEM-002";
-    let rule_depth = "CC-MEM-003";
-
-    stack.push(file_path.clone());
-
-    for import in imports {
+    #[allow(clippy::too_many_arguments)]
+    fn process_import(
+        &mut self,
+        import: &Import,
+        file_path: &PathBuf,
+        base_dir: &Path,
+        normalized_base: &PathBuf,
+        rule_not_found: &str,
+        rule_cycle: &str,
+        rule_depth: &str,
+        check_not_found: bool,
+        check_cycle: bool,
+        check_depth: bool,
+        depth: usize,
+    ) {
         let resolved = resolve_import_path(&import.path, base_dir);
+        let normalized_root = self.project_root;
 
         // Validate path to prevent traversal attacks
         // Reject absolute paths and paths that escape the project root
@@ -291,8 +329,8 @@ fn visit_imports(
         {
             if check_not_found {
                 push_unique_diagnostic(
-                    diagnostics,
-                    seen_diagnostics,
+                    self.diagnostics,
+                    self.seen_diagnostics,
                     Diagnostic::error(
                         file_path.clone(),
                         import.line,
@@ -303,15 +341,15 @@ fn visit_imports(
                     .with_suggestion(t!("rules.cc_mem_001.absolute_suggestion")),
                 );
             }
-            continue;
+            return;
         }
 
-        let normalized_resolved = normalize_join(&normalized_base, &import.path);
+        let normalized_resolved = normalize_join(normalized_base, &import.path);
         if !normalized_resolved.starts_with(normalized_root) {
             if check_not_found {
                 push_unique_diagnostic(
-                    diagnostics,
-                    seen_diagnostics,
+                    self.diagnostics,
+                    self.seen_diagnostics,
                     Diagnostic::error(
                         file_path.clone(),
                         import.line,
@@ -322,16 +360,16 @@ fn visit_imports(
                     .with_suggestion(t!("rules.cc_mem_001.escapes_suggestion")),
                 );
             }
-            continue;
+            return;
         }
 
-        let normalized = if fs.exists(&resolved) {
-            let canonical_resolved = normalize_existing_path(&resolved, fs);
+        let normalized = if self.fs.exists(&resolved) {
+            let canonical_resolved = normalize_existing_path(&resolved, self.fs);
             if !canonical_resolved.starts_with(normalized_root) {
                 if check_not_found {
                     push_unique_diagnostic(
-                        diagnostics,
-                        seen_diagnostics,
+                        self.diagnostics,
+                        self.seen_diagnostics,
                         Diagnostic::error(
                             file_path.clone(),
                             import.line,
@@ -342,7 +380,7 @@ fn visit_imports(
                         .with_suggestion(t!("rules.cc_mem_001.escapes_suggestion")),
                     );
                 }
-                continue;
+                return;
             }
             canonical_resolved
         } else {
@@ -352,25 +390,25 @@ fn visit_imports(
         // Try file-relative resolution first, then project-root resolution.
         // Claude Code resolves @imports relative to the project root, not
         // the importing file's directory.
-        let normalized = if fs.exists(&normalized) {
+        let normalized = if self.fs.exists(&normalized) {
             normalized
         } else {
             // Fallback: try resolving relative to project root
-            let root_resolved = project_root.join(&import.path);
-            if fs.exists(&root_resolved) {
+            let root_resolved = self.project_root.join(&import.path);
+            if self.fs.exists(&root_resolved) {
                 root_resolved
             } else {
                 normalized
             }
         };
 
-        let import_exists = fs.exists(&normalized);
+        let import_exists = self.fs.exists(&normalized);
 
         if !import_exists {
             if check_not_found {
                 push_unique_diagnostic(
-                    diagnostics,
-                    seen_diagnostics,
+                    self.diagnostics,
+                    self.seen_diagnostics,
                     Diagnostic::error(
                         file_path.clone(),
                         import.line,
@@ -384,19 +422,19 @@ fn visit_imports(
                     )),
                 );
             }
-            continue;
+            return;
         }
 
         // Always check for cycles/depth to prevent infinite recursion
-        let has_cycle = stack.contains(&normalized);
+        let has_cycle = self.stack.contains(&normalized);
         let exceeds_depth = depth + 1 > MAX_IMPORT_DEPTH;
 
         // Emit diagnostics if rules are enabled for this file type
         if check_cycle && has_cycle {
-            let cycle = format_cycle(stack, &normalized);
+            let cycle = format_cycle(self.stack, &normalized);
             push_unique_diagnostic(
-                diagnostics,
-                seen_diagnostics,
+                self.diagnostics,
+                self.seen_diagnostics,
                 Diagnostic::error(
                     file_path.clone(),
                     import.line,
@@ -406,13 +444,13 @@ fn visit_imports(
                 )
                 .with_suggestion(t!("rules.cc_mem_002.suggestion")),
             );
-            continue;
+            return;
         }
 
         if check_depth && exceeds_depth {
             push_unique_diagnostic(
-                diagnostics,
-                seen_diagnostics,
+                self.diagnostics,
+                self.seen_diagnostics,
                 Diagnostic::error(
                     file_path.clone(),
                     import.line,
@@ -426,30 +464,16 @@ fn visit_imports(
                 )
                 .with_suggestion(t!("rules.cc_mem_003.suggestion")),
             );
-            continue;
+            return;
         }
 
         // Only recurse if no cycle/depth issues
         if !has_cycle && !exceeds_depth {
-            visit_imports(
-                &normalized,
-                None,
-                shared_cache,
-                local_cache,
-                visited_depth,
-                stack,
-                diagnostics,
-                seen_diagnostics,
-                config,
-                root_is_claude_md,
-                project_root,
-                fs,
-            );
+            self.visit(&normalized, None);
         }
     }
-
-    stack.pop();
 }
+
 
 /// Get imports for a file, using shared cache if available, otherwise local cache.
 ///

@@ -21,7 +21,7 @@ impl Backend {
             let mut versions = self.document_versions.write().await;
             docs.insert(uri.clone(), Arc::new(text));
             versions.insert(uri.clone(), version);
-            // Both guards released here atomically
+            // Both guards dropped here in reverse acquisition order (versions then docs)
         }
         self.validate_from_content_and_publish(uri, None).await;
     }
@@ -45,7 +45,7 @@ impl Backend {
                 let mut versions = self.document_versions.write().await;
                 docs.insert(uri.clone(), Arc::new(text));
                 versions.insert(uri.clone(), version);
-                // Both guards released here atomically
+                // Both guards dropped here in reverse acquisition order (versions then docs)
             }
             self.validate_from_content_and_publish(uri, None).await;
         } else {

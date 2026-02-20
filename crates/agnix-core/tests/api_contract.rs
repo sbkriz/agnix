@@ -1060,19 +1060,41 @@ fn normalize_line_endings_is_public_api() {
 
     use agnix_core::normalize_line_endings;
 
-    // CRLF input is normalized (Cow::Owned)
-    assert_eq!(normalize_line_endings("foo\r\nbar"), "foo\nbar");
-    assert_eq!(normalize_line_endings("foo\r\nbar\r\n"), "foo\nbar\n");
+    // CRLF input is normalized (Cow::Owned - allocation required)
+    let crlf = normalize_line_endings("foo\r\nbar");
+    assert_eq!(crlf, "foo\nbar");
+    assert!(matches!(crlf, Cow::Owned(_)), "CRLF input must return Cow::Owned");
+
+    let crlf_trail = normalize_line_endings("foo\r\nbar\r\n");
+    assert_eq!(crlf_trail, "foo\nbar\n");
+    assert!(matches!(crlf_trail, Cow::Owned(_)), "CRLF input must return Cow::Owned");
 
     // Lone CR is also normalized (Cow::Owned)
-    assert_eq!(normalize_line_endings("foo\rbar"), "foo\nbar");
+    let lone_cr = normalize_line_endings("foo\rbar");
+    assert_eq!(lone_cr, "foo\nbar");
+    assert!(matches!(lone_cr, Cow::Owned(_)), "Lone CR input must return Cow::Owned");
 
-    // LF-only input is returned as Cow::Borrowed (zero allocation)
+    // Mixed line endings (Cow::Owned)
+    let mixed = normalize_line_endings("a\r\nb\rc\n");
+    assert_eq!(mixed, "a\nb\nc\n");
+    assert!(matches!(mixed, Cow::Owned(_)), "Mixed line endings must return Cow::Owned");
+
+    // Empty string: Cow::Borrowed (zero allocation)
+    let empty = normalize_line_endings("");
+    assert_eq!(empty, "");
+    assert!(matches!(empty, Cow::Borrowed(_)), "Empty string must return Cow::Borrowed");
+
+    // LF-only input: Cow::Borrowed (zero allocation, same memory)
     let lf_only = "foo\nbar";
     let result = normalize_line_endings(lf_only);
     assert_eq!(result, "foo\nbar");
     assert!(
         matches!(result, Cow::Borrowed(_)),
         "LF-only input must return Cow::Borrowed (zero allocation)"
+    );
+    // Verify the borrow points to the exact same memory (truly zero-copy)
+    assert!(
+        std::ptr::eq(result.as_ptr(), lf_only.as_ptr()),
+        "Cow::Borrowed must point to the original allocation"
     );
 }

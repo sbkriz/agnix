@@ -113,13 +113,15 @@ pub use rules::{Validator, ValidatorMetadata};
 /// Normalize CRLF (`\r\n`) and lone CR (`\r`) line endings to LF (`\n`).
 ///
 /// Returns `Cow::Borrowed` (zero allocation) when no `\r` is present.
+///
+/// **Stability: stable** - breaking changes require a major version bump.
 pub use parsers::frontmatter::normalize_line_endings;
 
 // Internal re-exports (not part of the stable API).
 // These types are needed by fuzz/bench/test targets or leak through LintConfig.
 // They are hidden from rustdoc and namespaced to discourage external use.
-#[cfg(any(test, feature = "__internal"))]
 #[doc(hidden)]
+#[cfg(any(test, feature = "__internal"))]
 pub mod __internal {
     pub use crate::parsers::ImportCache;
     pub use crate::parsers::frontmatter::{FrontmatterParts, split_frontmatter};

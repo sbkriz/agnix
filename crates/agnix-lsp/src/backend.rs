@@ -200,13 +200,15 @@ impl Backend {
             }
         }
 
-        // Get content from cache
-        let (content, expected_content) = {
+        // Get content from cache and capture version at same time to avoid TOCTOU
+        // between content validation and version publish
+        let (content, expected_content, captured_version) = {
             let docs = self.documents.read().await;
             match docs.get(&uri) {
                 Some(cached) => {
                     let snapshot = Arc::clone(cached);
-                    (Arc::clone(&snapshot), Some(snapshot))
+                    let version = self.get_document_version(&uri).await;
+                    (Arc::clone(&snapshot), Some(snapshot), version)
                 }
                 None => {
                     // Fall back to file-based validation
@@ -267,8 +269,9 @@ impl Backend {
             return;
         }
 
-        // Read version just-in-time to minimize TOCTOU window
-        let version = self.get_document_version(&uri).await;
+        // Use version captured at time of content snapshot to avoid publishing
+        // newer version with older (already-validated) diagnostics
+        let version = captured_version;
         self.client
             .publish_diagnostics(uri, diagnostics, version)
             .await;

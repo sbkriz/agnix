@@ -1579,7 +1579,12 @@ mod document_version_tests {
         // This test exercises the version lifecycle through the LanguageServer
         // trait boundary and uses hover as a behavioral indicator of document
         // cache state (hover returns Some when cached, None after close).
-
+        //
+        // Note: This test verifies that versions are tracked and available
+        // for publishing. The actual assertion that diagnostics are published
+        // with the correct version field requires consuming LSP notifications
+        // from the socket. See backend/tests.rs for unit tests that verify
+        // version lifecycle (test_document_version_tracked_on_open, etc.).
         // Phase 1: Open with version 1
         service
             .inner()

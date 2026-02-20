@@ -14,8 +14,9 @@ impl Backend {
             std::borrow::Cow::Borrowed(_) => raw,
             std::borrow::Cow::Owned(normalized) => normalized,
         };
-        // Acquire both locks before releasing either so readers never see a
-        // state where content is updated but version is not (or vice versa).
+        // Acquire both locks atomically to update content and version together.
+        // Readers that need both values must capture them in a single operation
+        // (see validate_from_content_and_publish).
         {
             let mut docs = self.documents.write().await;
             let mut versions = self.document_versions.write().await;
@@ -38,8 +39,9 @@ impl Backend {
                 std::borrow::Cow::Borrowed(_) => raw,
                 std::borrow::Cow::Owned(normalized) => normalized,
             };
-            // Acquire both locks before releasing either so readers never see a
-            // state where content is updated but version is not (or vice versa).
+            // Acquire both locks atomically to update content and version together.
+            // Readers that need both values must capture them in a single operation
+            // (see validate_from_content_and_publish).
             {
                 let mut docs = self.documents.write().await;
                 let mut versions = self.document_versions.write().await;

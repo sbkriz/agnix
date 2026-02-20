@@ -31,6 +31,12 @@ const RULE_IDS: &[&str] = &[
     "REF-004",
 ];
 
+/// Infrastructure rule ID for poisoned-lock recovery diagnostics.
+/// Not included in RULE_IDS because it follows the `namespace::type` convention
+/// used by pipeline-level diagnostics (like `config::glob`, `file::read`),
+/// not the standard `[CATEGORY]-[NUMBER]` validation rule format.
+const RULE_CACHE_POISON: &str = "lint::cache-poison";
+
 pub struct ImportsValidator;
 
 const MAX_IMPORT_DEPTH: usize = 5;
@@ -173,7 +179,21 @@ impl Validator for ImportsValidator {
             // Write to shared cache only if not already present
             let mut guard = match cache.write() {
                 Ok(guard) => guard,
-                Err(poisoned) => poisoned.into_inner(),
+                Err(poisoned) => {
+                    push_unique_diagnostic(
+                        &mut diagnostics,
+                        &mut seen_diagnostics,
+                        Diagnostic::warning(
+                            path.to_path_buf(),
+                            1,
+                            0,
+                            RULE_CACHE_POISON,
+                            t!("rules.cache_poison.message"),
+                        )
+                        .with_suggestion(t!("rules.cache_poison.suggestion")),
+                    );
+                    poisoned.into_inner()
+                }
             };
             guard.entry(root_path.clone()).or_insert(root_imports);
         } else {
@@ -194,6 +214,7 @@ impl Validator for ImportsValidator {
             is_claude_md,
             &project_root,
             fs.as_ref(),
+            path,
         );
 
         // Validate markdown links (REF-002)
@@ -234,6 +255,7 @@ fn visit_imports(
     root_is_claude_md: bool,
     project_root: &Path,
     fs: &dyn FileSystem,
+    validation_root: &Path,
 ) {
     let depth = stack.len();
     if let Some(prev_depth) = visited_depth.get(file_path) {
@@ -246,7 +268,16 @@ fn visit_imports(
     }
     visited_depth.insert(file_path.clone(), depth);
 
-    let imports = get_imports_for_file(file_path, content_override, shared_cache, local_cache, fs);
+    let imports = get_imports_for_file(
+        file_path,
+        content_override,
+        shared_cache,
+        local_cache,
+        fs,
+        diagnostics,
+        seen_diagnostics,
+        validation_root,
+    );
     let Some(imports) = imports else { return };
 
     let base_dir = file_path.parent().unwrap_or(Path::new("."));
@@ -444,6 +475,7 @@ fn visit_imports(
                 root_is_claude_md,
                 project_root,
                 fs,
+                validation_root,
             );
         }
     }
@@ -464,12 +496,16 @@ fn visit_imports(
 /// - The extra work is bounded (only one extra parse per file per thread)
 /// - Using entry() API prevents duplicate insertions
 /// - Lock-free parsing enables better parallelism than holding locks during I/O
+#[allow(clippy::too_many_arguments)]
 fn get_imports_for_file(
     file_path: &Path,
     content_override: Option<&str>,
     shared_cache: Option<&ImportCache>,
     local_cache: &mut HashMap<PathBuf, Vec<Import>>,
     fs: &dyn FileSystem,
+    diagnostics: &mut Vec<Diagnostic>,
+    seen_diagnostics: &mut HashSet<DiagnosticKey>,
+    validation_root: &Path,
 ) -> Option<Vec<Import>> {
     // Try shared cache first if available
     if let Some(cache) = shared_cache {
@@ -477,7 +513,21 @@ fn get_imports_for_file(
         {
             let guard = match cache.read() {
                 Ok(guard) => guard,
-                Err(poisoned) => poisoned.into_inner(),
+                Err(poisoned) => {
+                    push_unique_diagnostic(
+                        diagnostics,
+                        seen_diagnostics,
+                        Diagnostic::warning(
+                            validation_root.to_path_buf(),
+                            1,
+                            0,
+                            RULE_CACHE_POISON,
+                            t!("rules.cache_poison.message"),
+                        )
+                        .with_suggestion(t!("rules.cache_poison.suggestion")),
+                    );
+                    poisoned.into_inner()
+                }
             };
             if let Some(imports) = guard.get(file_path) {
                 return Some(imports.clone());
@@ -499,7 +549,21 @@ fn get_imports_for_file(
         // may have already inserted while we were parsing
         let mut guard = match cache.write() {
             Ok(guard) => guard,
-            Err(poisoned) => poisoned.into_inner(),
+            Err(poisoned) => {
+                push_unique_diagnostic(
+                    diagnostics,
+                    seen_diagnostics,
+                    Diagnostic::warning(
+                        validation_root.to_path_buf(),
+                        1,
+                        0,
+                        RULE_CACHE_POISON,
+                        t!("rules.cache_poison.message"),
+                    )
+                    .with_suggestion(t!("rules.cache_poison.suggestion")),
+                );
+                poisoned.into_inner()
+            }
         };
         guard
             .entry(file_path.to_path_buf())
@@ -681,6 +745,7 @@ fn validate_markdown_links(
 mod tests {
     use super::*;
     use crate::config::LintConfig;
+    use crate::diagnostics::DiagnosticLevel;
     use std::fs;
     use tempfile::TempDir;
 
@@ -1498,9 +1563,21 @@ mod tests {
 
         let validator = ImportsValidator;
         let diagnostics = validator.validate(&file_path, "See @target.md", &config);
+        let poison_diag = diagnostics.iter().find(|d| d.rule == RULE_CACHE_POISON);
         assert!(
-            diagnostics.is_empty(),
-            "Validation should continue with a poisoned shared cache lock"
+            poison_diag.is_some(),
+            "Expected lint::cache-poison warning in diagnostics"
+        );
+        let d = poison_diag.unwrap();
+        assert_eq!(
+            d.level,
+            DiagnosticLevel::Warning,
+            "lint::cache-poison should be a Warning, not {:?}",
+            d.level
+        );
+        assert!(
+            d.suggestion.is_some(),
+            "lint::cache-poison diagnostic should include a suggestion"
         );
     }
 
@@ -1534,6 +1611,94 @@ mod tests {
                 .iter()
                 .any(|d| d.rule == "REF-001" && d.message.contains("@missing.md")),
             "Validation should still report missing imports with a poisoned shared cache lock"
+        );
+        assert!(
+            diagnostics.iter().any(|d| d.rule == RULE_CACHE_POISON),
+            "Expected lint::cache-poison warning alongside REF-001"
+        );
+    }
+
+    #[test]
+    fn test_shared_cache_poisoned_lock_warning_is_deduplicated() {
+        use std::collections::HashMap;
+        use std::sync::{Arc, RwLock};
+        use std::thread;
+
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("test.md");
+        // Multiple imports so the validator hits the poisoned lock multiple times
+        fs::write(&file_path, "See @a.md and @b.md and @c.md").unwrap();
+        fs::write(temp.path().join("a.md"), "A content").unwrap();
+        fs::write(temp.path().join("b.md"), "B content").unwrap();
+        fs::write(temp.path().join("c.md"), "C content").unwrap();
+
+        let cache: crate::parsers::ImportCache = Arc::new(RwLock::new(HashMap::new()));
+
+        let cache_for_poison = cache.clone();
+        let _ = thread::spawn(move || {
+            let _guard = cache_for_poison.write().unwrap();
+            panic!("poison import cache lock");
+        })
+        .join();
+        assert!(cache.read().is_err(), "Cache lock should be poisoned");
+
+        let mut config = LintConfig::default();
+        config.set_import_cache(cache);
+
+        let validator = ImportsValidator;
+        let diagnostics = validator.validate(&file_path, "See @a.md and @b.md and @c.md", &config);
+
+        let poison_count = diagnostics
+            .iter()
+            .filter(|d| d.rule == RULE_CACHE_POISON)
+            .count();
+        assert_eq!(
+            poison_count, 1,
+            "Expected exactly 1 lint::cache-poison diagnostic (deduplication), got {}",
+            poison_count
+        );
+    }
+
+    #[test]
+    fn test_shared_cache_poisoned_lock_deduplication_across_recursive_tree() {
+        // Verifies deduplication holds across recursive import traversal:
+        // root.md -> a.md -> b.md (nested chain, not just siblings)
+        use std::collections::HashMap;
+        use std::sync::{Arc, RwLock};
+        use std::thread;
+
+        let temp = TempDir::new().unwrap();
+        let root = temp.path().join("root.md");
+        let a = temp.path().join("a.md");
+        let b = temp.path().join("b.md");
+        fs::write(&root, "See @a.md").unwrap();
+        fs::write(&a, "See @b.md").unwrap();
+        fs::write(&b, "B content").unwrap();
+
+        let cache: crate::parsers::ImportCache = Arc::new(RwLock::new(HashMap::new()));
+
+        let cache_for_poison = cache.clone();
+        let _ = thread::spawn(move || {
+            let _guard = cache_for_poison.write().unwrap();
+            panic!("poison import cache lock");
+        })
+        .join();
+        assert!(cache.read().is_err(), "Cache lock should be poisoned");
+
+        let mut config = LintConfig::default();
+        config.set_import_cache(cache);
+
+        let validator = ImportsValidator;
+        let diagnostics = validator.validate(&root, "See @a.md", &config);
+
+        let poison_count = diagnostics
+            .iter()
+            .filter(|d| d.rule == RULE_CACHE_POISON)
+            .count();
+        assert_eq!(
+            poison_count, 1,
+            "Expected exactly 1 lint::cache-poison across recursive traversal, got {}",
+            poison_count
         );
     }
 

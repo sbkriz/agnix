@@ -114,7 +114,10 @@ impl ValidatorProvider for BuiltinProvider {
             &WindsurfProvider,
             &MiscProvider,
         ];
-        let result: Vec<_> = providers.iter().flat_map(|p| p.named_validators()).collect();
+        let result: Vec<_> = providers
+            .iter()
+            .flat_map(|p| p.named_validators())
+            .collect();
         debug_assert_eq!(
             result.len(),
             EXPECTED_BUILTIN_COUNT,
@@ -496,31 +499,19 @@ impl ValidatorProvider for CopilotProvider {
                 Some("CopilotValidator"),
                 copilot_validator,
             ),
-            (
-                FileType::CopilotScoped,
-                Some("XmlValidator"),
-                xml_validator,
-            ),
+            (FileType::CopilotScoped, Some("XmlValidator"), xml_validator),
             (
                 FileType::CopilotAgent,
                 Some("CopilotValidator"),
                 copilot_validator,
             ),
-            (
-                FileType::CopilotAgent,
-                Some("XmlValidator"),
-                xml_validator,
-            ),
+            (FileType::CopilotAgent, Some("XmlValidator"), xml_validator),
             (
                 FileType::CopilotPrompt,
                 Some("CopilotValidator"),
                 copilot_validator,
             ),
-            (
-                FileType::CopilotPrompt,
-                Some("XmlValidator"),
-                xml_validator,
-            ),
+            (FileType::CopilotPrompt, Some("XmlValidator"), xml_validator),
             (
                 FileType::CopilotHooks,
                 Some("CopilotValidator"),
@@ -637,21 +628,9 @@ struct RooProvider;
 impl ValidatorProvider for RooProvider {
     fn named_validators(&self) -> Vec<(FileType, Option<&'static str>, ValidatorFactory)> {
         vec![
-            (
-                FileType::RooRules,
-                Some("RooCodeValidator"),
-                roo_validator,
-            ),
-            (
-                FileType::RooModes,
-                Some("RooCodeValidator"),
-                roo_validator,
-            ),
-            (
-                FileType::RooIgnore,
-                Some("RooCodeValidator"),
-                roo_validator,
-            ),
+            (FileType::RooRules, Some("RooCodeValidator"), roo_validator),
+            (FileType::RooModes, Some("RooCodeValidator"), roo_validator),
+            (FileType::RooIgnore, Some("RooCodeValidator"), roo_validator),
             (
                 FileType::RooModeRules,
                 Some("RooCodeValidator"),

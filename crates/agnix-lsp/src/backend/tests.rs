@@ -3528,8 +3528,54 @@ async fn test_document_version_cleared_on_close() {
 async fn test_document_version_returns_none_for_unknown_uri() {
     let backend = Backend::new_test();
 
-    let uri = Url::parse("file:///tmp/never-opened.md").unwrap();
+    let temp_dir = tempfile::tempdir().unwrap();
+    let never_opened = temp_dir.path().join("never-opened.md");
+    let uri = Url::from_file_path(&never_opened).unwrap();
     assert_eq!(backend.get_document_version(&uri).await, None);
+}
+
+/// Test that an empty content_changes vec does not update the tracked version.
+///
+/// In handle_did_change, the version insert is inside `if let Some(change)`,
+/// so an empty content_changes vec means the version map is not touched.
+/// This documents that current behavior and guards against regressions.
+#[tokio::test]
+async fn test_document_version_unchanged_on_empty_content_changes() {
+    let backend = Backend::new_test();
+
+    let temp_dir = tempfile::tempdir().unwrap();
+    let skill_path = temp_dir.path().join("SKILL.md");
+    std::fs::write(&skill_path, "# Test").unwrap();
+    let uri = Url::from_file_path(&skill_path).unwrap();
+
+    // Open with version 1
+    backend
+        .handle_did_open(DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: uri.clone(),
+                language_id: "markdown".to_string(),
+                version: 1,
+                text: "# Test".to_string(),
+            },
+        })
+        .await;
+
+    assert_eq!(backend.get_document_version(&uri).await, Some(1));
+
+    // Send did_change with version 2 but an empty content_changes vec
+    backend
+        .handle_did_change(DidChangeTextDocumentParams {
+            text_document: VersionedTextDocumentIdentifier {
+                uri: uri.clone(),
+                version: 2,
+            },
+            content_changes: vec![],
+        })
+        .await;
+
+    // Version should remain 1 because the version insert is gated on
+    // content_changes being non-empty.
+    assert_eq!(backend.get_document_version(&uri).await, Some(1));
 }
 
 /// Test that multiple documents track independent versions.

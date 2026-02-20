@@ -185,9 +185,6 @@ impl Backend {
             }
         }
 
-        // Look up the document version once for all publish calls in this method.
-        let version = self.get_document_version(&uri).await;
-
         // Skip generic markdown files in LSP to avoid false positives on
         // developer docs, project specs, etc. Only validate files that are
         // specifically identified as agent configuration files.
@@ -195,6 +192,8 @@ impl Backend {
             let config = self.config.load();
             let file_type = agnix_core::resolve_file_type(&file_path, &config);
             if file_type.is_generic() {
+                // Read version just-in-time to minimize TOCTOU window
+                let version = self.get_document_version(&uri).await;
                 // Publish empty diagnostics to clear any stale results
                 self.client
                     .publish_diagnostics(uri, vec![], version)
@@ -221,6 +220,8 @@ impl Backend {
                     {
                         return;
                     }
+                    // Read version just-in-time to minimize TOCTOU window
+                    let version = self.get_document_version(&uri).await;
                     self.client
                         .publish_diagnostics(uri, diagnostics, version)
                         .await;
@@ -268,6 +269,8 @@ impl Backend {
             return;
         }
 
+        // Read version just-in-time to minimize TOCTOU window
+        let version = self.get_document_version(&uri).await;
         self.client
             .publish_diagnostics(uri, diagnostics, version)
             .await;

@@ -215,6 +215,7 @@ impl Backend {
 
         // Publish diagnostics for files not open in the editor
         for (uri, lsp_diags) in non_open_publish {
+            // None: non-open files have no client-tracked version
             self.client.publish_diagnostics(uri, lsp_diags, None).await;
         }
 

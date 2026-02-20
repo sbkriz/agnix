@@ -63,18 +63,16 @@ impl Backend {
     }
 
     pub(crate) async fn handle_did_close(&self, params: DidCloseTextDocumentParams) {
+        let uri = params.text_document.uri;
         {
             let mut docs = self.documents.write().await;
-            docs.remove(&params.text_document.uri);
+            docs.remove(&uri);
         }
-        self.document_versions
-            .write()
-            .await
-            .remove(&params.text_document.uri);
+        self.document_versions.write().await.remove(&uri);
         // Clearing diagnostics for a closed document - version is intentionally None
         // since the document is no longer tracked.
         self.client
-            .publish_diagnostics(params.text_document.uri, vec![], None)
+            .publish_diagnostics(uri, vec![], None)
             .await;
     }
 }

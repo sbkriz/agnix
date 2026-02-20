@@ -120,6 +120,8 @@ pub use parsers::frontmatter::normalize_line_endings;
 // Internal re-exports (not part of the stable API).
 // These types are needed by fuzz/bench/test targets or leak through LintConfig.
 // They are hidden from rustdoc and namespaced to discourage external use.
+// NOTE: normalize_line_endings is intentionally NOT re-exported here;
+// it is a stable crate-root export (see above).
 #[doc(hidden)]
 #[cfg(any(test, feature = "__internal"))]
 pub mod __internal {

@@ -6,7 +6,7 @@ use super::*;
 /// for chaining setter calls, with a terminal `build()` that validates and returns
 /// `Result<LintConfig, ConfigError>`.
 ///
-/// **Note:** `build()` and `build_unchecked()` drain the builder's state.
+/// **Note:** `build()`, `build_lenient()`, and `build_unchecked()` drain the builder's state.
 /// A second call will produce a default config. Create a new builder if needed.
 ///
 /// # Examples
@@ -181,7 +181,45 @@ impl LintConfigBuilder {
     pub fn build(&mut self) -> Result<LintConfig, ConfigError> {
         let config = self.build_inner();
 
-        // Validate all glob pattern lists: exclude + files config
+        Self::validate_patterns(&config)?;
+
+        // Run full config validation (unknown tools, deprecated fields, etc.)
+        let warnings = config.validate();
+        if !warnings.is_empty() {
+            return Err(ConfigError::ValidationFailed(warnings));
+        }
+
+        Ok(config)
+    }
+
+    /// Build the [`LintConfig`], running security-critical validation (glob
+    /// pattern syntax and path traversal checks) while skipping semantic
+    /// warnings such as unknown tool names, unknown rule ID prefixes, and
+    /// deprecated field warnings.
+    ///
+    /// Use this for embedders that need to accept future or unknown tool names
+    /// without rebuilding the library.
+    pub fn build_lenient(&mut self) -> Result<LintConfig, ConfigError> {
+        let config = self.build_inner();
+        Self::validate_patterns(&config)?;
+        Ok(config)
+    }
+
+    /// Build the `LintConfig` without running any validation.
+    ///
+    /// This is primarily intended for tests that need to construct configs
+    /// with intentionally invalid data. Only available in test builds or
+    /// when the `__internal_unchecked` feature is enabled.
+    #[cfg(any(test, feature = "__internal_unchecked"))]
+    #[doc(hidden)]
+    pub fn build_unchecked(&mut self) -> LintConfig {
+        self.build_inner()
+    }
+
+    /// Validate all glob pattern lists (exclude + files config) for syntax
+    /// and path traversal. This is the security-critical subset of validation
+    /// that `build_lenient()` and `build()` both enforce.
+    fn validate_patterns(config: &LintConfig) -> Result<(), ConfigError> {
         let pattern_lists: &[(&str, &[String])] = &[
             ("exclude", &config.data.exclude),
             (
@@ -210,22 +248,7 @@ impl LintConfigBuilder {
                 }
             }
         }
-
-        // Run full config validation
-        let warnings = config.validate();
-        if !warnings.is_empty() {
-            return Err(ConfigError::ValidationFailed(warnings));
-        }
-
-        Ok(config)
-    }
-
-    /// Build the `LintConfig` without running any validation.
-    ///
-    /// This is primarily intended for tests that need to construct configs
-    /// with intentionally invalid data.
-    pub fn build_unchecked(&mut self) -> LintConfig {
-        self.build_inner()
+        Ok(())
     }
 
     /// Internal: construct the LintConfig from builder state, applying defaults.

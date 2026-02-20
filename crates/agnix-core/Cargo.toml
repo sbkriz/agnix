@@ -14,6 +14,9 @@ categories = ["development-tools", "parser-implementations"]
 [features]
 default = ["filesystem"]
 filesystem = ["dep:rayon", "dep:ignore", "dep:dirs"]
+## Exposes `LintConfigBuilder::build_unchecked()` outside of `#[cfg(test)]`.
+## This is intentionally undocumented - prefer `build_lenient()` in production code.
+__internal_unchecked = []
 
 [dependencies]
 agnix-rules.workspace = true

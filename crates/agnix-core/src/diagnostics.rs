@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use thiserror::Error;
 
 pub type LintResult<T> = Result<T, LintError>;
+pub type CoreResult<T> = Result<T, CoreError>;
 
 /// An automatic fix for a diagnostic
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -672,11 +673,7 @@ impl CoreError {
     }
 }
 
-/// `LintError` is the canonical public name for [`CoreError`].
-///
-/// Both names are re-exported at the crate root. Internal code constructs
-/// variants via `CoreError`; public API surfaces and function signatures
-/// use `LintError` and [`LintResult`].
+// Backward compatibility: LintError is now an alias for CoreError
 pub type LintError = CoreError;
 
 /// Outcome of validating a single file.

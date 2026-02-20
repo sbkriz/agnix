@@ -474,7 +474,6 @@ impl<'a> ImportScanner<'a> {
     }
 }
 
-
 /// Get imports for a file, using shared cache if available, otherwise local cache.
 ///
 /// This function uses a read-then-write lock pattern for the shared cache:

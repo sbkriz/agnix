@@ -36,7 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **`visit_imports` refactor**: Refactored the monolithic `visit_imports` recursive function in `imports.rs` into an `ImportScanner` struct-based traversal. Extracted per-import validation logic into a dedicated `process_import` method, significantly reducing cyclomatic complexity and improving maintainability.
-- **`CoreResult` type alias removed** (breaking): `CoreResult<T>` has been removed from the public API. Use `LintResult<T>` (i.e., `Result<T, LintError>`) instead. `LintError` is a public alias for `CoreError`; both remain exported. (#477)
 - **`__internal` module feature-gated**: The `__internal` module in `agnix-core` is now behind the `__internal` Cargo feature; it was previously unconditionally public which created semver obligations for internal items (#472)
 - **`normalize_line_endings` promoted to stable public API**: Accessible at the crate root (`agnix_core::normalize_line_endings`) without requiring the `__internal` feature (#472)
 - **Project-level validation extracted to `rules/project_level.rs`**: Extracted `run_project_level_checks`, `join_paths`, and associated unit tests from `pipeline.rs` into a new `rules/project_level.rs` module; adds 7 new unit tests for AGM-006, XP-004/005/006, and VER-001 behaviors (#474)

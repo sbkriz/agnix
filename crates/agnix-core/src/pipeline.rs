@@ -97,21 +97,59 @@ impl CompiledFilesConfig {
     }
 }
 
+/// Compile glob patterns, collecting any invalid patterns as [`Diagnostic`] warnings
+/// instead of printing to stderr.
+///
+/// Returns the successfully compiled patterns alongside diagnostics for any
+/// patterns that failed to compile. Invalid patterns are excluded from the
+/// compiled output and reported as Diagnostic warnings instead.
+///
+/// `config_file` is the path used in the diagnostic `file` field - callers should
+/// pass an absolute path (e.g. `root_dir.join(".agnix.toml")`) so that diagnostics
+/// are consistent with other config-level diagnostics in the pipeline.
+#[cfg(feature = "filesystem")]
+fn compile_patterns_with_diagnostics(
+    patterns: &[String],
+    config_file: &Path,
+) -> (Vec<glob::Pattern>, Vec<Diagnostic>) {
+    let mut compiled = Vec::with_capacity(patterns.len());
+    let mut diagnostics = Vec::new();
+    for p in patterns {
+        let normalized = p.replace('\\', "/");
+        match glob::Pattern::new(&normalized) {
+            Ok(pat) => compiled.push(pat),
+            Err(e) => {
+                diagnostics.push(
+                    Diagnostic::warning(
+                        config_file.to_path_buf(),
+                        1,
+                        0,
+                        "config::glob",
+                        t!(
+                            "rules.invalid_glob_pattern",
+                            pattern = p,
+                            error = e.to_string()
+                        ),
+                    )
+                    .with_suggestion(t!("rules.invalid_glob_pattern_suggestion")),
+                );
+            }
+        }
+    }
+    (compiled, diagnostics)
+}
+
+/// Compile glob patterns leniently, discarding diagnostics for invalid patterns.
+///
+/// Used in code paths where diagnostics cannot be surfaced (e.g. the public
+/// [`resolve_file_type`] API, which must not change its return type). Invalid
+/// patterns are silently skipped.
 fn compile_patterns_lenient(patterns: &[String]) -> Vec<glob::Pattern> {
     patterns
         .iter()
         .filter_map(|p| {
             let normalized = p.replace('\\', "/");
-            match glob::Pattern::new(&normalized) {
-                Ok(pat) => Some(pat),
-                Err(e) => {
-                    // TODO: Consider returning invalid glob patterns as Diagnostic warnings instead of eprintln!
-                    // This would allow library consumers to handle warnings programmatically.
-                    // See: https://github.com/avifenesh/agnix/issues
-                    eprintln!("warning: ignoring invalid glob pattern '{}' : {}", p, e);
-                    None
-                }
-            }
+            glob::Pattern::new(&normalized).ok()
         })
         .collect()
 }
@@ -122,6 +160,42 @@ fn compile_files_config(files: &crate::config::FilesConfig) -> CompiledFilesConf
         include_as_generic: compile_patterns_lenient(&files.include_as_generic),
         exclude: compile_patterns_lenient(&files.exclude),
     }
+}
+
+/// Compile `[files]` config patterns, surfacing invalid patterns as diagnostics.
+///
+/// Used by [`validate_project_with_registry`] where diagnostics can be
+/// propagated to the caller. Returns both the compiled config and any
+/// diagnostics for malformed glob patterns.
+///
+/// `config_file` is forwarded to [`compile_patterns_with_diagnostics`] for the
+/// diagnostic `file` field.
+#[cfg(feature = "filesystem")]
+fn compile_files_config_with_diagnostics(
+    files: &crate::config::FilesConfig,
+    config_file: &Path,
+) -> (CompiledFilesConfig, Vec<Diagnostic>) {
+    let mut all_diagnostics = Vec::new();
+
+    let (include_as_memory, diags) =
+        compile_patterns_with_diagnostics(&files.include_as_memory, config_file);
+    all_diagnostics.extend(diags);
+
+    let (include_as_generic, diags) =
+        compile_patterns_with_diagnostics(&files.include_as_generic, config_file);
+    all_diagnostics.extend(diags);
+
+    let (exclude, diags) = compile_patterns_with_diagnostics(&files.exclude, config_file);
+    all_diagnostics.extend(diags);
+
+    (
+        CompiledFilesConfig {
+            include_as_memory,
+            include_as_generic,
+            exclude,
+        },
+        all_diagnostics,
+    )
 }
 
 /// Match options for file inclusion/exclusion glob patterns.
@@ -195,9 +269,11 @@ pub fn resolve_file_type(path: &Path, config: &LintConfig) -> FileType {
         return detect_file_type(path);
     }
 
-    // Compile patterns on-demand for single-file validation.
-    // Invalid patterns are silently skipped here; use LintConfigBuilder::build()
-    // or LintConfig::validate() at config load time if strict validation is desired.
+    // Compile patterns on-demand for single-file validation. Invalid patterns
+    // are silently skipped (no diagnostics) because this public API returns only
+    // a FileType. Use validate_project() for diagnostic surfacing, or
+    // LintConfigBuilder::build() / LintConfig::validate() at config load time
+    // for strict validation.
     let compiled = compile_files_config(files);
     resolve_with_compiled(path, config.root_dir().map(|p| p.as_path()), &compiled)
 }
@@ -784,9 +860,11 @@ pub fn validate_project_with_registry(
     let exclude_patterns = Arc::new(exclude_patterns);
 
     // Pre-compile files config patterns once for the parallel walk.
-    // Invalid patterns are silently skipped here; use LintConfigBuilder::build()
-    // or LintConfig::validate() at config load time if strict validation is desired.
-    let compiled_files = Arc::new(compile_files_config(config.files_config()));
+    // Invalid patterns produce Warning diagnostics that are prepended to results.
+    let config_file = root_dir.join(".agnix.toml");
+    let (compiled_files_inner, config_diags) =
+        compile_files_config_with_diagnostics(config.files_config(), &config_file);
+    let compiled_files = Arc::new(compiled_files_inner);
 
     let root_path = root_dir.clone();
 
@@ -929,6 +1007,10 @@ pub fn validate_project_with_registry(
                     (d1, a1, i1)
                 },
             );
+
+    // Surface config-level diagnostics (e.g. invalid glob patterns in [files])
+    // before the TooManyFiles check so they are included on successful validation.
+    diagnostics.extend(config_diags);
 
     // Check if limit was exceeded and return error
     if limit_exceeded.load(Ordering::Relaxed) {
@@ -1476,6 +1558,116 @@ mod tests {
             "XP-004 should still emit read-error diagnostic when enabled, got: {xp004_errors:?}"
         );
         assert_eq!(xp004_errors[0].file, agents_md);
+    }
+
+    // ===== compile_patterns_with_diagnostics tests =====
+
+    #[test]
+    fn compile_patterns_with_diagnostics_all_valid() {
+        let patterns = vec!["*.md".to_string(), "src/**/*.rs".to_string()];
+        let config_file = Path::new(".agnix.toml");
+        let (compiled, diags) = compile_patterns_with_diagnostics(&patterns, config_file);
+        assert_eq!(compiled.len(), 2, "All valid patterns should compile");
+        assert!(
+            diags.is_empty(),
+            "No diagnostics expected for valid patterns, got: {diags:?}"
+        );
+    }
+
+    #[test]
+    fn compile_patterns_with_diagnostics_invalid_pattern() {
+        let patterns = vec!["[invalid".to_string()];
+        let config_file = Path::new(".agnix.toml");
+        let (compiled, diags) = compile_patterns_with_diagnostics(&patterns, config_file);
+        assert!(
+            compiled.is_empty(),
+            "Invalid pattern should not produce a compiled pattern"
+        );
+        assert_eq!(
+            diags.len(),
+            1,
+            "Expected exactly one diagnostic for the invalid pattern"
+        );
+        assert_eq!(
+            diags[0].level,
+            crate::DiagnosticLevel::Warning,
+            "Invalid glob diagnostic should be Warning level"
+        );
+        assert_eq!(
+            diags[0].rule, "config::glob",
+            "Invalid glob diagnostic should use rule config::glob"
+        );
+        assert!(
+            diags[0].suggestion.is_some(),
+            "Diagnostic should include a suggestion"
+        );
+        assert!(
+            diags[0].message.contains("[invalid"),
+            "diagnostic message should include the pattern"
+        );
+    }
+
+    #[test]
+    fn compile_patterns_with_diagnostics_mixed_valid_and_invalid() {
+        let patterns = vec![
+            "*.md".to_string(),
+            "[bad".to_string(),
+            "src/**/*.rs".to_string(),
+            "[also-bad".to_string(),
+        ];
+        let config_file = Path::new(".agnix.toml");
+        let (compiled, diags) = compile_patterns_with_diagnostics(&patterns, config_file);
+        assert_eq!(
+            compiled.len(),
+            2,
+            "Only valid patterns should compile, got {}",
+            compiled.len()
+        );
+        assert_eq!(
+            diags.len(),
+            2,
+            "Expected 2 diagnostics for 2 invalid patterns, got {}",
+            diags.len()
+        );
+        for d in &diags {
+            assert_eq!(d.rule, "config::glob");
+            assert_eq!(d.level, crate::DiagnosticLevel::Warning);
+        }
+    }
+
+    #[test]
+    fn compile_patterns_with_diagnostics_empty_input() {
+        let patterns: Vec<String> = vec![];
+        let config_file = Path::new(".agnix.toml");
+        let (compiled, diags) = compile_patterns_with_diagnostics(&patterns, config_file);
+        assert!(compiled.is_empty());
+        assert!(diags.is_empty());
+    }
+
+    #[test]
+    fn compile_files_config_with_diagnostics_aggregates_all_lists() {
+        use crate::config::FilesConfig;
+
+        let files = FilesConfig {
+            include_as_memory: vec!["*.md".to_string(), "[bad-memory".to_string()],
+            include_as_generic: vec!["[bad-generic".to_string()],
+            exclude: vec!["valid/**".to_string(), "[bad-exclude".to_string()],
+        };
+        let config_file = Path::new(".agnix.toml");
+        let (compiled, diags) = compile_files_config_with_diagnostics(&files, config_file);
+        // Valid patterns: *.md (memory), valid/** (exclude) = 2 compiled total
+        assert_eq!(compiled.include_as_memory.len(), 1);
+        assert_eq!(compiled.include_as_generic.len(), 0);
+        assert_eq!(compiled.exclude.len(), 1);
+        // Invalid patterns: [bad-memory, [bad-generic, [bad-exclude = 3 diagnostics
+        assert_eq!(
+            diags.len(),
+            3,
+            "Expected 3 diagnostics from all 3 pattern lists, got: {diags:?}"
+        );
+        for d in &diags {
+            assert_eq!(d.rule, "config::glob");
+        }
     }
 
     #[test]

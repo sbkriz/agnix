@@ -47,16 +47,8 @@ pub fn extract_imports(content: &str) -> Vec<Import> {
     // control characters combined with certain syntax. Sanitizing here ensures safe
     // input regardless of how the caller obtained the content.
     let content = sanitize_for_pulldown_cmark(content);
-    // Catch upstream parser panics (e.g., pulldown-cmark bugs) gracefully
-    match panic::catch_unwind(AssertUnwindSafe(|| extract_imports_inner(&content))) {
-        Ok(v) => v,
-        Err(_) => {
-            eprintln!(
-                "warning: pulldown-cmark panicked during import extraction, returning empty result"
-            );
-            Default::default()
-        }
-    }
+    // Upstream parser panicked; return empty result (callers handle gracefully)
+    panic::catch_unwind(AssertUnwindSafe(|| extract_imports_inner(&content))).unwrap_or_default()
 }
 
 fn extract_imports_inner(content: &str) -> Vec<Import> {
@@ -92,16 +84,8 @@ pub fn extract_xml_tags(content: &str) -> Vec<XmlTag> {
     // input regardless of how the caller obtained the content.
     let content = sanitize_for_pulldown_cmark(content);
 
-    // Catch upstream parser panics (e.g., pulldown-cmark bugs) gracefully
-    match panic::catch_unwind(AssertUnwindSafe(|| extract_xml_tags_inner(&content))) {
-        Ok(v) => v,
-        Err(_) => {
-            eprintln!(
-                "warning: pulldown-cmark panicked during XML tag extraction, returning empty result"
-            );
-            Default::default()
-        }
-    }
+    // Upstream parser panicked; return empty result (callers handle gracefully)
+    panic::catch_unwind(AssertUnwindSafe(|| extract_xml_tags_inner(&content))).unwrap_or_default()
 }
 
 fn extract_xml_tags_inner(content: &str) -> Vec<XmlTag> {
@@ -134,16 +118,9 @@ fn extract_xml_tags_inner(content: &str) -> Vec<XmlTag> {
 pub fn extract_markdown_links(content: &str) -> Vec<MarkdownLink> {
     // Sanitize C0 control characters and normalize CRLF before scanning.
     let content = sanitize_for_pulldown_cmark(content);
-    // Catch upstream parser panics (e.g., pulldown-cmark bugs) gracefully
-    match panic::catch_unwind(AssertUnwindSafe(|| extract_markdown_links_inner(&content))) {
-        Ok(v) => v,
-        Err(_) => {
-            eprintln!(
-                "warning: pulldown-cmark panicked during link extraction, returning empty result"
-            );
-            Default::default()
-        }
-    }
+    // Upstream parser panicked; return empty result (callers handle gracefully)
+    panic::catch_unwind(AssertUnwindSafe(|| extract_markdown_links_inner(&content)))
+        .unwrap_or_default()
 }
 
 fn extract_markdown_links_inner(content: &str) -> Vec<MarkdownLink> {

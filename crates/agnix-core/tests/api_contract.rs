@@ -1063,26 +1063,41 @@ fn normalize_line_endings_is_public_api() {
     // CRLF input is normalized (Cow::Owned - allocation required)
     let crlf = normalize_line_endings("foo\r\nbar");
     assert_eq!(crlf, "foo\nbar");
-    assert!(matches!(crlf, Cow::Owned(_)), "CRLF input must return Cow::Owned");
+    assert!(
+        matches!(crlf, Cow::Owned(_)),
+        "CRLF input must return Cow::Owned"
+    );
 
     let crlf_trail = normalize_line_endings("foo\r\nbar\r\n");
     assert_eq!(crlf_trail, "foo\nbar\n");
-    assert!(matches!(crlf_trail, Cow::Owned(_)), "CRLF input must return Cow::Owned");
+    assert!(
+        matches!(crlf_trail, Cow::Owned(_)),
+        "CRLF input must return Cow::Owned"
+    );
 
     // Lone CR is also normalized (Cow::Owned)
     let lone_cr = normalize_line_endings("foo\rbar");
     assert_eq!(lone_cr, "foo\nbar");
-    assert!(matches!(lone_cr, Cow::Owned(_)), "Lone CR input must return Cow::Owned");
+    assert!(
+        matches!(lone_cr, Cow::Owned(_)),
+        "Lone CR input must return Cow::Owned"
+    );
 
     // Mixed line endings (Cow::Owned)
     let mixed = normalize_line_endings("a\r\nb\rc\n");
     assert_eq!(mixed, "a\nb\nc\n");
-    assert!(matches!(mixed, Cow::Owned(_)), "Mixed line endings must return Cow::Owned");
+    assert!(
+        matches!(mixed, Cow::Owned(_)),
+        "Mixed line endings must return Cow::Owned"
+    );
 
     // Empty string: Cow::Borrowed (zero allocation)
     let empty = normalize_line_endings("");
     assert_eq!(empty, "");
-    assert!(matches!(empty, Cow::Borrowed(_)), "Empty string must return Cow::Borrowed");
+    assert!(
+        matches!(empty, Cow::Borrowed(_)),
+        "Empty string must return Cow::Borrowed"
+    );
 
     // LF-only input: Cow::Borrowed (zero allocation, same memory)
     let lf_only = "foo\nbar";

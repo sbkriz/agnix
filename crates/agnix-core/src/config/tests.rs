@@ -3438,3 +3438,116 @@ target = "ClaudeCode"
     assert_eq!(config1.severity(), config2.severity());
     assert_eq!(config1.target(), config2.target());
 }
+
+// ===== build_lenient() Tests =====
+//
+// build_lenient() runs security-critical validation (glob syntax, path
+// traversal) while skipping semantic warnings (unknown tools, deprecated
+// fields, unknown rule prefixes). These tests verify both sides.
+
+#[test]
+fn test_build_lenient_allows_unknown_tools() {
+    // build() rejects unknown tool names; build_lenient() should accept them
+    let result_strict = LintConfig::builder()
+        .tools(vec!["future-unknown-tool".to_string()])
+        .build();
+    assert!(result_strict.is_err(), "build() should reject unknown tool");
+
+    let config = LintConfig::builder()
+        .tools(vec!["future-unknown-tool".to_string()])
+        .build_lenient()
+        .expect("build_lenient() should accept unknown tools");
+    assert_eq!(config.tools(), &["future-unknown-tool"]);
+}
+
+#[test]
+fn test_build_lenient_allows_deprecated_target() {
+    // build() rejects deprecated target field; build_lenient() should accept it
+    let result_strict = LintConfig::builder()
+        .target(TargetTool::ClaudeCode)
+        .build();
+    assert!(
+        result_strict.is_err(),
+        "build() should reject deprecated target"
+    );
+
+    let config = LintConfig::builder()
+        .target(TargetTool::ClaudeCode)
+        .build_lenient()
+        .expect("build_lenient() should accept deprecated target");
+    assert_eq!(config.target(), TargetTool::ClaudeCode);
+}
+
+#[test]
+fn test_build_lenient_allows_deprecated_mcp_version() {
+    // build() rejects deprecated mcp_protocol_version; build_lenient() should accept it
+    let result_strict = LintConfig::builder()
+        .mcp_protocol_version(Some("2024-11-05".to_string()))
+        .build();
+    assert!(
+        result_strict.is_err(),
+        "build() should reject deprecated mcp_protocol_version"
+    );
+
+    let config = LintConfig::builder()
+        .mcp_protocol_version(Some("2024-11-05".to_string()))
+        .build_lenient()
+        .expect("build_lenient() should accept deprecated mcp_protocol_version");
+    assert_eq!(config.mcp_protocol_version_raw(), Some("2024-11-05"));
+}
+
+#[test]
+fn test_build_lenient_allows_unknown_rule_prefixes() {
+    // build() rejects unknown rule prefixes; build_lenient() should accept them
+    let result_strict = LintConfig::builder()
+        .disable_rule("FAKE-001")
+        .build();
+    assert!(
+        result_strict.is_err(),
+        "build() should reject unknown rule prefix"
+    );
+
+    let config = LintConfig::builder()
+        .disable_rule("FAKE-001")
+        .build_lenient()
+        .expect("build_lenient() should accept unknown rule prefixes");
+    assert!(
+        config
+            .rules()
+            .disabled_rules
+            .contains(&"FAKE-001".to_string())
+    );
+}
+
+#[test]
+fn test_build_lenient_rejects_invalid_glob() {
+    let result = LintConfig::builder()
+        .exclude(vec!["[invalid".to_string()])
+        .build_lenient();
+
+    assert!(result.is_err(), "build_lenient() should reject invalid glob");
+    match result.unwrap_err() {
+        ConfigError::InvalidGlobPattern { pattern, .. } => {
+            assert_eq!(pattern, "[invalid");
+        }
+        other => panic!("Expected InvalidGlobPattern, got: {:?}", other),
+    }
+}
+
+#[test]
+fn test_build_lenient_rejects_path_traversal() {
+    let result = LintConfig::builder()
+        .exclude(vec!["../secret/**".to_string()])
+        .build_lenient();
+
+    assert!(
+        result.is_err(),
+        "build_lenient() should reject path traversal"
+    );
+    match result.unwrap_err() {
+        ConfigError::PathTraversal { pattern } => {
+            assert_eq!(pattern, "../secret/**");
+        }
+        other => panic!("Expected PathTraversal, got: {:?}", other),
+    }
+}

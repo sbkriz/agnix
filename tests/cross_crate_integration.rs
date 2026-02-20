@@ -572,3 +572,29 @@ fn config_error_is_std_error() {
     fn assert_error<T: std::error::Error>() {}
     assert_error::<agnix_core::ConfigError>();
 }
+
+#[test]
+fn builder_build_lenient_allows_unknown_tools() {
+    // build_lenient() skips semantic validation so unknown tool names are accepted
+    let config = agnix_core::LintConfig::builder()
+        .tools(vec!["future-unknown-tool".to_string()])
+        .build_lenient()
+        .expect("build_lenient() should accept unknown tools");
+    assert_eq!(config.tools(), &["future-unknown-tool"]);
+}
+
+#[test]
+fn builder_build_lenient_rejects_invalid_glob() {
+    // build_lenient() still enforces security-critical glob validation
+    let result = agnix_core::LintConfig::builder()
+        .exclude(vec!["[invalid".to_string()])
+        .build_lenient();
+    assert!(result.is_err(), "build_lenient() should reject invalid glob");
+    let err = result.unwrap_err();
+    let msg = err.to_string();
+    assert!(
+        msg.contains("[invalid"),
+        "Error should mention the pattern: {}",
+        msg
+    );
+}

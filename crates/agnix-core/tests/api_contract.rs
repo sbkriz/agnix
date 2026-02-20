@@ -1055,12 +1055,11 @@ fn named_validators_matching_name_registers_successfully() {
 // ============================================================================
 
 #[test]
-fn normalize_line_endings_is_public_api() {
+fn normalize_line_endings_crlf_is_owned() {
     use std::borrow::Cow;
 
     use agnix_core::normalize_line_endings;
 
-    // CRLF input is normalized (Cow::Owned - allocation required)
     let crlf = normalize_line_endings("foo\r\nbar");
     assert_eq!(crlf, "foo\nbar");
     assert!(
@@ -1074,32 +1073,56 @@ fn normalize_line_endings_is_public_api() {
         matches!(crlf_trail, Cow::Owned(_)),
         "CRLF input must return Cow::Owned"
     );
+}
 
-    // Lone CR is also normalized (Cow::Owned)
+#[test]
+fn normalize_line_endings_lone_cr_is_owned() {
+    use std::borrow::Cow;
+
+    use agnix_core::normalize_line_endings;
+
     let lone_cr = normalize_line_endings("foo\rbar");
     assert_eq!(lone_cr, "foo\nbar");
     assert!(
         matches!(lone_cr, Cow::Owned(_)),
         "Lone CR input must return Cow::Owned"
     );
+}
 
-    // Mixed line endings (Cow::Owned)
+#[test]
+fn normalize_line_endings_mixed_is_owned() {
+    use std::borrow::Cow;
+
+    use agnix_core::normalize_line_endings;
+
     let mixed = normalize_line_endings("a\r\nb\rc\n");
     assert_eq!(mixed, "a\nb\nc\n");
     assert!(
         matches!(mixed, Cow::Owned(_)),
         "Mixed line endings must return Cow::Owned"
     );
+}
 
-    // Empty string: Cow::Borrowed (zero allocation)
+#[test]
+fn normalize_line_endings_empty_is_borrowed() {
+    use std::borrow::Cow;
+
+    use agnix_core::normalize_line_endings;
+
     let empty = normalize_line_endings("");
     assert_eq!(empty, "");
     assert!(
         matches!(empty, Cow::Borrowed(_)),
         "Empty string must return Cow::Borrowed"
     );
+}
 
-    // LF-only input: Cow::Borrowed (zero allocation, same memory)
+#[test]
+fn normalize_line_endings_lf_only_is_borrowed_and_zero_copy() {
+    use std::borrow::Cow;
+
+    use agnix_core::normalize_line_endings;
+
     let lf_only = "foo\nbar";
     let result = normalize_line_endings(lf_only);
     assert_eq!(result, "foo\nbar");

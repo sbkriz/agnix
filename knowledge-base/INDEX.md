@@ -100,7 +100,7 @@ knowledge-base/
 | XML | 3 | 3 | 0 | 0 | 3 |
 | References | 4 | 2 | 2 | 0 | 1 |
 | Prompt Eng | 6 | 0 | 6 | 0 | 2 |
-| Cross-Platform | 8 | 2 | 5 | 1 | 0 |
+| Cross-Platform | 9 | 2 | 6 | 1 | 0 |
 | Cursor | 16 | 9 | 7 | 0 | 6 |
 | Cursor Skills | 1 | 0 | 1 | 0 | 1 |
 | Cline | 4 | 3 | 1 | 0 | 2 |
@@ -120,7 +120,7 @@ knowledge-base/
 | Roo Code | 6 | 3 | 3 | 0 | 0 |
 | Windsurf | 4 | 1 | 2 | 1 | 0 |
 | Kiro Steering | 4 | 2 | 2 | 0 | 1 |
-| **TOTAL** | **229** | **135** | **86** | **8** | **97** |
+| **TOTAL** | **230** | **135** | **87** | **8** | **97** |
 
 
 ---

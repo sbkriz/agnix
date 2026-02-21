@@ -2004,7 +2004,7 @@ pub fn validate_skill(path: &Path, content: &str) -> Vec<Diagnostic> {
 | XML | 3 | 3 | 0 | 0 | 3 |
 | References | 4 | 2 | 2 | 0 | 1 |
 | Prompt Eng | 6 | 0 | 6 | 0 | 2 |
-| Cross-Platform | 8 | 2 | 5 | 1 | 0 |
+| Cross-Platform | 9 | 2 | 6 | 1 | 0 |
 | Cursor Skills | 1 | 0 | 1 | 0 | 1 |
 | Cline Skills | 1 | 0 | 1 | 0 | 1 |
 | Copilot Skills | 1 | 0 | 1 | 0 | 1 |
@@ -2018,7 +2018,7 @@ pub fn validate_skill(path: &Path, content: &str) -> Vec<Diagnostic> {
 | Roo Code Skills | 1 | 0 | 1 | 0 | 1 |
 | Roo Code | 6 | 3 | 3 | 0 | 0 |
 | Version Awareness | 1 | 0 | 0 | 1 | 0 |
-| **TOTAL** | **229** | **135** | **86** | **8** | **97** |
+| **TOTAL** | **230** | **135** | **87** | **8** | **97** |
 
 
 ---
@@ -2051,5 +2051,5 @@ pub fn validate_skill(path: &Path, content: &str) -> Vec<Diagnostic> {
 **Total Coverage**: 230 validation rules across 32 categories
 
 **Knowledge Base**: 11,036 lines, 320KB, 75+ sources
-**Certainty**: 135 HIGH, 86 MEDIUM, 8 LOW
+**Certainty**: 135 HIGH, 87 MEDIUM, 8 LOW
 **Auto-Fixable**: 97 rules (42%)

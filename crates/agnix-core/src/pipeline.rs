@@ -32,7 +32,9 @@ use crate::schemas;
 
 /// Result of validating a project, including diagnostics and metadata.
 ///
-/// Use [`ValidationResult::new`] to construct instances; fields are public for direct read access.
+/// All fields are public. Use [`ValidationResult::new`] for convenient construction when only
+/// `diagnostics` and `files_checked` are known; struct literal construction is also supported.
+/// Note: adding a new public field in the future would be a breaking change for struct literals.
 #[derive(Debug, Clone)]
 pub struct ValidationResult {
     /// Diagnostics found during validation.

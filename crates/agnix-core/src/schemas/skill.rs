@@ -59,6 +59,7 @@ pub struct SkillSchema {
 
 impl SkillSchema {
     /// Validate skill name format
+    #[allow(dead_code)] // schema-level API; validation uses Validator trait
     pub fn validate_name(&self) -> Result<(), String> {
         let name = &self.name;
 
@@ -91,6 +92,7 @@ impl SkillSchema {
     }
 
     /// Validate description length
+    #[allow(dead_code)] // schema-level API; validation uses Validator trait
     pub fn validate_description(&self) -> Result<(), String> {
         let len = self.description.len();
         if len == 0 || len > 1024 {
@@ -103,6 +105,7 @@ impl SkillSchema {
     }
 
     /// Validate compatibility length
+    #[allow(dead_code)] // schema-level API; validation uses Validator trait
     pub fn validate_compatibility(&self) -> Result<(), String> {
         if let Some(compat) = &self.compatibility {
             let len = compat.len();
@@ -117,6 +120,7 @@ impl SkillSchema {
     }
 
     /// Validate model value
+    #[allow(dead_code)] // schema-level API; validation uses Validator trait
     pub fn validate_model(&self) -> Result<(), String> {
         if let Some(model) = &self.model {
             let valid = ["sonnet", "opus", "haiku", "inherit"];
@@ -131,6 +135,7 @@ impl SkillSchema {
     }
 
     /// Validate context value
+    #[allow(dead_code)] // schema-level API; validation uses Validator trait
     pub fn validate_context(&self) -> Result<(), String> {
         if let Some(context) = &self.context {
             if context != "fork" {
@@ -141,6 +146,7 @@ impl SkillSchema {
     }
 
     /// Run all validations
+    #[allow(dead_code)] // schema-level API; validation uses Validator trait
     pub fn validate(&self) -> Vec<String> {
         let mut errors = Vec::new();
 

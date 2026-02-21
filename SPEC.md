@@ -14,7 +14,7 @@
 | Agents | agents/*.md | 13 |
 | Plugins | plugin.json | 10 |
 | Prompt Engineering | CLAUDE.md, AGENTS.md | 6 |
-| Cross-Platform | AGENTS.md | 8 |
+| Cross-Platform | AGENTS.md | 9 |
 | MCP | tool definitions | 24 |
 | XML | all .md files | 3 |
 | References | @imports | 4 |

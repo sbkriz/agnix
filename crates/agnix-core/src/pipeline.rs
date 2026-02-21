@@ -34,7 +34,9 @@ use crate::schemas;
 ///
 /// All fields are public. Use [`ValidationResult::new`] for convenient construction when only
 /// `diagnostics` and `files_checked` are known; struct literal construction is also supported.
-/// Note: adding a new public field in the future would be a breaking change for struct literals.
+/// Note: adding a new public field in the future would be a breaking change for struct literals
+/// and exhaustive destructuring patterns. For forward-compatible code, prefer
+/// [`ValidationResult::new`] and use `..` in destructure patterns.
 #[derive(Debug, Clone)]
 pub struct ValidationResult {
     /// Diagnostics found during validation.

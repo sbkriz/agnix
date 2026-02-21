@@ -457,7 +457,9 @@ fn validation_result_allows_exhaustive_destructuring() {
         validation_time_ms,
         validator_factories_registered,
     } = result;
-    let _ = (diagnostics, files_checked, validation_time_ms, validator_factories_registered);
+    assert_eq!(files_checked, 3);
+    assert_eq!(validation_time_ms, Some(10));
+    let _ = (diagnostics, validator_factories_registered);
 }
 
 // ============================================================================

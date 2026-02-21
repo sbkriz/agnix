@@ -129,8 +129,6 @@ impl Validator for CrossPlatformValidator {
         }
 
         // XP-008: Claude-specific features in CLAUDE.md for Cursor (WARNING)
-        // When target is Cursor, warn about Claude-specific features in CLAUDE.md
-        // that Cursor cannot interpret (use .cursor/rules/ for Cursor instead)
         let is_claude_md = matches!(filename, "CLAUDE.md" | "CLAUDE.local.md");
         if config.is_rule_enabled("XP-008")
             && is_claude_md
@@ -907,7 +905,7 @@ Use context: fork for subagents.
     fn test_xp_008_does_not_fire_with_generic_target() {
         let validator = CrossPlatformValidator;
         let content = "# Project\n\ncontext: fork\nagent: reviewer";
-        let config = LintConfig::default(); // Generic target by default
+        let config = LintConfig::default();
         let path = Path::new("CLAUDE.md");
         let diagnostics = validator.validate(path, content, &config);
         let xp_008: Vec<_> = diagnostics.iter().filter(|d| d.rule == "XP-008").collect();

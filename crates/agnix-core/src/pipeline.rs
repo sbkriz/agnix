@@ -502,7 +502,7 @@ pub fn validate_project_rules(root: &Path, config: &LintConfig) -> LintResult<Ve
     use ignore::WalkBuilder;
     use std::sync::Arc;
 
-    let root_dir = resolve_validation_root(root);
+    let root_dir = resolve_validation_root(root)?;
     let mut config = config.clone();
     config.set_root_dir(root_dir.clone());
 
@@ -596,7 +596,7 @@ pub fn validate_project_with_registry(
 
     let validation_start = Instant::now();
 
-    let root_dir = resolve_validation_root(path);
+    let root_dir = resolve_validation_root(path)?;
     let mut config = config.clone();
     config.set_root_dir(root_dir.clone());
 
@@ -811,13 +811,24 @@ pub fn validate_project_with_registry(
 }
 
 #[cfg(feature = "filesystem")]
-fn resolve_validation_root(path: &Path) -> PathBuf {
-    let candidate = if path.is_file() {
+fn resolve_validation_root(path: &Path) -> LintResult<PathBuf> {
+    let metadata = match path.metadata() {
+        Ok(m) => m,
+        Err(_) => {
+            // Any I/O failure (not found, permission denied, etc.) is treated
+            // uniformly as RootNotFound. For a local linter running as the
+            // invoking user, the distinction is not actionable at this level.
+            return Err(CoreError::Validation(ValidationError::RootNotFound {
+                path: path.to_path_buf(),
+            }));
+        }
+    };
+    let candidate = if metadata.is_file() {
         path.parent().unwrap_or(Path::new("."))
     } else {
         path
     };
-    std::fs::canonicalize(candidate).unwrap_or_else(|_| candidate.to_path_buf())
+    Ok(std::fs::canonicalize(candidate).unwrap_or_else(|_| candidate.to_path_buf()))
 }
 
 #[cfg(test)]

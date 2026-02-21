@@ -243,11 +243,20 @@ mod validation_tests {
         let missing = temp.path().join("nonexistent_subdir");
         let result = validate_project(&missing, &config);
 
-        assert!(result.is_ok());
-        let validation = result.unwrap();
-        assert_eq!(
-            validation.files_checked, 0,
-            "Non-existent project path should find no files"
+        assert!(
+            result.is_err(),
+            "Non-existent project path should return Err, got: {:?}",
+            result
+        );
+        let err = result.unwrap_err();
+        let err_msg = err.to_string();
+        assert!(
+            err_msg.contains("Validation root not found"),
+            "Error message should contain 'Validation root not found': {err_msg}"
+        );
+        assert!(
+            err_msg.contains(missing.to_str().unwrap()),
+            "Error message should contain the path: {err_msg}"
         );
     }
 

@@ -4376,35 +4376,82 @@ fn test_validate_project_with_registry_file_input() {
     );
 }
 
-/// Passing a nonexistent file path - is_file() returns false, so it falls through
-/// to the directory branch. canonicalize fails, walk yields nothing.
+/// Passing a nonexistent file path should return an error, not silently succeed
+/// with 0 files checked.
 #[test]
 fn test_validate_project_file_input_nonexistent_path() {
     let temp = tempfile::TempDir::new().unwrap();
+    let config = LintConfig::builder().build_lenient().unwrap();
 
-    // Create a real SKILL.md with violations in the directory
-    std::fs::write(
-        temp.path().join("SKILL.md"),
-        "---\nname: deploy-prod\ndescription: Deploys\n---\nBody",
-    )
-    .unwrap();
-
-    let mut config = LintConfig::default();
-    config.rules_mut().disabled_rules = vec!["VER-001".to_string()];
-
-    // Pass a nonexistent file - is_file() returns false, treated as directory,
-    // canonicalize fails, walk yields nothing
+    // Pass a nonexistent file - should return Err, not silently succeed
     let nonexistent = temp.path().join("nonexistent.md");
-    let result = validate_project(&nonexistent, &config).unwrap();
+    let result = validate_project(&nonexistent, &config);
 
-    assert_eq!(
-        result.files_checked, 0,
-        "Nonexistent file path should result in 0 files checked"
+    assert!(
+        result.is_err(),
+        "Nonexistent file path should return Err, got: {:?}",
+        result
+    );
+    let err_msg = result.unwrap_err().to_string();
+    assert!(
+        err_msg.contains("Validation root not found"),
+        "Error message should contain 'Validation root not found': {err_msg}"
     );
     assert!(
-        result.diagnostics.is_empty(),
-        "Nonexistent file path should produce no diagnostics, got: {:?}",
-        result.diagnostics
+        err_msg.contains(nonexistent.to_str().unwrap()),
+        "Error message should contain the path: {err_msg}"
+    );
+}
+
+#[test]
+fn test_validate_project_nonexistent_dir_returns_error() {
+    let config = LintConfig::builder().build_lenient().unwrap();
+    let nonexistent = Path::new("/nonexistent/path/that/does/not/exist");
+    let result = validate_project(nonexistent, &config);
+    assert!(result.is_err());
+    let err_msg = result.unwrap_err().to_string();
+    assert!(
+        err_msg.contains("Validation root not found"),
+        "Error message should contain 'Validation root not found': {err_msg}"
+    );
+    assert!(
+        err_msg.contains(nonexistent.to_str().unwrap()),
+        "Error message should contain the path: {err_msg}"
+    );
+}
+
+#[test]
+fn test_validate_project_rules_nonexistent_returns_error() {
+    let config = LintConfig::builder().build_lenient().unwrap();
+    let nonexistent = Path::new("/nonexistent/path/rules");
+    let result = validate_project_rules(nonexistent, &config);
+    let err = result.unwrap_err();
+    let err_msg = err.to_string();
+    assert!(
+        err_msg.contains("Validation root not found"),
+        "Error message should contain 'Validation root not found': {err_msg}"
+    );
+    assert!(
+        err_msg.contains(nonexistent.to_str().unwrap()),
+        "Error message should contain the path: {err_msg}"
+    );
+}
+
+#[test]
+fn test_validate_project_with_registry_nonexistent_returns_error() {
+    let registry = ValidatorRegistry::with_defaults();
+    let config = LintConfig::builder().build_lenient().unwrap();
+    let nonexistent = Path::new("/nonexistent/path/registry");
+    let result = validate_project_with_registry(nonexistent, &config, &registry);
+    let err = result.unwrap_err();
+    let err_msg = err.to_string();
+    assert!(
+        err_msg.contains("Validation root not found"),
+        "Error message should contain 'Validation root not found': {err_msg}"
+    );
+    assert!(
+        err_msg.contains(nonexistent.to_str().unwrap()),
+        "Error message should contain the path: {err_msg}"
     );
 }
 

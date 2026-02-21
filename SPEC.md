@@ -1,6 +1,6 @@
 # agnix Technical Reference
 
-> Linter for agent configs. 229 rules across 32 categories.
+> Linter for agent configs. 230 rules across 32 categories.
 
 
 ## What agnix Validates
@@ -54,7 +54,7 @@ agnix/
 │   ├── agnix-mcp/      # MCP server
 │   └── agnix-wasm/     # WebAssembly bindings
 ├── editors/            # Neovim, VS Code, JetBrains, Zed integrations
-├── knowledge-base/     # 229 rules documented
+├── knowledge-base/     # 230 rules documented
 
 ├── scripts/            # Build/dev automation scripts
 ├── website/            # Docusaurus documentation website

@@ -1796,6 +1796,13 @@ agent: reviewer
 **Fix**: Reduce content or split into multiple files using @import
 **Source**: developers.openai.com/codex/guides/agents-md
 
+<a id="xp-008"></a>
+### XP-008 [MEDIUM] Claude-specific Features in CLAUDE.md for Cursor
+**Requirement**: CLAUDE.md SHOULD guard Claude-specific features under a `## Claude Code` section when targeting Cursor
+**Detection**: When target tool is Cursor, check CLAUDE.md for Claude-specific directives (context:fork, agent fields, allowed-tools, hooks, @import) outside guarded sections
+**Fix**: No auto-fix - move Cursor-compatible instructions to .cursor/rules/ or guard Claude-specific content under a `## Claude Code` section header
+**Source**: docs.cursor.com/context/rules-for-ai
+
 <a id="xp-sk-001"></a>
 ### XP-SK-001 [LOW] Skill Uses Client-Specific Features
 **Requirement**: Skills SHOULD avoid client-specific frontmatter fields for maximum portability
@@ -1845,7 +1852,7 @@ Add these 15 rules:
 Complete coverage:
 - MCP-001 through MCP-006 (MCP protocol)
 - PE-001 through PE-006 (Prompt engineering)
-- XP-001 through XP-007, XP-SK-001 (Cross-platform)
+- XP-001 through XP-008, XP-SK-001 (Cross-platform)
 - CR-SK-001, CL-SK-001, CP-SK-001, CX-SK-001, OC-SK-001, WS-SK-001, KR-SK-001, AMP-SK-001, RC-SK-001 (Per-client skills)
 - Remaining MEDIUM/LOW certainty rules
 
@@ -2041,7 +2048,7 @@ pub fn validate_skill(path: &Path, content: &str) -> Vec<Diagnostic> {
 
 ---
 
-**Total Coverage**: 229 validation rules across 32 categories
+**Total Coverage**: 230 validation rules across 32 categories
 
 **Knowledge Base**: 11,036 lines, 320KB, 75+ sources
 **Certainty**: 135 HIGH, 86 MEDIUM, 8 LOW

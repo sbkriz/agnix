@@ -1,7 +1,7 @@
 {
   "description": "Machine-readable source of truth for all validation rules. When adding a new rule, add it here AND in VALIDATION-RULES.md. CI parity tests enforce sync.",
   "version": "1.1.0",
-  "total_rules": 229,
+  "total_rules": 230,
   "last_updated": "2026-02-14",
   "schema": {
     "evidence": {
@@ -6258,6 +6258,34 @@
       "bad_example": "# AGENTS.md\n\n(content exceeding 32768 bytes - will be truncated by Codex CLI)"
     },
     {
+      "id": "XP-008",
+      "name": "Claude-specific Features in CLAUDE.md for Cursor",
+      "description": "CLAUDE.md contains Claude-specific features that Cursor cannot interpret. When using Cursor as the target tool, Claude-specific directives like context:fork, agent fields, and allowed-tools will be ignored.",
+      "severity": "MEDIUM",
+      "category": "cross-platform",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": [
+          "https://docs.cursor.com/context/rules-for-ai"
+        ],
+        "verified_on": "2026-02-21",
+        "applies_to": {
+          "tool": "cursor"
+        },
+        "normative_level": "SHOULD",
+        "tests": {
+          "unit": true,
+          "fixtures": true,
+          "e2e": false
+        }
+      },
+      "fix": {
+        "autofix": false
+      },
+      "good_example": "# CLAUDE.md\n\n## Claude Code\n\ncontext: fork\nagent: reviewer\n\n## General\n\nKeep code clean and well-tested.",
+      "bad_example": "# CLAUDE.md\n\ncontext: fork\nagent: reviewer\nallowed-tools: Read Write"
+    },
+    {
       "id": "XP-SK-001",
       "name": "Skill Uses Client-Specific Features",
       "severity": "LOW",
@@ -6376,7 +6404,7 @@
     },
     "cross-platform": {
       "prefix": "XP",
-      "count": 8,
+      "count": 9,
       "description": "Cross-platform compatibility rules"
     },
     "cursor-skills": {

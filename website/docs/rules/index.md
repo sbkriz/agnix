@@ -1,6 +1,6 @@
 # Rules Reference
 
-This section contains all `229` validation rules generated from `knowledge-base/rules.json`.
+This section contains all `230` validation rules generated from `knowledge-base/rules.json`.
 `97` rules have automatic fixes.
 
 | Rule | Name | Severity | Category | Auto-Fix |
@@ -233,4 +233,5 @@ This section contains all `229` validation rules generated from `knowledge-base/
 | [XP-005](./generated/xp-005.md) | Conflicting Tool Constraints | HIGH | Cross-Platform | No |
 | [XP-006](./generated/xp-006.md) | Multiple Layers Without Documented Precedence | MEDIUM | Cross-Platform | No |
 | [XP-007](./generated/xp-007.md) | AGENTS.md Exceeds Codex Byte Limit | MEDIUM | Cross-Platform | No |
+| [XP-008](./generated/xp-008.md) | Claude-specific Features in CLAUDE.md for Cursor | MEDIUM | Cross-Platform | No |
 | [XP-SK-001](./generated/xp-sk-001.md) | Skill Uses Client-Specific Features | LOW | Cross-Platform | No |

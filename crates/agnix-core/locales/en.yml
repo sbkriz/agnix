@@ -429,6 +429,9 @@ rules:
   xp_007:
     message: "AGENTS.md exceeds Codex CLI byte limit (%{bytes} bytes, max %{limit})"
     suggestion: "Reduce content or split into multiple files using @import for Codex CLI compatibility"
+  xp_008:
+    message: "CLAUDE.md contains Claude-specific feature '%{feature}' that Cursor cannot interpret: %{description}"
+    suggestion: "Move Cursor-compatible instructions to .cursor/rules/ or guard Claude-specific content under a '## Claude Code' section header"
 
   # --- Copilot (copilot.rs) ---
   cop_001:

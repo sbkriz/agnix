@@ -11,7 +11,7 @@
   </p>
 </div>
 
-<p align="center">Catch broken agent configs before your AI tools silently ignore them.<br>229 rules across Claude Code, Codex CLI, OpenCode, Cursor, Copilot, and more -<br>validating CLAUDE.md, SKILL.md, hooks, MCP configs, and other agent files.</p>
+<p align="center">Catch broken agent configs before your AI tools silently ignore them.<br>230 rules across Claude Code, Codex CLI, OpenCode, Cursor, Copilot, and more -<br>validating CLAUDE.md, SKILL.md, hooks, MCP configs, and other agent files.</p>
 
 <p align="center"><strong>Auto-fix</strong> | <strong><a href="https://github.com/marketplace/actions/agnix-ci">GitHub Action</a></strong> | <strong><a href="https://marketplace.visualstudio.com/items?itemName=avifenesh.agnix">VS Code</a> + <a href="https://plugins.jetbrains.com/plugin/30087-agnix">JetBrains</a> + <a href="https://github.com/agent-sh/agnix.nvim">Neovim</a> + <a href="https://github.com/agent-sh/agnix/tree/main/editors/zed">Zed</a></strong></p>
 
@@ -36,7 +36,7 @@
 
 **Bad patterns get amplified.** AI assistants don't ignore wrong configs - they [learn from them](https://www.augmentcode.com/guides/enterprise-coding-standards-12-rules-for-ai-ready-teams).
 
-agnix validates all of it - 229 rules sourced from official specs, academic research, and real-world breakage patterns. Auto-fix included.
+agnix validates all of it - 230 rules sourced from official specs, academic research, and real-world breakage patterns. Auto-fix included.
 
 > **Want to try it first?** [Open the playground](https://agent-sh.github.io/agnix/playground) - paste any agent config, see diagnostics instantly. No install, runs in your browser.
 
@@ -107,7 +107,7 @@ agnix --strict .     # Strict mode (warnings = errors)
 agnix --target claude-code .  # Target specific tool
 ```
 
-[Full CLI reference](https://agent-sh.github.io/agnix/docs/configuration) | [All 229 rules](https://agent-sh.github.io/agnix/docs/rules)
+[Full CLI reference](https://agent-sh.github.io/agnix/docs/configuration) | [All 230 rules](https://agent-sh.github.io/agnix/docs/rules)
 
 ## Supported Tools
 

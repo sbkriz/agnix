@@ -130,9 +130,7 @@ impl Validator for CrossPlatformValidator {
 
         // XP-008: Claude-specific features in CLAUDE.md for Cursor (WARNING)
         let is_claude_md = matches!(filename, "CLAUDE.md" | "CLAUDE.local.md");
-        if config.is_rule_enabled("XP-008")
-            && is_claude_md
-            && config.target() == TargetTool::Cursor
+        if config.is_rule_enabled("XP-008") && is_claude_md && config.target() == TargetTool::Cursor
         {
             let claude_features = find_claude_specific_features(content);
             for feature in claude_features {
@@ -880,17 +878,13 @@ Use context: fork for subagents.
         let path = Path::new("AGENTS.md");
         let diagnostics = validator.validate(path, content, &config);
         let xp_008: Vec<_> = diagnostics.iter().filter(|d| d.rule == "XP-008").collect();
-        assert!(
-            xp_008.is_empty(),
-            "XP-008 should not fire on AGENTS.md"
-        );
+        assert!(xp_008.is_empty(), "XP-008 should not fire on AGENTS.md");
     }
 
     #[test]
     fn test_xp_008_respects_claude_section_guards() {
         let validator = CrossPlatformValidator;
-        let content =
-            "# Project\n\n## Claude Code\n\ncontext: fork\nagent: reviewer\n\n## General\n\nKeep code clean.";
+        let content = "# Project\n\n## Claude Code\n\ncontext: fork\nagent: reviewer\n\n## General\n\nKeep code clean.";
         let mut config = LintConfig::default();
         config.set_target(TargetTool::Cursor);
         let path = Path::new("CLAUDE.md");
@@ -988,10 +982,7 @@ Use context: fork for subagents.
         let diagnostics = validator.validate(path, content, &config);
         let xp_008: Vec<_> = diagnostics.iter().filter(|d| d.rule == "XP-008").collect();
         assert_eq!(xp_008.len(), 1, "Should find exactly one feature");
-        assert_eq!(
-            xp_008[0].line, 5,
-            "context: fork is on line 5 (1-indexed)"
-        );
+        assert_eq!(xp_008[0].line, 5, "context: fork is on line 5 (1-indexed)");
     }
 
     #[test]

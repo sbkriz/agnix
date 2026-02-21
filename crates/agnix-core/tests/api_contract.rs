@@ -423,6 +423,21 @@ fn validation_result_fields_are_accessible() {
     assert_eq!(result.files_checked, 5);
 }
 
+#[test]
+fn validation_result_allows_struct_literal_construction() {
+    // Guard: if #[non_exhaustive] is re-added, this test will fail to compile
+    let result = agnix_core::ValidationResult {
+        diagnostics: vec![],
+        files_checked: 42,
+        validation_time_ms: Some(100),
+        validator_factories_registered: 5,
+    };
+    assert_eq!(result.files_checked, 42);
+    assert_eq!(result.validation_time_ms, Some(100));
+    assert_eq!(result.validator_factories_registered, 5);
+    assert!(result.diagnostics.is_empty());
+}
+
 // ============================================================================
 // FixResult field accessibility
 // ============================================================================

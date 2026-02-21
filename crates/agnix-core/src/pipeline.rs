@@ -32,14 +32,8 @@ use crate::schemas;
 
 /// Result of validating a project, including diagnostics and metadata.
 ///
-/// This struct is marked `#[non_exhaustive]` so that new metadata fields can be
-/// added in minor releases without breaking downstream destructuring patterns.
-/// Use `ValidationResult::new()` to construct instances in tests.
+/// Use [`ValidationResult::new`] to construct instances; fields are public for direct read access.
 #[derive(Debug, Clone)]
-/// **Breaking change in 0.11.0**: This struct is now marked `#[non_exhaustive]`.
-/// Downstream crates using struct literals or exhaustive destructuring must
-/// switch to `ValidationResult::new()` or use `..` in patterns.
-#[non_exhaustive]
 pub struct ValidationResult {
     /// Diagnostics found during validation.
     pub diagnostics: Vec<Diagnostic>,

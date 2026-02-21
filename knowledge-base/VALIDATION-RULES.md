@@ -1799,7 +1799,7 @@ agent: reviewer
 <a id="xp-008"></a>
 ### XP-008 [MEDIUM] Claude-specific Features in CLAUDE.md for Cursor
 **Requirement**: CLAUDE.md SHOULD guard Claude-specific features under a `## Claude Code` section when targeting Cursor
-**Detection**: When target tool is Cursor, check CLAUDE.md for Claude-specific directives (context:fork, agent fields, allowed-tools, hooks, @import) outside guarded sections
+**Detection**: When target tool is Cursor, check CLAUDE.md and CLAUDE.local.md for Claude-specific directives (context:fork, agent fields, allowed-tools, hooks, @import) outside guarded sections
 **Fix**: No auto-fix - move Cursor-compatible instructions to .cursor/rules/ or guard Claude-specific content under a `## Claude Code` section header
 **Source**: docs.cursor.com/context/rules-for-ai
 

@@ -2,7 +2,7 @@
 
 > Consolidated from 320KB knowledge base, 75+ sources, 5 research agents
 
-**Last Updated**: 2026-02-26
+**Last Updated**: 2026-02-27
 **Coverage**: Agent Skills • MCP • Claude Code • Cursor • Multi-Platform • Prompt Engineering
 
 ---
@@ -1349,7 +1349,7 @@ Rules with an empty `applies_to` object (`{}`) apply universally.
 ### OC-001 [HIGH] Invalid Share Mode
 **Requirement**: The `share` field in `opencode.json` MUST be `"manual"`, `"auto"`, or `"disabled"`
 **Detection**: Parse JSON, validate `share` value against allowed set
-**Fix**: Auto-fix (unsafe) -- replace with closest valid share mode
+**Fix**: Auto-fix (unsafe) - replace with closest valid share mode
 **Source**: opencode.ai/docs/config
 
 <a id="oc-002"></a>

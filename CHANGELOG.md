@@ -7,17 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-02-27
+
 ### Added
 - **`.clinerules/*.txt` file support**: agnix now detects and validates `.clinerules/*.txt` files as `ClineRulesFolder` file type. Rules CLN-001 through CLN-004 now apply to `.txt` files in addition to `.md` files, matching Cline's actual behavior.
+- **CDX-006 rule**: Validates `project_doc_fallback_filenames` semantics in Codex CLI configuration (#569).
 
 ### Fixed
 - **OC-004 config key allowlist expanded**: Added 9 missing top-level keys (`autoshare`, `enterprise`, `layout`, `logLevel`, `lsp`, `mode`, `skills`, `snapshot`, `username`) to `KNOWN_TOP_LEVEL_KEYS` in the OpenCode schema, eliminating false-positive OC-004 warnings for valid opencode.json fields. All 9 OC rules re-verified against current OpenCode source on 2026-02-27.
 - **CUR-016 environment.json validation rewritten**: Schema now matches the current Cursor Cloud Agent spec - `install` is required, `terminals` is optional (was previously required), and `build` (with `dockerfile` and `context`) and `update` fields are now validated. Snapshot-based approach replaced with field-level structural validation. Includes 12 new unit tests.
 - **CUR-001 to CUR-016 verified_on dates updated**: All 16 Cursor rules re-verified against current Cursor documentation on 2026-02-26.
 - **spec-baselines.json expanded**: Baseline entries added for CUR-007 through CUR-016 to enable cross-version regression detection.
+- **Zed extension fixes**: Removed mdc language definition per upstream review (#559), added license files (#560), bumped extension version (#562).
+- **Updated yanked wasm-bindgen and js-sys dependencies** (#561).
+
 ### Changed
 - **Unified design system**: Import shared design tokens from agent-sh/design-system. Switch from Outfit to Inter font. Add font preconnect hints to Docusaurus config. Keeps teal accent and light/dark mode.
 - **GitHub Copilot rule revalidation (COP-001 to COP-018)**: Refreshed evidence links and guidance for current custom-agent docs, added strict type checks for `infer` (boolean only), and aligned COP schema coverage for custom-agent keys (`name`, `disable-model-invocation`, `user-invocable`, `metadata`) with updated fixtures and generated rule docs (#567).
+- **CI**: Added shared CI workflows, Claude Code review, and git hooks (#557).
+- **Docs**: Updated Zed extension links to marketplace (#563).
 
 ## [0.13.0] - 2026-02-21
 

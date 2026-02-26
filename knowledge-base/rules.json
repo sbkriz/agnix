@@ -1,8 +1,8 @@
 {
   "description": "Machine-readable source of truth for all validation rules. When adding a new rule, add it here AND in VALIDATION-RULES.md. CI parity tests enforce sync.",
   "version": "1.1.0",
-  "total_rules": 230,
-  "last_updated": "2026-02-21",
+  "total_rules": 231,
+  "last_updated": "2026-02-26",
   "schema": {
     "evidence": {
       "source_type": "spec|vendor_docs|vendor_code|paper|community",
@@ -2969,6 +2969,33 @@
       },
       "good_example": "project_doc_max_bytes = 32768",
       "bad_example": "project_doc_max_bytes = 100000"
+    },
+    {
+      "id": "CDX-006",
+      "name": "Invalid project_doc_fallback_filenames",
+      "severity": "HIGH",
+      "category": "codex",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": [
+          "https://developers.openai.com/codex/guides/agents-md/"
+        ],
+        "verified_on": "2026-02-26",
+        "applies_to": {
+          "tool": "codex"
+        },
+        "normative_level": "MUST",
+        "tests": {
+          "unit": true,
+          "fixtures": true,
+          "e2e": false
+        }
+      },
+      "fix": {
+        "autofix": false
+      },
+      "good_example": "project_doc_fallback_filenames = [\"AGENTS.md\", \"README.md\"]",
+      "bad_example": "project_doc_fallback_filenames = [\"AGENTS.md\", \"\", 42, \"AGENTS.md\"]"
     },
     {
       "id": "CL-SK-001",
@@ -6379,7 +6406,7 @@
     },
     "codex": {
       "prefix": "CDX",
-      "count": 6,
+      "count": 7,
       "description": "Codex CLI configuration validation"
     },
     "roo-code": {

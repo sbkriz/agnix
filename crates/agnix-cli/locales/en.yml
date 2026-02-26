@@ -654,6 +654,13 @@ rules:
     message: "project_doc_max_bytes value %{value} exceeds the maximum limit of 65536"
     type_error: "Field 'project_doc_max_bytes' must be a positive integer"
     suggestion: "Set project_doc_max_bytes to 65536 or less (default: 32768)"
+  cdx_006:
+    type_error: "Field 'project_doc_fallback_filenames' must be an array of strings"
+    non_string: "Field 'project_doc_fallback_filenames' contains a non-string entry at index %{index}"
+    empty: "Field 'project_doc_fallback_filenames' contains an empty filename at index %{index}"
+    duplicate: "Field 'project_doc_fallback_filenames' contains duplicate filename '%{value}'"
+    suspicious: "Field 'project_doc_fallback_filenames' contains path-like entry '%{value}'; use bare filenames only"
+    suggestion: "Use a unique array of non-empty filenames like ['AGENTS.md', 'README.md']"
 
   # --- Windsurf (windsurf.rs) ---
   ws_001:

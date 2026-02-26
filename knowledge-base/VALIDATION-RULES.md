@@ -1515,6 +1515,13 @@ Rules with an empty `applies_to` object (`{}`) apply universally.
 **Fix**: Reduce value to 65536 or less (default: 32768)
 **Source**: developers.openai.com/codex/
 
+<a id="cdx-006"></a>
+### CDX-006 [HIGH] Invalid project_doc_fallback_filenames
+**Requirement**: `project_doc_fallback_filenames` in `.codex/config.toml` MUST be an array of unique, non-empty filename strings
+**Detection**: Parse TOML, validate array type, ensure all entries are non-empty strings, flag duplicate and path-like entries
+**Fix**: Use a unique array of bare filenames (e.g., `["AGENTS.md", "README.md"]`)
+**Source**: developers.openai.com/codex/guides/agents-md/
+
 ---
 
 ## ROO CODE RULES
@@ -1998,7 +2005,7 @@ pub fn validate_skill(path: &Path, content: &str) -> Vec<Diagnostic> {
 | Cline | 4 | 3 | 1 | 0 | 2 |
 | OpenCode | 8 | 4 | 3 | 1 | 2 |
 | Gemini CLI | 9 | 3 | 4 | 2 | 3 |
-| Codex CLI | 6 | 4 | 2 | 0 | 3 |
+| Codex CLI | 7 | 5 | 2 | 0 | 3 |
 | Windsurf | 4 | 1 | 2 | 1 | 0 |
 | MCP | 24 | 19 | 5 | 0 | 7 |
 | XML | 3 | 3 | 0 | 0 | 3 |
@@ -2018,7 +2025,7 @@ pub fn validate_skill(path: &Path, content: &str) -> Vec<Diagnostic> {
 | Roo Code Skills | 1 | 0 | 1 | 0 | 1 |
 | Roo Code | 6 | 3 | 3 | 0 | 0 |
 | Version Awareness | 1 | 0 | 0 | 1 | 0 |
-| **TOTAL** | **230** | **135** | **87** | **8** | **97** |
+| **TOTAL** | **231** | **136** | **87** | **8** | **97** |
 
 
 ---
@@ -2048,7 +2055,7 @@ pub fn validate_skill(path: &Path, content: &str) -> Vec<Diagnostic> {
 
 ---
 
-**Total Coverage**: 230 validation rules across 32 categories
+**Total Coverage**: 231 validation rules across 32 categories
 
 **Knowledge Base**: 11,036 lines, 320KB, 75+ sources
 **Certainty**: 135 HIGH, 87 MEDIUM, 8 LOW

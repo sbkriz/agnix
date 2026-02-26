@@ -1,6 +1,6 @@
 # Rules Reference
 
-This section contains all `230` validation rules generated from `knowledge-base/rules.json`.
+This section contains all `231` validation rules generated from `knowledge-base/rules.json`.
 `97` rules have automatic fixes.
 
 | Rule | Name | Severity | Category | Auto-Fix |
@@ -112,6 +112,7 @@ This section contains all `230` validation rules generated from `knowledge-base/
 | [CDX-003](./generated/cdx-003.md) | AGENTS.override.md in Version Control | MEDIUM | Codex CLI | No |
 | [CDX-004](./generated/cdx-004.md) | Unknown Config Key | MEDIUM | Codex CLI | Yes (safe) |
 | [CDX-005](./generated/cdx-005.md) | project_doc_max_bytes Exceeds Limit | HIGH | Codex CLI | No |
+| [CDX-006](./generated/cdx-006.md) | Invalid project_doc_fallback_filenames | HIGH | Codex CLI | No |
 | [CL-SK-001](./generated/cl-sk-001.md) | Cline Skill Uses Unsupported Field | MEDIUM | Cline Skills | Yes (safe/unsafe) |
 | [CLN-001](./generated/cln-001.md) | Empty Cline Rules File | HIGH | Cline | No |
 | [CLN-002](./generated/cln-002.md) | Invalid Paths Glob in Cline Rules | HIGH | Cline | No |

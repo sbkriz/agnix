@@ -3678,7 +3678,7 @@
         "source_urls": [
           "https://cursor.com/docs/context/rules"
         ],
-        "verified_on": "2026-02-04",
+        "verified_on": "2026-02-26",
         "applies_to": {
           "tool": "cursor"
         },
@@ -3705,7 +3705,7 @@
         "source_urls": [
           "https://cursor.com/docs/context/rules"
         ],
-        "verified_on": "2026-02-04",
+        "verified_on": "2026-02-26",
         "applies_to": {
           "tool": "cursor"
         },
@@ -3733,7 +3733,7 @@
         "source_urls": [
           "https://cursor.com/docs/context/rules"
         ],
-        "verified_on": "2026-02-04",
+        "verified_on": "2026-02-26",
         "applies_to": {
           "tool": "cursor"
         },
@@ -3760,7 +3760,7 @@
         "source_urls": [
           "https://cursor.com/docs/context/rules"
         ],
-        "verified_on": "2026-02-04",
+        "verified_on": "2026-02-26",
         "applies_to": {
           "tool": "cursor"
         },
@@ -3787,7 +3787,7 @@
         "source_urls": [
           "https://cursor.com/docs/context/rules"
         ],
-        "verified_on": "2026-02-04",
+        "verified_on": "2026-02-26",
         "applies_to": {
           "tool": "cursor"
         },
@@ -3815,7 +3815,7 @@
         "source_urls": [
           "https://cursor.com/docs/context/rules"
         ],
-        "verified_on": "2026-02-04",
+        "verified_on": "2026-02-26",
         "applies_to": {
           "tool": "cursor"
         },
@@ -3842,7 +3842,7 @@
         "source_urls": [
           "https://cursor.com/docs/context/rules"
         ],
-        "verified_on": "2026-02-07",
+        "verified_on": "2026-02-26",
         "applies_to": {
           "tool": "cursor"
         },
@@ -3870,7 +3870,7 @@
         "source_urls": [
           "https://cursor.com/docs/context/rules"
         ],
-        "verified_on": "2026-02-07",
+        "verified_on": "2026-02-26",
         "applies_to": {
           "tool": "cursor"
         },
@@ -3898,7 +3898,7 @@
         "source_urls": [
           "https://cursor.com/docs/context/rules"
         ],
-        "verified_on": "2026-02-07",
+        "verified_on": "2026-02-26",
         "applies_to": {
           "tool": "cursor"
         },
@@ -3925,7 +3925,7 @@
         "source_urls": [
           "https://cursor.com/docs/agent/hooks"
         ],
-        "verified_on": "2026-02-14",
+        "verified_on": "2026-02-26",
         "applies_to": {
           "tool": "cursor"
         },
@@ -3952,7 +3952,7 @@
         "source_urls": [
           "https://cursor.com/docs/agent/hooks"
         ],
-        "verified_on": "2026-02-14",
+        "verified_on": "2026-02-26",
         "applies_to": {
           "tool": "cursor"
         },
@@ -3980,7 +3980,7 @@
         "source_urls": [
           "https://cursor.com/docs/agent/hooks"
         ],
-        "verified_on": "2026-02-14",
+        "verified_on": "2026-02-26",
         "applies_to": {
           "tool": "cursor"
         },
@@ -4007,7 +4007,7 @@
         "source_urls": [
           "https://cursor.com/docs/agent/hooks"
         ],
-        "verified_on": "2026-02-14",
+        "verified_on": "2026-02-26",
         "applies_to": {
           "tool": "cursor"
         },
@@ -4035,7 +4035,7 @@
         "source_urls": [
           "https://cursor.com/docs/context/subagents"
         ],
-        "verified_on": "2026-02-14",
+        "verified_on": "2026-02-26",
         "applies_to": {
           "tool": "cursor"
         },
@@ -4062,7 +4062,7 @@
         "source_urls": [
           "https://cursor.com/docs/context/subagents"
         ],
-        "verified_on": "2026-02-14",
+        "verified_on": "2026-02-26",
         "applies_to": {
           "tool": "cursor"
         },
@@ -4087,9 +4087,9 @@
       "evidence": {
         "source_type": "vendor_docs",
         "source_urls": [
-          "https://cursor.com/docs/cloud-agent"
+          "https://cursor.com/docs/cloud-agent/setup"
         ],
-        "verified_on": "2026-02-14",
+        "verified_on": "2026-02-26",
         "applies_to": {
           "tool": "cursor"
         },
@@ -4103,8 +4103,8 @@
       "fix": {
         "autofix": false
       },
-      "good_example": "{\"snapshot\":\"ubuntu-24.04\",\"install\":\"npm ci\",\"start\":\"npm run dev\",\"terminals\":[{\"name\":\"app\",\"command\":\"npm run dev\"}]}",
-      "bad_example": "{\"snapshot\":42,\"install\":\"npm ci\",\"terminals\":[{\"name\":\"app\"}]}"
+      "good_example": "{\"build\":{\"dockerfile\":\"Dockerfile\",\"context\":\"..\"},\"install\":\"npm ci\",\"start\":\"npm run dev\",\"terminals\":[{\"name\":\"app\",\"command\":\"npm run dev\"}]}",
+      "bad_example": "{\"install\":42,\"terminals\":[{\"name\":\"app\"}]}"
     },
     {
       "id": "CX-SK-001",

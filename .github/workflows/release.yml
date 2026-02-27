@@ -247,8 +247,19 @@ jobs:
           chmod +x /tmp/wait-for-crate.sh
 
       # Publish order: agnix-rules (leaf) -> agnix-core -> agnix-cli/agnix-lsp/agnix-mcp
+      # Each step tolerates "already exists" errors so re-runs work correctly
       - name: Publish agnix-rules
-        run: cargo publish -p agnix-rules
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          cargo publish -p agnix-rules 2>&1 || {
+            if cargo search agnix-rules --limit 1 | grep -qF "agnix-rules = \"$VERSION\""; then
+              echo "agnix-rules $VERSION already published, skipping"
+            else
+              echo "Publish failed and crate not found on crates.io"
+              exit 1
+            fi
+          }
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
@@ -256,7 +267,17 @@ jobs:
         run: /tmp/wait-for-crate.sh agnix-rules ${{ steps.version.outputs.version }}
 
       - name: Publish agnix-core
-        run: cargo publish -p agnix-core
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          cargo publish -p agnix-core 2>&1 || {
+            if cargo search agnix-core --limit 1 | grep -qF "agnix-core = \"$VERSION\""; then
+              echo "agnix-core $VERSION already published, skipping"
+            else
+              echo "Publish failed and crate not found on crates.io"
+              exit 1
+            fi
+          }
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
@@ -264,17 +285,47 @@ jobs:
         run: /tmp/wait-for-crate.sh agnix-core ${{ steps.version.outputs.version }}
 
       - name: Publish agnix-cli
-        run: cargo publish -p agnix-cli
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          cargo publish -p agnix-cli 2>&1 || {
+            if cargo search agnix-cli --limit 1 | grep -qF "agnix-cli = \"$VERSION\""; then
+              echo "agnix-cli $VERSION already published, skipping"
+            else
+              echo "Publish failed and crate not found on crates.io"
+              exit 1
+            fi
+          }
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
       - name: Publish agnix-lsp
-        run: cargo publish -p agnix-lsp
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          cargo publish -p agnix-lsp 2>&1 || {
+            if cargo search agnix-lsp --limit 1 | grep -qF "agnix-lsp = \"$VERSION\""; then
+              echo "agnix-lsp $VERSION already published, skipping"
+            else
+              echo "Publish failed and crate not found on crates.io"
+              exit 1
+            fi
+          }
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
       - name: Publish agnix-mcp
-        run: cargo publish -p agnix-mcp
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          cargo publish -p agnix-mcp 2>&1 || {
+            if cargo search agnix-mcp --limit 1 | grep -qF "agnix-mcp = \"$VERSION\""; then
+              echo "agnix-mcp $VERSION already published, skipping"
+            else
+              echo "Publish failed and crate not found on crates.io"
+              exit 1
+            fi
+          }
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
@@ -444,6 +495,8 @@ jobs:
         run: npm --prefix website run version:cut -- "${{ steps.version.outputs.version }}"
 
       - name: Commit and push versioned docs
+        env:
+          GH_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -452,6 +505,14 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
+            BRANCH="docs/version-${{ steps.version.outputs.version }}"
+            git checkout -b "$BRANCH"
             git commit -m "docs: version ${{ steps.version.outputs.version }} docs and update site data"
-            git push origin main
+            git push origin "$BRANCH"
+            gh pr create \
+              --base main \
+              --head "$BRANCH" \
+              --title "docs: version ${{ steps.version.outputs.version }} docs" \
+              --body "Auto-generated versioned docs snapshot for v${{ steps.version.outputs.version }}." \
+              --label "documentation"
           fi

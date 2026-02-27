@@ -246,20 +246,37 @@ jobs:
           SCRIPT
           chmod +x /tmp/wait-for-crate.sh
 
-      # Publish order: agnix-rules (leaf) -> agnix-core -> agnix-cli/agnix-lsp/agnix-mcp
-      # Each step tolerates "already exists" errors so re-runs work correctly
-      - name: Publish agnix-rules
+      - name: Create idempotent publish helper
         run: |
           set -euo pipefail
-          VERSION="${{ steps.version.outputs.version }}"
-          cargo publish -p agnix-rules 2>&1 || {
-            if cargo search agnix-rules --limit 1 | grep -qF "agnix-rules = \"$VERSION\""; then
-              echo "agnix-rules $VERSION already published, skipping"
+          cat > /tmp/publish-crate.sh << 'SCRIPT'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          if [ $# -ne 2 ]; then
+            echo "Usage: $0 <crate> <version>" >&2
+            exit 1
+          fi
+          crate="$1"
+          version="$2"
+          echo "Publishing $crate $version..."
+          if cargo publish -p "$crate" 2>&1; then
+            echo "$crate $version published successfully"
+          else
+            # Check crates.io API for the specific version (handles older tags, indexing lag)
+            status=$(curl -s -o /dev/null -w "%{http_code}" "https://crates.io/api/v1/crates/$crate/$version")
+            if [ "$status" = "200" ]; then
+              echo "$crate $version already published, skipping"
             else
-              echo "Publish failed and crate not found on crates.io"
+              echo "Publish failed and $crate $version not found on crates.io (HTTP $status)"
               exit 1
             fi
-          }
+          fi
+          SCRIPT
+          chmod +x /tmp/publish-crate.sh
+
+      # Publish order: agnix-rules (leaf) -> agnix-core -> agnix-cli/agnix-lsp/agnix-mcp
+      - name: Publish agnix-rules
+        run: /tmp/publish-crate.sh agnix-rules ${{ steps.version.outputs.version }}
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
@@ -267,17 +284,7 @@ jobs:
         run: /tmp/wait-for-crate.sh agnix-rules ${{ steps.version.outputs.version }}
 
       - name: Publish agnix-core
-        run: |
-          set -euo pipefail
-          VERSION="${{ steps.version.outputs.version }}"
-          cargo publish -p agnix-core 2>&1 || {
-            if cargo search agnix-core --limit 1 | grep -qF "agnix-core = \"$VERSION\""; then
-              echo "agnix-core $VERSION already published, skipping"
-            else
-              echo "Publish failed and crate not found on crates.io"
-              exit 1
-            fi
-          }
+        run: /tmp/publish-crate.sh agnix-core ${{ steps.version.outputs.version }}
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
@@ -285,47 +292,17 @@ jobs:
         run: /tmp/wait-for-crate.sh agnix-core ${{ steps.version.outputs.version }}
 
       - name: Publish agnix-cli
-        run: |
-          set -euo pipefail
-          VERSION="${{ steps.version.outputs.version }}"
-          cargo publish -p agnix-cli 2>&1 || {
-            if cargo search agnix-cli --limit 1 | grep -qF "agnix-cli = \"$VERSION\""; then
-              echo "agnix-cli $VERSION already published, skipping"
-            else
-              echo "Publish failed and crate not found on crates.io"
-              exit 1
-            fi
-          }
+        run: /tmp/publish-crate.sh agnix-cli ${{ steps.version.outputs.version }}
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
       - name: Publish agnix-lsp
-        run: |
-          set -euo pipefail
-          VERSION="${{ steps.version.outputs.version }}"
-          cargo publish -p agnix-lsp 2>&1 || {
-            if cargo search agnix-lsp --limit 1 | grep -qF "agnix-lsp = \"$VERSION\""; then
-              echo "agnix-lsp $VERSION already published, skipping"
-            else
-              echo "Publish failed and crate not found on crates.io"
-              exit 1
-            fi
-          }
+        run: /tmp/publish-crate.sh agnix-lsp ${{ steps.version.outputs.version }}
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
       - name: Publish agnix-mcp
-        run: |
-          set -euo pipefail
-          VERSION="${{ steps.version.outputs.version }}"
-          cargo publish -p agnix-mcp 2>&1 || {
-            if cargo search agnix-mcp --limit 1 | grep -qF "agnix-mcp = \"$VERSION\""; then
-              echo "agnix-mcp $VERSION already published, skipping"
-            else
-              echo "Publish failed and crate not found on crates.io"
-              exit 1
-            fi
-          }
+        run: /tmp/publish-crate.sh agnix-mcp ${{ steps.version.outputs.version }}
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
@@ -506,13 +483,18 @@ jobs:
             echo "No changes to commit"
           else
             BRANCH="docs/version-${{ steps.version.outputs.version }}"
-            git checkout -b "$BRANCH"
+            git checkout -B "$BRANCH"
             git commit -m "docs: version ${{ steps.version.outputs.version }} docs and update site data"
-            git push origin "$BRANCH"
-            gh pr create \
-              --base main \
-              --head "$BRANCH" \
-              --title "docs: version ${{ steps.version.outputs.version }} docs" \
-              --body "Auto-generated versioned docs snapshot for v${{ steps.version.outputs.version }}." \
-              --label "documentation"
+            git push --force-with-lease origin "$BRANCH"
+            # Create PR only if one doesn't already exist for this branch
+            if gh pr view --head "$BRANCH" --json number --jq '.number' 2>/dev/null; then
+              echo "PR already exists for $BRANCH, updated with force push"
+            else
+              gh pr create \
+                --base main \
+                --head "$BRANCH" \
+                --title "docs: version ${{ steps.version.outputs.version }} docs" \
+                --body "Auto-generated versioned docs snapshot for v${{ steps.version.outputs.version }}." \
+                --label "documentation"
+            fi
           fi

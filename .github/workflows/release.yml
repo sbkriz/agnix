@@ -262,7 +262,7 @@ jobs:
           if cargo publish -p "$crate" 2>&1; then
             echo "$crate $version published successfully"
           else
-            # Check crates.io API for the specific version (handles older tags, indexing lag)
+            # Check if version already exists on crates.io (handles re-runs after partial failures)
             status=$(curl -s -o /dev/null -w "%{http_code}" "https://crates.io/api/v1/crates/$crate/$version")
             if [ "$status" = "200" ]; then
               echo "$crate $version already published, skipping"
@@ -485,16 +485,26 @@ jobs:
             BRANCH="docs/version-${{ steps.version.outputs.version }}"
             git checkout -B "$BRANCH"
             git commit -m "docs: version ${{ steps.version.outputs.version }} docs and update site data"
+            # Force-push to update the auto-generated docs branch on workflow re-runs
             git push --force-with-lease origin "$BRANCH"
             # Create PR only if one doesn't already exist for this branch
-            if gh pr view --head "$BRANCH" --json number --jq '.number' 2>/dev/null; then
+            PR_CHECK_ERR="$(mktemp)"
+            if gh pr view --head "$BRANCH" --json number --jq '.number' >/dev/null 2>"$PR_CHECK_ERR"; then
               echo "PR already exists for $BRANCH, updated with force push"
             else
-              gh pr create \
-                --base main \
-                --head "$BRANCH" \
-                --title "docs: version ${{ steps.version.outputs.version }} docs" \
-                --body "Auto-generated versioned docs snapshot for v${{ steps.version.outputs.version }}." \
-                --label "documentation"
+              if grep -qiE 'not[[:space:]]+found|could not find pull request|no pull requests' "$PR_CHECK_ERR"; then
+                gh pr create \
+                  --base main \
+                  --head "$BRANCH" \
+                  --title "docs: version ${{ steps.version.outputs.version }} docs" \
+                  --body "Auto-generated versioned docs snapshot for v${{ steps.version.outputs.version }}, including updated rule docs and site data." \
+                  --label "documentation"
+              else
+                echo "Error checking for existing PR:"
+                cat "$PR_CHECK_ERR"
+                rm -f "$PR_CHECK_ERR"
+                exit 1
+              fi
             fi
+            rm -f "$PR_CHECK_ERR"
           fi

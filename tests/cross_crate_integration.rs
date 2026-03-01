@@ -76,6 +76,7 @@ fn cli_target_tool_variants_accessible() {
     let _claude = agnix_core::config::TargetTool::ClaudeCode;
     let _cursor = agnix_core::config::TargetTool::Cursor;
     let _codex = agnix_core::config::TargetTool::Codex;
+    let _kiro = agnix_core::config::TargetTool::Kiro;
 }
 
 // ============================================================================

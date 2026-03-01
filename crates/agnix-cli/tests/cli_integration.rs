@@ -1393,6 +1393,55 @@ fn test_target_cursor_disables_cc_rules() {
 }
 
 #[test]
+fn test_target_kiro_disables_cc_rules() {
+    use std::fs;
+    use std::io::Write;
+
+    let temp_dir = tempfile::tempdir().unwrap();
+    let skills_dir = temp_dir.path().join("skills").join("deploy-prod");
+    fs::create_dir_all(&skills_dir).unwrap();
+
+    let skill_path = skills_dir.join("SKILL.md");
+    let mut file = fs::File::create(&skill_path).unwrap();
+    // This would normally trigger CC-SK-006 (Claude-specific rule)
+    writeln!(
+        file,
+        "---\nname: deploy-prod\ndescription: Deploy to production\n---\nDeploy the application"
+    )
+    .unwrap();
+
+    let mut cmd = agnix();
+    let output = cmd
+        .arg(temp_dir.path().to_str().unwrap())
+        .arg("--format")
+        .arg("json")
+        .arg("--target")
+        .arg("kiro")
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let json: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    let diagnostics = json["diagnostics"].as_array().unwrap();
+
+    let has_cc_rule = diagnostics
+        .iter()
+        .any(|d| d["rule"].as_str().unwrap_or("").starts_with("CC-"));
+    let has_non_cc_rule = diagnostics
+        .iter()
+        .any(|d| !d["rule"].as_str().unwrap_or("").starts_with("CC-"));
+
+    assert!(
+        !has_cc_rule,
+        "With --target kiro, CC-* rules should be disabled"
+    );
+    assert!(
+        has_non_cc_rule,
+        "With --target kiro, non-CC rules should still run"
+    );
+}
+
+#[test]
 fn test_validate_subcommand() {
     let mut cmd = agnix();
     cmd.arg("validate")
@@ -1623,7 +1672,7 @@ fn test_case_sensitive_target_rejected() {
 
 #[test]
 fn test_valid_targets_accepted() {
-    for target in ["generic", "claude-code", "cursor", "codex"] {
+    for target in ["generic", "claude-code", "cursor", "codex", "kiro"] {
         let mut cmd = agnix();
         cmd.arg("tests/fixtures/valid")
             .arg("--target")
@@ -1641,7 +1690,7 @@ fn test_help_shows_target_possible_values() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     // Help should list exact possible values for --target
     assert!(
-        stdout.contains("[possible values: generic, claude-code, cursor, codex]"),
+        stdout.contains("[possible values: generic, claude-code, cursor, codex, kiro]"),
         "Help should show exact possible target values, got: {}",
         stdout
     );

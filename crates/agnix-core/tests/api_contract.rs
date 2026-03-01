@@ -533,6 +533,7 @@ fn target_tool_covers_all_variants() {
         agnix_core::config::TargetTool::ClaudeCode,
         agnix_core::config::TargetTool::Cursor,
         agnix_core::config::TargetTool::Codex,
+        agnix_core::config::TargetTool::Kiro,
     ];
 
     for tool in &tools {
@@ -541,8 +542,18 @@ fn target_tool_covers_all_variants() {
             agnix_core::config::TargetTool::ClaudeCode => {}
             agnix_core::config::TargetTool::Cursor => {}
             agnix_core::config::TargetTool::Codex => {}
+            agnix_core::config::TargetTool::Kiro => {}
         }
     }
+}
+
+#[test]
+fn target_tool_kiro_serde_roundtrip() {
+    let value = serde_json::to_string(&agnix_core::config::TargetTool::Kiro).unwrap();
+    assert_eq!(value, "\"Kiro\"");
+
+    let parsed: agnix_core::config::TargetTool = serde_json::from_str(&value).unwrap();
+    assert_eq!(parsed, agnix_core::config::TargetTool::Kiro);
 }
 
 // ============================================================================

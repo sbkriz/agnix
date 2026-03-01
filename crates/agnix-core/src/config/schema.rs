@@ -36,6 +36,8 @@ impl LintConfig {
             "AMP-",
             "WS-",
             "WS-SK-",
+            "KIRO-",
+            "KR-SK-",
             "imports::",
         ];
         for rule_id in &self.data.rules.disabled_rules {
@@ -61,6 +63,7 @@ impl LintConfig {
             "claude-code",
             "cursor",
             "codex",
+            "kiro",
             "copilot",
             "github-copilot",
             "cline",

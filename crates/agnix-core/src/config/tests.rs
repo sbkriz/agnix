@@ -172,6 +172,20 @@ fn test_target_codex_disables_cc_rules() {
 }
 
 #[test]
+fn test_target_kiro_disables_cc_rules() {
+    let mut config = LintConfig::default();
+    dm(&mut config).target = TargetTool::Kiro;
+
+    // CC-* rules should be disabled for Kiro
+    assert!(!config.is_rule_enabled("CC-AG-001"));
+    assert!(!config.is_rule_enabled("CC-HK-001"));
+
+    // KIRO-* and AS-* rules should still work
+    assert!(config.is_rule_enabled("KIRO-001"));
+    assert!(config.is_rule_enabled("AS-005"));
+}
+
+#[test]
 fn test_target_claude_code_enables_cc_rules() {
     let mut config = LintConfig::default();
     dm(&mut config).target = TargetTool::ClaudeCode;
@@ -274,6 +288,16 @@ exclude = []
     assert!(config.data.rules.amp_checks);
     assert!(config.data.rules.prompt_engineering);
     assert!(config.data.rules.disabled_rules.is_empty());
+}
+
+#[test]
+fn test_toml_deserialization_target_kiro() {
+    let toml_str = r#"
+target = "Kiro"
+"#;
+
+    let config: LintConfig = toml::from_str(toml_str).unwrap();
+    assert_eq!(config.data.target, TargetTool::Kiro);
 }
 
 // ===== MCP Category Tests =====
@@ -396,6 +420,7 @@ fn test_xp_rules_work_with_all_targets() {
         TargetTool::ClaudeCode,
         TargetTool::Cursor,
         TargetTool::Codex,
+        TargetTool::Kiro,
     ];
 
     for target in targets {
@@ -490,6 +515,7 @@ fn test_agm_rules_work_with_all_targets() {
         TargetTool::ClaudeCode,
         TargetTool::Cursor,
         TargetTool::Codex,
+        TargetTool::Kiro,
     ];
 
     for target in targets {
@@ -576,6 +602,7 @@ fn test_pe_rules_work_with_all_targets() {
         TargetTool::ClaudeCode,
         TargetTool::Cursor,
         TargetTool::Codex,
+        TargetTool::Kiro,
     ];
 
     for target in targets {
@@ -672,6 +699,7 @@ fn test_cop_rules_work_with_all_targets() {
         TargetTool::ClaudeCode,
         TargetTool::Cursor,
         TargetTool::Codex,
+        TargetTool::Kiro,
     ];
 
     for target in targets {
@@ -772,6 +800,7 @@ fn test_cur_rules_work_with_all_targets() {
         TargetTool::ClaudeCode,
         TargetTool::Cursor,
         TargetTool::Codex,
+        TargetTool::Kiro,
     ];
 
     for target in targets {
@@ -1362,6 +1391,25 @@ fn test_tools_array_multiple_tools() {
     assert!(config.is_rule_enabled("CUR-006"));
 
     // COP-* rules should be disabled (not in tools)
+    assert!(!config.is_rule_enabled("COP-001"));
+
+    // Generic rules should still be enabled
+    assert!(config.is_rule_enabled("AS-005"));
+    assert!(config.is_rule_enabled("XP-001"));
+}
+
+#[test]
+fn test_tools_array_kiro_only() {
+    let mut config = LintConfig::default();
+    dm(&mut config).tools = vec!["kiro".to_string()];
+
+    // KIRO-* rules should be enabled
+    assert!(config.is_rule_enabled("KIRO-001"));
+    assert!(config.is_rule_enabled("KIRO-004"));
+
+    // Other tool-specific rules should be disabled
+    assert!(!config.is_rule_enabled("CC-AG-001"));
+    assert!(!config.is_rule_enabled("CUR-001"));
     assert!(!config.is_rule_enabled("COP-001"));
 
     // Generic rules should still be enabled
@@ -2384,6 +2432,8 @@ fn test_validate_valid_disabled_rules() {
     dm(&mut config).rules.disabled_rules = vec![
         "AS-001".to_string(),
         "CC-SK-007".to_string(),
+        "KIRO-001".to_string(),
+        "KR-SK-001".to_string(),
         "MCP-001".to_string(),
         "PE-003".to_string(),
         "XP-001".to_string(),
@@ -2524,6 +2574,19 @@ fn test_validate_case_insensitive_tools() {
     assert!(
         warnings.is_empty(),
         "Expected no warnings for valid tools with different cases, got: {:?}",
+        warnings
+    );
+}
+
+#[test]
+fn test_validate_tools_accepts_kiro() {
+    let mut config = LintConfig::default();
+    dm(&mut config).tools = vec!["kiro".to_string()];
+
+    let warnings = config.validate();
+    assert!(
+        warnings.is_empty(),
+        "Expected no warnings for kiro tool, got: {:?}",
         warnings
     );
 }

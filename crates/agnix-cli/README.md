@@ -2,7 +2,7 @@
 
 CLI for [agnix](https://github.com/avifenesh/agnix) - the agent configuration linter.
 
-Validates agent configs across Claude Code, Codex/AGENTS.md, Cursor, GitHub Copilot, and MCP.
+Validates agent configs across Claude Code, Codex/AGENTS.md, Cursor, Kiro, GitHub Copilot, and MCP.
 
 ## Installation
 
@@ -21,6 +21,7 @@ agnix /path/to/project
 
 # Target specific tool
 agnix --target claude-code .
+agnix --target kiro .
 
 # Output as SARIF for CI integration
 agnix --format sarif .

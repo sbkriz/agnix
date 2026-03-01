@@ -55,7 +55,7 @@ pub struct ValidateFileInput {
     pub tools: Option<ToolsInput>,
     /// Target tool for validation rules
     #[schemars(
-        description = "Legacy single target for validation rules (deprecated). Options: 'generic' (default), 'claude-code', 'cursor', 'codex'. Used only when 'tools' is missing or empty."
+        description = "Legacy single target for validation rules (deprecated). Options: 'generic' (default), 'claude-code', 'cursor', 'codex', 'kiro'. Used only when 'tools' is missing or empty."
     )]
     pub target: Option<String>,
 }
@@ -76,7 +76,7 @@ pub struct ValidateProjectInput {
     pub tools: Option<ToolsInput>,
     /// Target tool for validation rules
     #[schemars(
-        description = "Legacy single target for validation rules (deprecated). Options: 'generic' (default), 'claude-code', 'cursor', 'codex'. Used only when 'tools' is missing or empty."
+        description = "Legacy single target for validation rules (deprecated). Options: 'generic' (default), 'claude-code', 'cursor', 'codex', 'kiro'. Used only when 'tools' is missing or empty."
     )]
     pub target: Option<String>,
 }
@@ -239,6 +239,7 @@ fn parse_target(target: Option<String>) -> agnix_core::config::TargetTool {
         Some("claude-code") | Some("claudecode") => TargetTool::ClaudeCode,
         Some("cursor") => TargetTool::Cursor,
         Some("codex") => TargetTool::Codex,
+        Some("kiro") => TargetTool::Kiro,
         _ => TargetTool::Generic,
     }
 }
@@ -660,6 +661,20 @@ mod tests {
 
         assert!(config.tools().is_empty());
         assert_eq!(config.target(), TargetTool::Codex);
+    }
+
+    #[test]
+    fn test_apply_tool_selection_falls_back_to_target_when_target_is_kiro() {
+        let mut config = LintConfig::default();
+        apply_tool_selection(
+            &mut config,
+            Some(ToolsInput::Csv("  ".to_string())),
+            Some("kiro".to_string()),
+        )
+        .expect("empty tools should fall back to kiro target");
+
+        assert!(config.tools().is_empty());
+        assert_eq!(config.target(), TargetTool::Kiro);
     }
 
     #[test]

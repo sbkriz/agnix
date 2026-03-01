@@ -104,7 +104,8 @@ agnix --fix-safe .   # Apply only HIGH confidence fixes
 agnix --fix-unsafe . # Apply all fixes, including LOW confidence
 agnix --dry-run --show-fixes .  # Preview fixes with inline diff output
 agnix --strict .     # Strict mode (warnings = errors)
-agnix --target claude-code .  # Target specific tool
+agnix --target claude-code .  # Legacy target preset (primarily affects CC-* rules)
+agnix --target kiro .         # Legacy target preset (use tools = [...] for tool-only filtering)
 ```
 
 [Full CLI reference](https://agent-sh.github.io/agnix/docs/configuration) | [All 230 rules](https://agent-sh.github.io/agnix/docs/rules)
@@ -147,6 +148,4 @@ MIT OR Apache-2.0
 <p align="center">
   <a href="https://github.com/agent-sh/agnix/stargazers">Star this repo</a> to help other developers find agnix.
 </p>
-
-
 

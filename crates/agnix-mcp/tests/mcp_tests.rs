@@ -63,6 +63,7 @@ mod parse_target_tests {
             Some("claude-code") | Some("claudecode") => TargetTool::ClaudeCode,
             Some("cursor") => TargetTool::Cursor,
             Some("codex") => TargetTool::Codex,
+            Some("kiro") => TargetTool::Kiro,
             _ => TargetTool::Generic,
         }
     }
@@ -104,6 +105,11 @@ mod parse_target_tests {
     #[test]
     fn test_parse_target_codex() {
         assert_eq!(parse_target(Some("codex".to_string())), TargetTool::Codex);
+    }
+
+    #[test]
+    fn test_parse_target_kiro() {
+        assert_eq!(parse_target(Some("kiro".to_string())), TargetTool::Kiro);
     }
 
     #[test]

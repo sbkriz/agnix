@@ -50,6 +50,7 @@ pub enum TargetArg {
     ClaudeCode,
     Cursor,
     Codex,
+    Kiro,
 }
 
 impl From<TargetArg> for TargetTool {
@@ -59,6 +60,7 @@ impl From<TargetArg> for TargetTool {
             TargetArg::ClaudeCode => TargetTool::ClaudeCode,
             TargetArg::Cursor => TargetTool::Cursor,
             TargetArg::Codex => TargetTool::Codex,
+            TargetArg::Kiro => TargetTool::Kiro,
         }
     }
 }
@@ -82,7 +84,7 @@ struct Cli {
     #[arg(short, long)]
     strict: bool,
 
-    /// Target tool (generic, claude-code, cursor, codex)
+    /// Target tool (generic, claude-code, cursor, codex, kiro)
     #[arg(short, long, value_enum, default_value_t = TargetArg::Generic)]
     target: TargetArg,
 

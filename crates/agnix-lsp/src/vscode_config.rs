@@ -385,6 +385,7 @@ fn parse_target(s: &str) -> Option<TargetTool> {
         "ClaudeCode" => Some(TargetTool::ClaudeCode),
         "Cursor" => Some(TargetTool::Cursor),
         "Codex" => Some(TargetTool::Codex),
+        "Kiro" => Some(TargetTool::Kiro),
         _ => None,
     }
 }
@@ -600,6 +601,7 @@ mod tests {
         assert_eq!(parse_target("ClaudeCode"), Some(TargetTool::ClaudeCode));
         assert_eq!(parse_target("Cursor"), Some(TargetTool::Cursor));
         assert_eq!(parse_target("Codex"), Some(TargetTool::Codex));
+        assert_eq!(parse_target("Kiro"), Some(TargetTool::Kiro));
         assert_eq!(parse_target("invalid"), None);
     }
 

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Kiro target support**: Added `Kiro` to `TargetTool` and CLI `--target kiro` handling across CLI, core config, MCP, and LSP target parsing.
+- **Kiro config validation parity**: `.agnix.toml` validation now accepts `tools = ["kiro"]` and Kiro-specific disabled rule prefixes (`KIRO-*`, `KR-SK-*`).
+
+### Changed
+- **Kiro docs and tests**: Expanded integration/contract tests for Kiro target paths and updated usage docs to clarify legacy `--target` behavior versus `tools = [...]` filtering.
+
 ## [0.14.0] - 2026-02-27
 
 ### Added

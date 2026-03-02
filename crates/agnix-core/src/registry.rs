@@ -1512,7 +1512,7 @@ mod tests {
             "XmlValidator should be removed from all file types"
         );
 
-        // XmlValidator appears in 9 file types across built-in providers. Count
+        // XmlValidator appears in 10 file types across built-in providers. Count
         // via the static names and verify the total decreases by exactly that
         // amount.
         let xml_occurrences = BuiltinProvider
@@ -1521,8 +1521,8 @@ mod tests {
             .filter(|(_, name, _)| *name == Some("XmlValidator"))
             .count();
         assert_eq!(
-            xml_occurrences, 9,
-            "Expected XmlValidator in 9 BuiltinProvider entries"
+            xml_occurrences, 10,
+            "Expected XmlValidator in 10 BuiltinProvider entries"
         );
         let total_after = registry.total_validator_count();
         assert_eq!(

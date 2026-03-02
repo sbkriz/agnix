@@ -262,17 +262,19 @@ pub fn detect_file_type(path: &Path) -> FileType {
         return FileType::KiroPower;
     }
 
+    let is_reserved_agent_filename = [
+        "plugin.json",
+        "mcp.json",
+        "settings.json",
+        "settings.local.json",
+    ]
+    .iter()
+    .any(|reserved| filename.eq_ignore_ascii_case(reserved));
+
     if ends_with_ignore_ascii_case(filename, ".json")
         && parent_eq_ignore_ascii_case(parent, "agents")
         && parent_eq_ignore_ascii_case(grandparent, ".kiro")
-        && ![
-            "plugin.json",
-            "mcp.json",
-            "settings.json",
-            "settings.local.json",
-        ]
-        .iter()
-        .any(|reserved| filename.eq_ignore_ascii_case(reserved))
+        && !is_reserved_agent_filename
         && !starts_with_ignore_ascii_case(filename, "mcp-")
         && !ends_with_ignore_ascii_case(filename, ".mcp.json")
     {

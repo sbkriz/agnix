@@ -398,7 +398,7 @@ impl ValidatorRegistryBuilder {
 ///
 /// Used by `BuiltinProvider` (via `debug_assert_eq!`) and tests to catch
 /// accidental additions or removals without updating all providers.
-const EXPECTED_BUILTIN_COUNT: usize = 66;
+const EXPECTED_BUILTIN_COUNT: usize = 68;
 
 // -- Category providers -----------------------------------------------------
 //
@@ -753,6 +753,12 @@ impl ValidatorProvider for MiscProvider {
                 Some("ImportsValidator"),
                 imports_validator,
             ),
+            (
+                FileType::KiroPower,
+                Some("CrossPlatformValidator"),
+                cross_platform_validator,
+            ),
+            (FileType::KiroPower, Some("XmlValidator"), xml_validator),
             (
                 FileType::KiroAgent,
                 Some("ImportsValidator"),
@@ -1410,7 +1416,10 @@ mod tests {
                 .collect()
         };
 
-        assert_eq!(names_for(FileType::KiroPower), vec!["ImportsValidator"]);
+        assert_eq!(
+            names_for(FileType::KiroPower),
+            vec!["ImportsValidator", "CrossPlatformValidator", "XmlValidator"]
+        );
         assert_eq!(names_for(FileType::KiroAgent), vec!["ImportsValidator"]);
         assert_eq!(names_for(FileType::KiroHook), vec!["ImportsValidator"]);
         assert_eq!(names_for(FileType::KiroMcp), vec!["McpValidator"]);
@@ -1854,7 +1863,7 @@ mod tests {
 
     #[test]
     fn misc_provider_count() {
-        assert_eq!(MiscProvider.named_validators().len(), 17);
+        assert_eq!(MiscProvider.named_validators().len(), 19);
     }
 
     #[test]

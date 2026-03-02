@@ -15,8 +15,8 @@ use crate::{
     diagnostics::{Diagnostic, Fix},
     rules::{Validator, ValidatorMetadata},
     schemas::opencode::{
-        VALID_PERMISSION_MODES, VALID_SHARE_MODES, is_glob_pattern, parse_opencode_json,
-        validate_glob_pattern,
+        is_glob_pattern, parse_opencode_json, validate_glob_pattern, VALID_PERMISSION_MODES,
+        VALID_SHARE_MODES,
     },
 };
 use rust_i18n::t;
@@ -534,6 +534,14 @@ impl Validator for OpenCodeValidator {
                                         ));
                                     }
                                 }
+                            } else if config.is_rule_enabled("OC-CFG-006") {
+                                diagnostics.push(Diagnostic::error(
+                                    path.to_path_buf(),
+                                    find_key_line(content, srv_name).unwrap_or(1),
+                                    0,
+                                    "OC-CFG-006",
+                                    format!("MCP server '{}' must be an object", srv_name),
+                                ));
                             }
                         }
                     }

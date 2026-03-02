@@ -15,8 +15,8 @@ use crate::{
     diagnostics::{Diagnostic, Fix},
     rules::{Validator, ValidatorMetadata},
     schemas::opencode::{
-        is_glob_pattern, parse_opencode_json, validate_glob_pattern, VALID_PERMISSION_MODES,
-        VALID_SHARE_MODES,
+        VALID_PERMISSION_MODES, VALID_SHARE_MODES, is_glob_pattern, parse_opencode_json,
+        validate_glob_pattern,
     },
 };
 use rust_i18n::t;
@@ -437,14 +437,16 @@ impl Validator for OpenCodeValidator {
                                     ));
                                 }
                             } else {
-                                diagnostics.push(Diagnostic::error(
-                                    path.to_path_buf(),
-                                    find_key_line(content, key).unwrap_or(1),
-                                    0,
-                                    "OC-CFG-001",
-                                    t!("rules.oc_cfg_001.type_error").to_string())
-                                    .with_suggestion(t!("rules.oc_cfg_001.suggestion").to_string(),
-                                ));
+                                diagnostics.push(
+                                    Diagnostic::error(
+                                        path.to_path_buf(),
+                                        find_key_line(content, key).unwrap_or(1),
+                                        0,
+                                        "OC-CFG-001",
+                                        t!("rules.oc_cfg_001.type_error").to_string(),
+                                    )
+                                    .with_suggestion(t!("rules.oc_cfg_001.suggestion").to_string()),
+                                );
                             }
                         }
                     }
@@ -516,45 +518,64 @@ impl Validator for OpenCodeValidator {
                                     srv.get("type").and_then(|t| t.as_str()).unwrap_or("");
                                 if srv_type != "local" && srv_type != "remote" {
                                     if config.is_rule_enabled("OC-CFG-006") {
-                                        diagnostics.push(Diagnostic::error(
-                                            path.to_path_buf(),
-                                            find_key_line(content, srv_name).unwrap_or(1),
-                                            0,
-                                            "OC-CFG-006",
-                                            t!("rules.oc_cfg_006.message", typ = srv_type).to_string())
-                                            .with_suggestion(t!("rules.oc_cfg_006.suggestion").to_string(),
-                                        ));
+                                        diagnostics.push(
+                                            Diagnostic::error(
+                                                path.to_path_buf(),
+                                                find_key_line(content, srv_name).unwrap_or(1),
+                                                0,
+                                                "OC-CFG-006",
+                                                t!("rules.oc_cfg_006.message", typ = srv_type)
+                                                    .to_string(),
+                                            )
+                                            .with_suggestion(
+                                                t!("rules.oc_cfg_006.suggestion").to_string(),
+                                            ),
+                                        );
                                     }
                                 } else if config.is_rule_enabled("OC-CFG-007") {
                                     if srv_type == "local" && !srv.contains_key("command") {
-                                        diagnostics.push(Diagnostic::error(
-                                            path.to_path_buf(),
-                                            find_key_line(content, srv_name).unwrap_or(1),
-                                            0,
-                                            "OC-CFG-007",
-                                            t!("rules.oc_cfg_007.local_missing").to_string())
-                                            .with_suggestion(t!("rules.oc_cfg_007.suggestion_local").to_string(),
-                                        ));
+                                        diagnostics.push(
+                                            Diagnostic::error(
+                                                path.to_path_buf(),
+                                                find_key_line(content, srv_name).unwrap_or(1),
+                                                0,
+                                                "OC-CFG-007",
+                                                t!("rules.oc_cfg_007.local_missing").to_string(),
+                                            )
+                                            .with_suggestion(
+                                                t!("rules.oc_cfg_007.suggestion_local").to_string(),
+                                            ),
+                                        );
                                     } else if srv_type == "remote" && !srv.contains_key("url") {
-                                        diagnostics.push(Diagnostic::error(
-                                            path.to_path_buf(),
-                                            find_key_line(content, srv_name).unwrap_or(1),
-                                            0,
-                                            "OC-CFG-007",
-                                            t!("rules.oc_cfg_007.remote_missing").to_string())
-                                            .with_suggestion(t!("rules.oc_cfg_007.suggestion_remote").to_string(),
-                                        ));
+                                        diagnostics.push(
+                                            Diagnostic::error(
+                                                path.to_path_buf(),
+                                                find_key_line(content, srv_name).unwrap_or(1),
+                                                0,
+                                                "OC-CFG-007",
+                                                t!("rules.oc_cfg_007.remote_missing").to_string(),
+                                            )
+                                            .with_suggestion(
+                                                t!("rules.oc_cfg_007.suggestion_remote")
+                                                    .to_string(),
+                                            ),
+                                        );
                                     }
                                 }
                             } else if config.is_rule_enabled("OC-CFG-006") {
-                                diagnostics.push(Diagnostic::error(
-                                    path.to_path_buf(),
-                                    find_key_line(content, srv_name).unwrap_or(1),
-                                    0,
-                                    "OC-CFG-006",
-                                    t!("rules.oc_cfg_006.type_error", name = srv_name).to_string())
-                                    .with_suggestion(t!("rules.oc_cfg_006.suggestion_type").to_string(),
-                                ));
+                                diagnostics.push(
+                                    Diagnostic::error(
+                                        path.to_path_buf(),
+                                        find_key_line(content, srv_name).unwrap_or(1),
+                                        0,
+                                        "OC-CFG-006",
+                                        t!("rules.oc_cfg_006.type_error", name = srv_name)
+                                            .to_string(),
+                                    )
+                                    .with_suggestion(
+                                        t!("rules.oc_cfg_006.suggestion_type").to_string(),
+                                    ),
+                                );
                             }
                         }
                     }
@@ -571,14 +592,19 @@ impl Validator for OpenCodeValidator {
                                         && mode_val != "primary"
                                         && mode_val != "all"
                                     {
-                                        diagnostics.push(Diagnostic::error(
-                                            path.to_path_buf(),
-                                            find_key_line(content, ag_name).unwrap_or(1),
-                                            0,
-                                            "OC-AG-001",
-                                            t!("rules.oc_ag_001.message", mode = mode_val).to_string())
-                                            .with_suggestion(t!("rules.oc_ag_001.suggestion").to_string(),
-                                        ));
+                                        diagnostics.push(
+                                            Diagnostic::error(
+                                                path.to_path_buf(),
+                                                find_key_line(content, ag_name).unwrap_or(1),
+                                                0,
+                                                "OC-AG-001",
+                                                t!("rules.oc_ag_001.message", mode = mode_val)
+                                                    .to_string(),
+                                            )
+                                            .with_suggestion(
+                                                t!("rules.oc_ag_001.suggestion").to_string(),
+                                            ),
+                                        );
                                     }
                                 }
                             }
@@ -588,14 +614,19 @@ impl Validator for OpenCodeValidator {
                                 if let Some(color_val) = ag.get("color").and_then(|c| c.as_str()) {
                                     if !color_val.starts_with('#') {
                                         // simplistic check
-                                        diagnostics.push(Diagnostic::error(
-                                            path.to_path_buf(),
-                                            find_key_line(content, "color").unwrap_or(1),
-                                            0,
-                                            "OC-AG-002",
-                                            t!("rules.oc_ag_002.message", color = color_val).to_string())
-                                            .with_suggestion(t!("rules.oc_ag_002.suggestion").to_string(),
-                                        ));
+                                        diagnostics.push(
+                                            Diagnostic::error(
+                                                path.to_path_buf(),
+                                                find_key_line(content, "color").unwrap_or(1),
+                                                0,
+                                                "OC-AG-002",
+                                                t!("rules.oc_ag_002.message", color = color_val)
+                                                    .to_string(),
+                                            )
+                                            .with_suggestion(
+                                                t!("rules.oc_ag_002.suggestion").to_string(),
+                                            ),
+                                        );
                                     }
                                 }
                             }

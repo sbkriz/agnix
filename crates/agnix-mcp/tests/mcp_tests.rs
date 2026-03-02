@@ -309,7 +309,7 @@ mod rules_tests {
     #[test]
     fn test_rules_count() {
         // Should match the current source-of-truth total in knowledge-base/rules.json.
-        assert_eq!(agnix_rules::rule_count(), 233);
+        assert_eq!(agnix_rules::rule_count(), 245);
     }
 
     #[test]

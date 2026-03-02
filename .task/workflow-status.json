@@ -1,27 +1,31 @@
 {
   "task": {
-    "id": "461",
-    "title": "Avoid factory() call during registry registration for name caching"
+    "id": "601",
+    "title": "Add OpenCode validation rules"
   },
   "workflow": {
     "status": "active",
     "currentPhase": "implementation-complete",
-    "createdAt": "2026-02-17T00:00:00Z",
-    "lastActivityAt": "2026-02-18T00:02:00Z"
+    "createdAt": "2026-03-02T00:00:00Z",
+    "lastActivityAt": "2026-03-02T12:00:00Z"
   },
   "git": {
-    "branch": "perf/avoid-factory-call-461",
-    "baseSha": "64897e6b0eb18af5a949e6a70975ac28b57d1eb5",
-    "mainRepoPath": "/home/ubuntu/agnix",
+    "branch": "feat/opencode-rules-601",
+    "mainRepoPath": "/Users/avifen/agent-sh/agnix",
     "isWorktree": true
   },
   "implementation": {
     "implementationComplete": true,
-    "currentStep": 6,
-    "totalSteps": 6,
+    "currentStep": 4,
+    "totalSteps": 4,
     "filesModified": [
-      "crates/agnix-core/src/registry.rs",
-      "crates/agnix-core/tests/api_contract.rs"
+      "crates/agnix-core/src/rules/agents_md.rs",
+      "crates/agnix-core/src/rules/opencode.rs",
+      "crates/agnix-rules/rules.json",
+      "knowledge-base/VALIDATION-RULES.md",
+      "knowledge-base/rules.json",
+      "website/docs/rules/index.md",
+      "website/src/data/siteData.json"
     ]
   },
   "resume": {

@@ -198,9 +198,9 @@ Format: `[CATEGORY]-[NUMBER]` (AS-004, CC-HK-001, etc.)
 
 ## Tool Support Tiers
 
-- **S** (test always): Claude Code, Codex CLI, OpenCode
+- **S** (test always): Claude Code, Codex CLI, OpenCode, Kiro CLI
 - **A** (test on major changes): GitHub Copilot, Cline, Cursor
-- **B** (test if time permits): Roo Code, Kiro CLI, amp, pi
+- **B** (test if time permits): Roo Code, amp, pi
 - **C** (community reports only): gemini cli, continue, Antigravity
 - **D** (nice to have): Tabnine, Codeium, Amazon Q, Windsurf, Aider, SourceGraph Cody
 - **E** (no support, community contributions): Everything else

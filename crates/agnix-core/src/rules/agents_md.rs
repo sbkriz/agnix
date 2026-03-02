@@ -191,6 +191,7 @@ impl Validator for AgentsMdValidator {
                             "OC-AGM-002",
                             "Potential secret found in AGENTS.md".to_string(),
                         ));
+                        break;
                     }
                 }
             }
@@ -756,7 +757,7 @@ Some content"#;
 
     #[test]
     fn test_oc_agm_002_secrets() {
-        let content = "Some content\nexport API_KEY=abc123\nOther stuff";
+        let content = "Some content\nexport API_KEY=ghp_abc123\nOther stuff";
         let diagnostics = validate(content);
         assert!(diagnostics.iter().any(|d| d.rule == "OC-AGM-002"));
     }

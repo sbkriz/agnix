@@ -174,7 +174,7 @@ pub struct ParseError {
 /// so content passed here is already bounded.
 pub fn parse_codex_toml(content: &str) -> ParsedCodexConfig {
     // First pass: validate TOML syntax
-    let value: toml::Value = match content.parse::<toml::Value>() {
+    let value: toml::Value = match toml::from_str::<toml::Value>(content) {
         Ok(v) => v,
         Err(e) => {
             // toml crate provides span info; extract line/column

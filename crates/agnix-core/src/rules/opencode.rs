@@ -427,14 +427,16 @@ impl Validator for OpenCodeValidator {
                         if let Some(model_val) = obj.get(*key) {
                             if let Some(model_str) = model_val.as_str() {
                                 if !model_str.contains('/') && !model_str.contains("{env:") {
-                                    diagnostics.push(Diagnostic::error(
-                                        path.to_path_buf(),
-                                        find_key_line(content, key).unwrap_or(1),
-                                        0,
-                                        "OC-CFG-001",
-                                        "Invalid model format. Must be 'provider/model'"
-                                            .to_string(),
-                                    ));
+                                    diagnostics.push(
+                                        Diagnostic::error(
+                                            path.to_path_buf(),
+                                            find_key_line(content, key).unwrap_or(1),
+                                            0,
+                                            "OC-CFG-001",
+                                            t!("rules.oc_cfg_001.message").to_string(),
+                                        )
+                                        .with_suggestion(t!("rules.oc_cfg_001.suggestion").to_string()),
+                                    );
                                 }
                             } else {
                                 diagnostics.push(
@@ -612,7 +614,8 @@ impl Validator for OpenCodeValidator {
                             // OC-AG-002
                             if config.is_rule_enabled("OC-AG-002") {
                                 if let Some(color_val) = ag.get("color").and_then(|c| c.as_str()) {
-                                    if !color_val.starts_with('#') {
+                                    let valid_theme_colors = ["accent", "blue", "cyan", "gray", "green", "indigo", "orange", "pink", "purple", "red", "teal", "yellow"];
+                                    if !color_val.starts_with('#') && !valid_theme_colors.contains(&color_val) {
                                         // simplistic check
                                         diagnostics.push(
                                             Diagnostic::error(
@@ -1683,7 +1686,7 @@ mod tests {
 
     #[test]
     fn test_oc_ag_002_invalid_color() {
-        let diagnostics = validate(r#"{"agent": {"a": {"color": "red"}}}"#);
+        let diagnostics = validate(r#"{"agent": {"a": {"color": "foo"}}}"#);
         assert!(diagnostics.iter().any(|d| d.rule == "OC-AG-002"));
     }
 

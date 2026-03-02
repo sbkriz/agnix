@@ -582,7 +582,7 @@ impl Validator for OpenCodeValidator {
                                 if let Some(temp_val) =
                                     ag.get("temperature").and_then(|t| t.as_f64())
                                 {
-                                    if temp_val < 0.0 || temp_val > 2.0 {
+                                    if !(0.0..=2.0).contains(&temp_val) {
                                         diagnostics.push(Diagnostic::error(
                                             path.to_path_buf(),
                                             find_key_line(content, "temperature").unwrap_or(1),

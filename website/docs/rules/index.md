@@ -1,6 +1,6 @@
 # Rules Reference
 
-This section contains all `245` validation rules generated from `knowledge-base/rules.json`.
+This section contains all `267` validation rules generated from `knowledge-base/rules.json`.
 `96` rules have automatic fixes.
 
 | Rule | Name | Severity | Category | Auto-Fix |
@@ -167,9 +167,31 @@ This section contains all `245` validation rules generated from `knowledge-base/
 | [KIRO-002](./generated/kiro-002.md) | Missing Required Fields for Inclusion Mode | HIGH | Kiro Steering | No |
 | [KIRO-003](./generated/kiro-003.md) | Invalid fileMatchPattern Glob | MEDIUM | Kiro Steering | No |
 | [KIRO-004](./generated/kiro-004.md) | Empty Kiro Steering File | MEDIUM | Kiro Steering | No |
+| [KIRO-005](./generated/kiro-005.md) | Empty Steering Body After Frontmatter | MEDIUM | Kiro Steering | No |
+| [KIRO-006](./generated/kiro-006.md) | Secrets Detected in Steering File | HIGH | Kiro Steering | No |
+| [KIRO-007](./generated/kiro-007.md) | fileMatchPattern Without fileMatch Inclusion | MEDIUM | Kiro Steering | No |
+| [KIRO-008](./generated/kiro-008.md) | Unknown Kiro Steering Frontmatter Field | MEDIUM | Kiro Steering | No |
+| [KIRO-009](./generated/kiro-009.md) | Broken Inline File Reference in Steering | MEDIUM | Kiro Steering | No |
 | [KR-SK-001](./generated/kr-sk-001.md) | Kiro Skill Uses Unsupported Field | MEDIUM | Kiro Skills | Yes (safe/unsafe) |
+| [KR-AG-001](./generated/kr-ag-001.md) | Unknown Field in Kiro Agent JSON | MEDIUM | Kiro Agents | No |
+| [KR-AG-002](./generated/kr-ag-002.md) | Invalid Kiro Agent Resource Protocol | HIGH | Kiro Agents | No |
+| [KR-AG-003](./generated/kr-ag-003.md) | allowedTools Not Subset of tools | MEDIUM | Kiro Agents | No |
+| [KR-AG-004](./generated/kr-ag-004.md) | Invalid Kiro Agent Model Value | MEDIUM | Kiro Agents | No |
+| [KR-AG-005](./generated/kr-ag-005.md) | Kiro Agent Has No MCP Access | LOW | Kiro Agents | No |
 | [KR-AG-006](./generated/kr-ag-006.md) | Kiro Agent References Unknown Subagent | MEDIUM | Kiro Agents | No |
 | [KR-AG-007](./generated/kr-ag-007.md) | Kiro Agent Tool Scope Broader Than Referenced Subagent | MEDIUM | Kiro Agents | No |
+| [KR-HK-001](./generated/kr-hk-001.md) | Invalid Kiro IDE Hook Event Type | HIGH | Kiro Hooks | No |
+| [KR-HK-002](./generated/kr-hk-002.md) | Kiro File Hook Missing Patterns | HIGH | Kiro Hooks | No |
+| [KR-HK-003](./generated/kr-hk-003.md) | Kiro IDE Hook Missing Action | HIGH | Kiro Hooks | No |
+| [KR-HK-004](./generated/kr-hk-004.md) | Kiro Tool Hook Missing toolTypes Filter | MEDIUM | Kiro Hooks | No |
+| [KR-HK-005](./generated/kr-hk-005.md) | Invalid Kiro CLI Hook Event Key | HIGH | Kiro Hooks | No |
+| [KR-HK-006](./generated/kr-hk-006.md) | Kiro CLI Hook Missing Command | HIGH | Kiro Hooks | No |
+| [KR-MCP-001](./generated/kr-mcp-001.md) | Kiro MCP Server Missing command and url | HIGH | Kiro MCP | No |
+| [KR-MCP-002](./generated/kr-mcp-002.md) | Hardcoded Secrets in Kiro MCP env | MEDIUM | Kiro MCP | No |
+| [KR-PW-001](./generated/kr-pw-001.md) | Missing Required POWER.md Frontmatter Fields | HIGH | Kiro Powers | No |
+| [KR-PW-002](./generated/kr-pw-002.md) | Empty POWER.md Keywords Array | MEDIUM | Kiro Powers | No |
+| [KR-PW-003](./generated/kr-pw-003.md) | Empty POWER.md Body | MEDIUM | Kiro Powers | No |
+| [KR-PW-004](./generated/kr-pw-004.md) | Invalid Adjacent Power mcp.json Structure | MEDIUM | Kiro Powers | No |
 | [MCP-001](./generated/mcp-001.md) | Invalid JSON-RPC Version | HIGH | MCP | Yes (safe) |
 | [MCP-002](./generated/mcp-002.md) | Missing Required Tool Field | HIGH | MCP | No |
 | [MCP-003](./generated/mcp-003.md) | Invalid JSON Schema | HIGH | MCP | No |
@@ -203,18 +225,6 @@ This section contains all `245` validation rules generated from `knowledge-base/
 | [OC-008](./generated/oc-008.md) | Invalid Permission Config | HIGH | OpenCode | Yes (unsafe) |
 | [OC-009](./generated/oc-009.md) | Invalid Variable Substitution | MEDIUM | OpenCode | No |
 | [OC-SK-001](./generated/oc-sk-001.md) | OpenCode Skill Uses Unsupported Field | MEDIUM | OpenCode Skills | Yes (safe/unsafe) |
-| [OC-CFG-001](./generated/oc-cfg-001.md) | Invalid Model Format | HIGH | OpenCode | No |
-| [OC-CFG-004](./generated/oc-cfg-004.md) | Invalid Default Agent | MEDIUM | OpenCode | No |
-| [OC-CFG-005](./generated/oc-cfg-005.md) | Hardcoded API Key | HIGH | OpenCode | No |
-| [OC-CFG-006](./generated/oc-cfg-006.md) | Invalid MCP Server Structure | HIGH | OpenCode | No |
-| [OC-CFG-007](./generated/oc-cfg-007.md) | MCP Server Missing Command or URL | HIGH | OpenCode | No |
-| [OC-AG-001](./generated/oc-ag-001.md) | Invalid Agent Mode Value | HIGH | OpenCode | No |
-| [OC-AG-002](./generated/oc-ag-002.md) | Invalid Color Format | HIGH | OpenCode | No |
-| [OC-AG-003](./generated/oc-ag-003.md) | Temperature Out of Range | HIGH | OpenCode | No |
-| [OC-AG-004](./generated/oc-ag-004.md) | Steps Not a Positive Integer | HIGH | OpenCode | No |
-| [OC-PM-002](./generated/oc-pm-002.md) | Unknown Permission Key | MEDIUM | OpenCode | No |
-| [OC-AGM-001](./generated/oc-agm-001.md) | Empty AGENTS.md | HIGH | OpenCode | No |
-| [OC-AGM-002](./generated/oc-agm-002.md) | Secrets in AGENTS.md | HIGH | OpenCode | No |
 | [PE-001](./generated/pe-001.md) | Lost in the Middle | MEDIUM | Prompt Engineering | No |
 | [PE-002](./generated/pe-002.md) | Chain-of-Thought on Simple Task | MEDIUM | Prompt Engineering | No |
 | [PE-003](./generated/pe-003.md) | Weak Imperative Language | MEDIUM | Prompt Engineering | Yes (unsafe) |
@@ -250,3 +260,15 @@ This section contains all `245` validation rules generated from `knowledge-base/
 | [XP-007](./generated/xp-007.md) | AGENTS.md Exceeds Codex Byte Limit | MEDIUM | Cross-Platform | No |
 | [XP-008](./generated/xp-008.md) | Claude-specific Features in CLAUDE.md for Cursor | MEDIUM | Cross-Platform | No |
 | [XP-SK-001](./generated/xp-sk-001.md) | Skill Uses Client-Specific Features | LOW | Cross-Platform | No |
+| [OC-CFG-001](./generated/oc-cfg-001.md) | Invalid Model Format | HIGH | OpenCode | No |
+| [OC-CFG-004](./generated/oc-cfg-004.md) | Invalid Default Agent | MEDIUM | OpenCode | No |
+| [OC-CFG-005](./generated/oc-cfg-005.md) | Hardcoded API Key | HIGH | OpenCode | No |
+| [OC-CFG-006](./generated/oc-cfg-006.md) | Invalid MCP Server Structure | HIGH | OpenCode | No |
+| [OC-CFG-007](./generated/oc-cfg-007.md) | MCP Server Missing Command or URL | HIGH | OpenCode | No |
+| [OC-AG-001](./generated/oc-ag-001.md) | Invalid Agent Mode Value | HIGH | OpenCode | No |
+| [OC-AG-002](./generated/oc-ag-002.md) | Invalid Color Format | HIGH | OpenCode | No |
+| [OC-AG-003](./generated/oc-ag-003.md) | Temperature Out of Range | HIGH | OpenCode | No |
+| [OC-AG-004](./generated/oc-ag-004.md) | Steps Not a Positive Integer | HIGH | OpenCode | No |
+| [OC-PM-002](./generated/oc-pm-002.md) | Unknown Permission Key | MEDIUM | OpenCode | No |
+| [OC-AGM-001](./generated/oc-agm-001.md) | Empty AGENTS.md | HIGH | OpenCode | No |
+| [OC-AGM-002](./generated/oc-agm-002.md) | Secrets in AGENTS.md | HIGH | OpenCode | No |

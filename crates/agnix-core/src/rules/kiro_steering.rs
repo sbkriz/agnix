@@ -1,10 +1,15 @@
-//! Kiro steering file validation rules (KIRO-001 to KIRO-004)
+//! Kiro steering file validation rules (KIRO-001 to KIRO-009)
 //!
 //! Validates:
 //! - KIRO-001: Invalid steering file inclusion mode (HIGH/ERROR)
 //! - KIRO-002: Missing required fields for inclusion mode (HIGH/ERROR)
 //! - KIRO-003: Invalid fileMatchPattern glob (MEDIUM/WARNING)
 //! - KIRO-004: Empty Kiro steering file (MEDIUM/WARNING)
+//! - KIRO-005: Empty steering body after frontmatter (MEDIUM/WARNING)
+//! - KIRO-006: Secrets detected in steering content (HIGH/ERROR)
+//! - KIRO-007: fileMatchPattern present without inclusion: fileMatch (MEDIUM/WARNING)
+//! - KIRO-008: Unknown frontmatter field (MEDIUM/WARNING)
+//! - KIRO-009: Inline file reference points to missing file (MEDIUM/WARNING)
 
 use crate::{
     config::LintConfig,
@@ -12,11 +17,81 @@ use crate::{
     parsers::frontmatter::split_frontmatter,
     rules::{Validator, ValidatorMetadata},
 };
+use regex::Regex;
 use rust_i18n::t;
-use std::path::Path;
+use std::path::{Component, Path};
+use std::sync::OnceLock;
 
-const RULE_IDS: &[&str] = &["KIRO-001", "KIRO-002", "KIRO-003", "KIRO-004"];
+const RULE_IDS: &[&str] = &[
+    "KIRO-001", "KIRO-002", "KIRO-003", "KIRO-004", "KIRO-005", "KIRO-006", "KIRO-007", "KIRO-008",
+    "KIRO-009",
+];
 const VALID_INCLUSION_MODES: &[&str] = &["always", "fileMatch", "manual", "auto"];
+const VALID_FRONTMATTER_FIELDS: &[&str] = &["inclusion", "name", "description", "fileMatchPattern"];
+
+fn line_col_at_offset(content: &str, offset: usize) -> (usize, usize) {
+    let mut line = 1usize;
+    let mut col = 1usize;
+
+    for (idx, ch) in content.char_indices() {
+        if idx >= offset {
+            break;
+        }
+        if ch == '\n' {
+            line += 1;
+            col = 1;
+        } else {
+            col += 1;
+        }
+    }
+
+    (line, col)
+}
+
+fn find_frontmatter_key_line(frontmatter: &str, key: &str) -> usize {
+    for (idx, line) in frontmatter.lines().enumerate() {
+        let trimmed = line.trim_start();
+        if let Some(rest) = trimmed.strip_prefix(key)
+            && rest.trim_start().starts_with(':')
+        {
+            return idx + 2;
+        }
+    }
+    1
+}
+
+fn secret_pattern() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(
+            r"(?im)\b(?P<marker>api[_-]?key|token|password|[a-z0-9_-]+secret|secret[a-z0-9_-]+)\b\s*[:=]\s*(?P<value>[^\s#]+)",
+        )
+        .expect("secret pattern must compile")
+    })
+}
+
+fn inline_file_ref_pattern() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(r"#\[\[file:(?P<path>[^\]\n]+)\]\]").expect("inline file pattern must compile")
+    })
+}
+
+fn seems_plaintext_secret(value: &str) -> bool {
+    let trimmed = value.trim_matches(|ch| ch == '"' || ch == '\'').trim();
+    !trimmed.is_empty()
+        && !trimmed.starts_with("${")
+        && !trimmed.starts_with("$(")
+        && !trimmed.starts_with("{{")
+        && !trimmed.starts_with('<')
+        && trimmed.len() >= 8
+}
+
+fn has_parent_dir_traversal(reference: &str) -> bool {
+    Path::new(reference)
+        .components()
+        .any(|component| matches!(component, Component::ParentDir))
+}
 
 /// Adapter to use raw frontmatter with `find_yaml_value_range`.
 struct FrontmatterAdapter<'a> {
@@ -60,10 +135,97 @@ impl Validator for KiroSteeringValidator {
             return diagnostics;
         }
 
+        // KIRO-006: Secrets in steering content
+        if config.is_rule_enabled("KIRO-006") {
+            for captures in secret_pattern().captures_iter(content) {
+                let Some(full_match) = captures.get(0) else {
+                    continue;
+                };
+                let marker = captures
+                    .name("marker")
+                    .map(|m| m.as_str().to_ascii_lowercase())
+                    .unwrap_or_else(|| "secret".to_string());
+                let value = captures
+                    .name("value")
+                    .map(|m| m.as_str())
+                    .unwrap_or_default();
+                if seems_plaintext_secret(value) {
+                    let (line, col) = line_col_at_offset(content, full_match.start());
+                    diagnostics.push(
+                        Diagnostic::error(
+                            path.to_path_buf(),
+                            line,
+                            col,
+                            "KIRO-006",
+                            t!("rules.kiro_006.message", marker = marker),
+                        )
+                        .with_suggestion(t!("rules.kiro_006.suggestion")),
+                    );
+                    break;
+                }
+            }
+        }
+
+        // KIRO-009: Broken inline file references
+        if config.is_rule_enabled("KIRO-009") {
+            let fs = config.fs();
+            for captures in inline_file_ref_pattern().captures_iter(content) {
+                let Some(full_match) = captures.get(0) else {
+                    continue;
+                };
+                let Some(path_match) = captures.name("path") else {
+                    continue;
+                };
+
+                let reference = path_match.as_str().trim();
+                if reference.is_empty()
+                    || reference.starts_with("http://")
+                    || reference.starts_with("https://")
+                    || Path::new(reference).is_absolute()
+                    || has_parent_dir_traversal(reference)
+                {
+                    continue;
+                }
+
+                let resolved = path
+                    .parent()
+                    .unwrap_or_else(|| Path::new("."))
+                    .join(reference);
+
+                if !fs.exists(&resolved) {
+                    let (line, col) = line_col_at_offset(content, full_match.start());
+                    diagnostics.push(
+                        Diagnostic::warning(
+                            path.to_path_buf(),
+                            line,
+                            col,
+                            "KIRO-009",
+                            t!("rules.kiro_009.message", reference = reference),
+                        )
+                        .with_suggestion(t!("rules.kiro_009.suggestion")),
+                    );
+                }
+            }
+        }
+
         // Parse frontmatter
         let parts = split_frontmatter(content);
         if !parts.has_frontmatter || !parts.has_closing {
             return diagnostics; // No frontmatter - skip frontmatter-based rules
+        }
+
+        // KIRO-005: Empty body after valid frontmatter delimiters
+        if config.is_rule_enabled("KIRO-005") && parts.body.trim().is_empty() {
+            diagnostics.push(
+                Diagnostic::warning(
+                    path.to_path_buf(),
+                    1,
+                    0,
+                    "KIRO-005",
+                    t!("rules.kiro_005.message"),
+                )
+                .with_suggestion(t!("rules.kiro_005.suggestion")),
+            );
         }
 
         // Parse YAML
@@ -248,6 +410,46 @@ impl Validator for KiroSteeringValidator {
                         );
                     }
                 }
+            }
+        }
+
+        // KIRO-007: fileMatchPattern without inclusion: fileMatch
+        if config.is_rule_enabled("KIRO-007")
+            && mapping.contains_key(&key_file_match_pattern)
+            && !matches!(inclusion_str, Some("fileMatch"))
+        {
+            let inclusion_display = inclusion_str.unwrap_or("<missing>");
+            diagnostics.push(
+                Diagnostic::warning(
+                    path.to_path_buf(),
+                    find_frontmatter_key_line(&parts.frontmatter, "fileMatchPattern"),
+                    0,
+                    "KIRO-007",
+                    t!("rules.kiro_007.message", inclusion = inclusion_display),
+                )
+                .with_suggestion(t!("rules.kiro_007.suggestion")),
+            );
+        }
+
+        // KIRO-008: Unknown frontmatter fields
+        if config.is_rule_enabled("KIRO-008") {
+            for key in mapping.keys() {
+                let Some(field) = key.as_str() else {
+                    continue;
+                };
+                if VALID_FRONTMATTER_FIELDS.contains(&field) {
+                    continue;
+                }
+                diagnostics.push(
+                    Diagnostic::warning(
+                        path.to_path_buf(),
+                        find_frontmatter_key_line(&parts.frontmatter, field),
+                        0,
+                        "KIRO-008",
+                        t!("rules.kiro_008.message", field = field),
+                    )
+                    .with_suggestion(t!("rules.kiro_008.suggestion")),
+                );
             }
         }
 
@@ -692,6 +894,12 @@ mod tests {
     }
 
     #[test]
+    fn test_line_col_at_offset_is_one_based() {
+        assert_eq!(line_col_at_offset("secret", 0), (1, 1));
+        assert_eq!(line_col_at_offset("x\nsecret", 2), (2, 1));
+    }
+
+    #[test]
     fn test_kiro_003_empty_string_pattern() {
         // Empty string is a valid glob pattern
         let content = "---\nfileMatchPattern: \"\"\n---\n# Content\n";
@@ -715,6 +923,77 @@ mod tests {
         assert!(kiro_004.is_empty());
     }
 
+    #[test]
+    fn test_kiro_005_frontmatter_only_body() {
+        let content = "---\ninclusion: always\n---\n";
+        let diagnostics = validate_steering(content);
+        assert!(diagnostics.iter().any(|d| d.rule == "KIRO-005"));
+    }
+
+    #[test]
+    fn test_kiro_006_secrets_detected() {
+        let content = "---\ninclusion: always\n---\nAPI_KEY=hardcodedsecret123\n";
+        let diagnostics = validate_steering(content);
+        assert!(diagnostics.iter().any(|d| d.rule == "KIRO-006"));
+    }
+
+    #[test]
+    fn test_kiro_006_scans_past_template_values() {
+        let content =
+            "---\ninclusion: always\n---\nTOKEN=${ENV_TOKEN}\npassword=plaintextsecret123\n";
+        let diagnostics = validate_steering(content);
+        assert!(diagnostics.iter().any(|d| d.rule == "KIRO-006"));
+    }
+
+    #[test]
+    fn test_kiro_006_ignores_plain_prose_secret_label() {
+        let content = "---\ninclusion: always\n---\nSecret: guidelines\n";
+        let diagnostics = validate_steering(content);
+        assert!(diagnostics.iter().all(|d| d.rule != "KIRO-006"));
+    }
+
+    #[test]
+    fn test_kiro_006_detects_identifier_style_secret_keys() {
+        let content = "---\ninclusion: always\n---\nclient_secret: hardcodedsecret123\n";
+        let diagnostics = validate_steering(content);
+        assert!(diagnostics.iter().any(|d| d.rule == "KIRO-006"));
+    }
+
+    #[test]
+    fn test_kiro_007_file_match_pattern_without_file_match_mode() {
+        let content = "---\ninclusion: always\nfileMatchPattern: \"**/*.md\"\n---\n# body\n";
+        let diagnostics = validate_steering(content);
+        assert!(diagnostics.iter().any(|d| d.rule == "KIRO-007"));
+    }
+
+    #[test]
+    fn test_kiro_008_unknown_frontmatter_field() {
+        let content = "---\ninclusion: always\ninclusions: true\n---\n# body\n";
+        let diagnostics = validate_steering(content);
+        assert!(diagnostics.iter().any(|d| d.rule == "KIRO-008"));
+    }
+
+    #[test]
+    fn test_kiro_009_missing_inline_file_reference() {
+        let content = "---\ninclusion: always\n---\nUse #[[file:docs/missing.md]]\n";
+        let diagnostics = validate_steering(content);
+        assert!(diagnostics.iter().any(|d| d.rule == "KIRO-009"));
+    }
+
+    #[test]
+    fn test_kiro_009_skips_absolute_inline_file_reference() {
+        let content = "---\ninclusion: always\n---\nUse #[[file:/etc/passwd]]\n";
+        let diagnostics = validate_steering(content);
+        assert!(diagnostics.iter().all(|d| d.rule != "KIRO-009"));
+    }
+
+    #[test]
+    fn test_kiro_009_skips_parent_dir_traversal_inline_file_reference() {
+        let content = "---\ninclusion: always\n---\nUse #[[file:../../secrets.txt]]\n";
+        let diagnostics = validate_steering(content);
+        assert!(diagnostics.iter().all(|d| d.rule != "KIRO-009"));
+    }
+
     // ===== Metadata =====
 
     #[test]
@@ -724,7 +1003,10 @@ mod tests {
         assert_eq!(meta.name, "KiroSteeringValidator");
         assert_eq!(
             meta.rule_ids,
-            &["KIRO-001", "KIRO-002", "KIRO-003", "KIRO-004"]
+            &[
+                "KIRO-001", "KIRO-002", "KIRO-003", "KIRO-004", "KIRO-005", "KIRO-006", "KIRO-007",
+                "KIRO-008", "KIRO-009",
+            ]
         );
     }
 }

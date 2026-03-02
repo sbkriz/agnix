@@ -399,3 +399,54 @@ fn docusaurus_config_uses_generated_data() {
         "docusaurus.config.js should use siteData.totalRules in JSON-LD description"
     );
 }
+
+#[test]
+fn readme_supported_tools_kiro_row_matches_current_rules_surface() {
+    let root = workspace_root();
+    let index = load_rules_json();
+    let readme_path = root.join("README.md");
+    let readme = fs::read_to_string(&readme_path)
+        .unwrap_or_else(|e| panic!("Failed to read {}: {}", readme_path.display(), e));
+
+    let kiro_row = readme
+        .lines()
+        .find(|line| line.starts_with("| [Kiro](https://kiro.dev) |"))
+        .expect("README.md Supported Tools table must include a Kiro row");
+
+    assert!(
+        kiro_row.contains("KIRO-\\*") && kiro_row.contains("KR-SK-\\*"),
+        "Kiro row must include KIRO-* and KR-SK-* prefixes"
+    );
+
+    let kiro_rule_count = index
+        .rules
+        .iter()
+        .filter(|rule| rule.id.starts_with("KIRO-") || rule.id.starts_with("KR-SK-"))
+        .count();
+    let count_cell = format!("| {} |", kiro_rule_count);
+    assert!(
+        kiro_row.contains(&count_cell),
+        "Kiro row count does not match rules.json-derived count {}: {}",
+        kiro_rule_count,
+        kiro_row
+    );
+
+    assert!(
+        kiro_row.contains(".kiro/steering/\\*\\*/\\*.md")
+            && kiro_row.contains(".kiro/skills/\\*\\*/SKILL.md"),
+        "Kiro row file surface must document steering and per-client skill paths"
+    );
+}
+
+#[test]
+fn readme_rules_link_avoids_hardcoded_total_count() {
+    let root = workspace_root();
+    let readme_path = root.join("README.md");
+    let readme = fs::read_to_string(&readme_path)
+        .unwrap_or_else(|e| panic!("Failed to read {}: {}", readme_path.display(), e));
+
+    assert!(
+        readme.contains("[Full rules reference](https://agent-sh.github.io/agnix/docs/rules)"),
+        "README.md should link to rules docs without a hardcoded total count"
+    );
+}

@@ -108,7 +108,7 @@ agnix --target claude-code .  # Legacy target preset (primarily affects CC-* rul
 agnix --target kiro .         # Legacy target preset (use tools = [...] for tool-only filtering)
 ```
 
-[Full CLI reference](https://agent-sh.github.io/agnix/docs/configuration) | [All 230 rules](https://agent-sh.github.io/agnix/docs/rules)
+[Full CLI reference](https://agent-sh.github.io/agnix/docs/configuration) | [Full rules reference](https://agent-sh.github.io/agnix/docs/rules)
 
 ## Supported Tools
 
@@ -118,6 +118,7 @@ agnix --target kiro .         # Legacy target preset (use tools = [...] for tool
 | [Claude Code](https://docs.anthropic.com/en/docs/build-with-claude/claude-code) | CC-\* | 53 | CLAUDE.md, hooks, agents, plugins |
 | [GitHub Copilot](https://docs.github.com/en/copilot) | COP-\* | 6 | .github/copilot-instructions.md, .github/instructions/\*.instructions.md |
 | [Cursor](https://cursor.com) | CUR-\* | 16 | .cursor/rules/\*.mdc, .cursorrules, .cursor/hooks.json, .cursor/agents/\*\*/\*.md, .cursor/environment.json |
+| [Kiro](https://kiro.dev) | KIRO-\*, KR-SK-\* | 5 | .kiro/steering/\*\*/\*.md, .kiro/skills/\*\*/SKILL.md |
 | [MCP](https://modelcontextprotocol.io) | MCP-\* | 12 | \*.mcp.json |
 | [AGENTS.md](https://agentsmd.org) | AGM-\*, XP-\* | 13 | AGENTS.md, AGENTS.local.md, AGENTS.override.md |
 | [Cline](https://docs.cline.bot) | CLN-\* | 4 | .clinerules, .clinerules/\*.md, .clinerules/\*.txt |
@@ -148,4 +149,3 @@ MIT OR Apache-2.0
 <p align="center">
   <a href="https://github.com/agent-sh/agnix/stargazers">Star this repo</a> to help other developers find agnix.
 </p>
-

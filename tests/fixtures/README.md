@@ -37,3 +37,4 @@ Keep fixtures minimal, deterministic, and focused on one rule family when possib
 - REF-002 only fires on agent config files (CLAUDE.md, AGENTS.md, SKILL.md), so broken-link fixture uses CLAUDE.md.
 - Keep fixture paths stable, as tests assert on filenames.
 - Kiro powers/agents/hooks/MCP fixture packs are guarded by inventory and CLI smoke-baseline checks in `crates/agnix-cli/tests/kiro_fixture_inventory.rs`, including detection baselines and representative file-type assertions.
+- Kiro MCP file-type detection currently only matches `.kiro/settings/mcp.json`; other JSON files in `kiro-mcp/.kiro/settings/` are fixture artifacts and are not detected as `KiroMcp`.

@@ -125,7 +125,12 @@ fn is_yaml_family(file_type: FileType) -> bool {
 fn is_json_family(file_type: FileType) -> bool {
     matches!(
         file_type,
-        FileType::Hooks | FileType::KiroHook | FileType::Plugin | FileType::Mcp | FileType::KiroMcp
+        FileType::Hooks
+            | FileType::KiroHook
+            | FileType::Plugin
+            | FileType::Mcp
+            | FileType::KiroMcp
+            | FileType::KiroAgent
     )
 }
 
@@ -423,20 +428,43 @@ mod tests {
 
     #[test]
     fn test_completion_kiro_agent_value_context() {
-        let content = "---\nmodel: \n---\n";
+        let content = "{\n  \"model\": \n}";
         let byte = content
-            .find("model: ")
-            .expect("test content must contain 'model: '")
-            + "model: ".len();
+            .find("\"model\": ")
+            .expect("test content must contain '\"model\": '")
+            + "\"model\": ".len();
         let candidates = completion_candidates(FileType::KiroAgent, content, byte);
-        assert!(
-            candidates.iter().any(|c| c.label == "sonnet"),
-            "KiroAgent model values should include 'sonnet', got: {:?}",
-            candidates.iter().map(|c| &c.label).collect::<Vec<_>>()
+        let sonnet = candidates
+            .iter()
+            .find(|c| c.label == "sonnet")
+            .expect("KiroAgent model values should include 'sonnet'");
+        let opus = candidates
+            .iter()
+            .find(|c| c.label == "opus")
+            .expect("KiroAgent model values should include 'opus'");
+
+        assert_eq!(
+            sonnet.insert_text, "\"sonnet\"",
+            "KiroAgent value insert text should be JSON-quoted"
         );
-        assert!(
-            candidates.iter().any(|c| c.label == "opus"),
-            "KiroAgent model values should include 'opus'"
+        assert_eq!(
+            opus.insert_text, "\"opus\"",
+            "KiroAgent value insert text should be JSON-quoted"
+        );
+    }
+
+    #[test]
+    fn test_completion_kiro_agent_key_context_uses_json_key_insert() {
+        let content = "{\n  \"mod\n}";
+        let byte = content.find("\"mod").unwrap() + 1;
+        let candidates = completion_candidates(FileType::KiroAgent, content, byte);
+        let model = candidates
+            .iter()
+            .find(|c| c.label == "model")
+            .expect("KiroAgent key completions should include 'model'");
+        assert_eq!(
+            model.insert_text, "\"model\": ",
+            "KiroAgent key insert text should use JSON syntax"
         );
     }
 

@@ -1461,7 +1461,7 @@ repos:
     categories: [auto-discovered]
     status: pending
   - url: https://github.com/Ryotaverse69/suptia-kiro
-    categories: [auto-discovered]
+    categories: [auto-discovered, kiro]
     status: pending
   - url: https://github.com/SAP/e-mobility-charging-stations-simulator
     categories: [auto-discovered]

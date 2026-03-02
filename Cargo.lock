@@ -22,6 +22,7 @@ dependencies = [
  "rust-i18n",
  "serde",
  "serde_json",
+ "serde_yaml",
  "similar",
  "sys-locale",
  "tempfile",

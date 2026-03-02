@@ -6,7 +6,35 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   ci:
-    uses: agent-sh/.github/.github/workflows/ci-rust.yml@main
-    secrets: inherit
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7 # stable
+        with:
+          toolchain: stable
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Format check
+        run: cargo fmt --check --all
+
+      - name: Clippy
+        run: cargo clippy --workspace -- -D warnings
+
+      - name: Test
+        run: cargo test --workspace
+
+      - name: Kiro S-tier Gate
+        run: cargo test -p agnix-cli --test kiro_ci_gate -- --include-ignored

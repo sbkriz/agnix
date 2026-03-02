@@ -436,6 +436,15 @@ impl Validator for OpenCodeValidator {
                                             .to_string(),
                                     ));
                                 }
+                            } else {
+                                diagnostics.push(Diagnostic::error(
+                                    path.to_path_buf(),
+                                    find_key_line(content, key).unwrap_or(1),
+                                    0,
+                                    "OC-CFG-001",
+                                    t!("rules.oc_cfg_001.type_error").to_string())
+                                    .with_suggestion(t!("rules.oc_cfg_001.suggestion").to_string(),
+                                ));
                             }
                         }
                     }
@@ -512,7 +521,8 @@ impl Validator for OpenCodeValidator {
                                             find_key_line(content, srv_name).unwrap_or(1),
                                             0,
                                             "OC-CFG-006",
-                                            format!("Invalid MCP server type '{}'", srv_type),
+                                            t!("rules.oc_cfg_006.message", typ = srv_type).to_string())
+                                            .with_suggestion(t!("rules.oc_cfg_006.suggestion").to_string(),
                                         ));
                                     }
                                 } else if config.is_rule_enabled("OC-CFG-007") {
@@ -522,7 +532,8 @@ impl Validator for OpenCodeValidator {
                                             find_key_line(content, srv_name).unwrap_or(1),
                                             0,
                                             "OC-CFG-007",
-                                            "Local MCP server missing 'command'".to_string(),
+                                            t!("rules.oc_cfg_007.local_missing").to_string())
+                                            .with_suggestion(t!("rules.oc_cfg_007.suggestion_local").to_string(),
                                         ));
                                     } else if srv_type == "remote" && !srv.contains_key("url") {
                                         diagnostics.push(Diagnostic::error(
@@ -530,7 +541,8 @@ impl Validator for OpenCodeValidator {
                                             find_key_line(content, srv_name).unwrap_or(1),
                                             0,
                                             "OC-CFG-007",
-                                            "Remote MCP server missing 'url'".to_string(),
+                                            t!("rules.oc_cfg_007.remote_missing").to_string())
+                                            .with_suggestion(t!("rules.oc_cfg_007.suggestion_remote").to_string(),
                                         ));
                                     }
                                 }
@@ -540,7 +552,8 @@ impl Validator for OpenCodeValidator {
                                     find_key_line(content, srv_name).unwrap_or(1),
                                     0,
                                     "OC-CFG-006",
-                                    format!("MCP server '{}' must be an object", srv_name),
+                                    t!("rules.oc_cfg_006.type_error", name = srv_name).to_string())
+                                    .with_suggestion(t!("rules.oc_cfg_006.suggestion_type").to_string(),
                                 ));
                             }
                         }
@@ -563,7 +576,8 @@ impl Validator for OpenCodeValidator {
                                             find_key_line(content, ag_name).unwrap_or(1),
                                             0,
                                             "OC-AG-001",
-                                            format!("Invalid agent mode '{}'", mode_val),
+                                            t!("rules.oc_ag_001.message", mode = mode_val).to_string())
+                                            .with_suggestion(t!("rules.oc_ag_001.suggestion").to_string(),
                                         ));
                                     }
                                 }
@@ -579,7 +593,8 @@ impl Validator for OpenCodeValidator {
                                             find_key_line(content, "color").unwrap_or(1),
                                             0,
                                             "OC-AG-002",
-                                            format!("Invalid color format '{}'", color_val),
+                                            t!("rules.oc_ag_002.message", color = color_val).to_string())
+                                            .with_suggestion(t!("rules.oc_ag_002.suggestion").to_string(),
                                         ));
                                     }
                                 }

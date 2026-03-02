@@ -953,3 +953,35 @@ lsp:
     disable_model_invocation: "Disable Model Invocation"
     license: "License"
     compatibility: "Compatibility"
+  oc_cfg_001:
+    message: "Invalid model format. Must be 'provider/model'"
+    type_error: "Invalid model format. Must be a string"
+    suggestion: "Use format like 'openai/gpt-4o' or 'anthropic/claude-3-5-sonnet'"
+  oc_cfg_005:
+    message: "Hardcoded API key detected in '%{name}'"
+    suggestion: "Use environment variables like {env:MY_API_KEY} instead"
+  oc_cfg_006:
+    message: "Invalid MCP server type '%{typ}'"
+    type_error: "MCP server '%{name}' must be an object"
+    suggestion: "Set type to 'local' or 'remote'"
+    suggestion_type: "Configure the server as an object with 'type' and 'command' or 'url'"
+  oc_cfg_007:
+    local_missing: "Local MCP server missing 'command'"
+    remote_missing: "Remote MCP server missing 'url'"
+    suggestion_local: "Add 'command' array for local MCP server"
+    suggestion_remote: "Add 'url' string for remote MCP server"
+  oc_ag_001:
+    message: "Invalid agent mode '%{mode}'"
+    suggestion: "Use 'primary', 'subagent', or 'all'"
+  oc_ag_002:
+    message: "Invalid color format '%{color}'"
+    suggestion: "Use a hex color like '#FF5733'"
+  oc_ag_003:
+    message: "Temperature '%{temp}' out of range [0.0, 2.0]"
+    suggestion: "Set temperature between 0.0 and 2.0"
+  oc_ag_004:
+    message: "Steps '%{steps}' must be > 0"
+    suggestion: "Set steps to a positive integer"
+  oc_pm_002:
+    message: "Unknown permission key '%{key}'"
+    suggestion: "Use valid permission keys"

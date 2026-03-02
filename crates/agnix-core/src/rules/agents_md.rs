@@ -746,4 +746,18 @@ Some content"#;
             suggestion
         );
     }
+
+    #[test]
+    fn test_oc_agm_001_empty_file() {
+        let content = "";
+        let diagnostics = validate(content);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-AGM-001"));
+    }
+
+    #[test]
+    fn test_oc_agm_002_secrets() {
+        let content = "Some content\nexport API_KEY=abc123\nOther stuff";
+        let diagnostics = validate(content);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-AGM-002"));
+    }
 }

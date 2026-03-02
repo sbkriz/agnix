@@ -125,11 +125,7 @@ fn is_yaml_family(file_type: FileType) -> bool {
 fn is_json_family(file_type: FileType) -> bool {
     matches!(
         file_type,
-        FileType::Hooks
-            | FileType::KiroHook
-            | FileType::Plugin
-            | FileType::Mcp
-            | FileType::KiroMcp
+        FileType::Hooks | FileType::KiroHook | FileType::Plugin | FileType::Mcp | FileType::KiroMcp
     )
 }
 

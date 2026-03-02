@@ -435,7 +435,9 @@ impl Validator for OpenCodeValidator {
                                             "OC-CFG-001",
                                             t!("rules.oc_cfg_001.message").to_string(),
                                         )
-                                        .with_suggestion(t!("rules.oc_cfg_001.suggestion").to_string()),
+                                        .with_suggestion(
+                                            t!("rules.oc_cfg_001.suggestion").to_string(),
+                                        ),
                                     );
                                 }
                             } else {
@@ -489,7 +491,9 @@ impl Validator for OpenCodeValidator {
                 if config.is_rule_enabled("OC-CFG-005") {
                     if let Some(provider_obj) = obj.get("provider").and_then(|p| p.as_object()) {
                         // Case 1: provider.options.apiKey
-                        if let Some(p_opts) = provider_obj.get("options").and_then(|o| o.as_object()) {
+                        if let Some(p_opts) =
+                            provider_obj.get("options").and_then(|o| o.as_object())
+                        {
                             if let Some(api_key) = p_opts.get("apiKey").and_then(|k| k.as_str()) {
                                 if !api_key.starts_with("{env:") {
                                     diagnostics.push(
@@ -498,8 +502,12 @@ impl Validator for OpenCodeValidator {
                                             find_key_line(content, "apiKey").unwrap_or(1),
                                             0,
                                             "OC-CFG-005",
-                                            t!("rules.oc_cfg_005.message", name = "provider").to_string(),
-                                        ).with_suggestion(t!("rules.oc_cfg_005.suggestion").to_string())
+                                            t!("rules.oc_cfg_005.message", name = "provider")
+                                                .to_string(),
+                                        )
+                                        .with_suggestion(
+                                            t!("rules.oc_cfg_005.suggestion").to_string(),
+                                        ),
                                     );
                                 }
                             }
@@ -507,9 +515,12 @@ impl Validator for OpenCodeValidator {
 
                         // Case 2: provider.<providerName>.options.apiKey
                         for (p_name, p_val) in provider_obj {
-                            if p_name == "options" { continue; }
+                            if p_name == "options" {
+                                continue;
+                            }
                             if let Some(p_opts) = p_val.get("options").and_then(|o| o.as_object()) {
-                                if let Some(api_key) = p_opts.get("apiKey").and_then(|k| k.as_str()) {
+                                if let Some(api_key) = p_opts.get("apiKey").and_then(|k| k.as_str())
+                                {
                                     if !api_key.starts_with("{env:") {
                                         diagnostics.push(
                                             Diagnostic::error(
@@ -517,8 +528,12 @@ impl Validator for OpenCodeValidator {
                                                 find_key_line(content, "apiKey").unwrap_or(1),
                                                 0,
                                                 "OC-CFG-005",
-                                                t!("rules.oc_cfg_005.message", name = p_name).to_string(),
-                                            ).with_suggestion(t!("rules.oc_cfg_005.suggestion").to_string())
+                                                t!("rules.oc_cfg_005.message", name = p_name)
+                                                    .to_string(),
+                                            )
+                                            .with_suggestion(
+                                                t!("rules.oc_cfg_005.suggestion").to_string(),
+                                            ),
                                         );
                                     }
                                 }
@@ -632,8 +647,13 @@ impl Validator for OpenCodeValidator {
                             // OC-AG-002
                             if config.is_rule_enabled("OC-AG-002") {
                                 if let Some(color_val) = ag.get("color").and_then(|c| c.as_str()) {
-                                    let valid_theme_colors = ["accent", "blue", "cyan", "gray", "green", "indigo", "orange", "pink", "purple", "red", "teal", "yellow"];
-                                    if !color_val.starts_with('#') && !valid_theme_colors.contains(&color_val) {
+                                    let valid_theme_colors = [
+                                        "accent", "blue", "cyan", "gray", "green", "indigo",
+                                        "orange", "pink", "purple", "red", "teal", "yellow",
+                                    ];
+                                    if !color_val.starts_with('#')
+                                        && !valid_theme_colors.contains(&color_val)
+                                    {
                                         // simplistic check
                                         diagnostics.push(
                                             Diagnostic::error(

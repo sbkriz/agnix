@@ -1417,6 +1417,91 @@ Rules with an empty `applies_to` object (`{}`) apply universally.
 
 ---
 
+
+<a id="oc-cfg-001"></a>
+### OC-CFG-001 [HIGH] Invalid Model Format
+**Requirement**: The `model` field must be formatted as `provider/model`
+**Detection**: Parse JSON, validate `model` and `small_model` against the required format
+**Fix**: No auto-fix
+**Source**: opencode.ai/docs/config
+
+<a id="oc-cfg-004"></a>
+### OC-CFG-004 [MEDIUM] Invalid Default Agent
+**Requirement**: The `default_agent` field must refer to a valid agent
+**Detection**: Parse JSON, validate `default_agent`
+**Fix**: No auto-fix
+**Source**: opencode.ai/docs/config
+
+<a id="oc-cfg-005"></a>
+### OC-CFG-005 [HIGH] Hardcoded API Key
+**Requirement**: The `apiKey` field in provider options MUST NOT be hardcoded
+**Detection**: Parse JSON, scan `provider.options.apiKey` for hardcoded strings
+**Fix**: No auto-fix
+**Source**: opencode.ai/docs/config
+
+<a id="oc-cfg-006"></a>
+### OC-CFG-006 [HIGH] Invalid MCP Server Structure
+**Requirement**: The MCP server configuration MUST be valid
+**Detection**: Parse JSON, validate `mcp` configuration objects
+**Fix**: No auto-fix
+**Source**: opencode.ai/docs/config
+
+<a id="oc-cfg-007"></a>
+### OC-CFG-007 [HIGH] MCP Server Missing Command or URL
+**Requirement**: Local MCP servers MUST have `command`, remote MUST have `url`
+**Detection**: Parse JSON, validate `mcp` server requirements
+**Fix**: No auto-fix
+**Source**: opencode.ai/docs/config
+
+<a id="oc-ag-001"></a>
+### OC-AG-001 [HIGH] Invalid Agent Mode Value
+**Requirement**: The `mode` field MUST be `subagent`, `primary`, or `all`
+**Detection**: Parse JSON, validate agent `mode`
+**Fix**: No auto-fix
+**Source**: opencode.ai/docs/config
+
+<a id="oc-ag-002"></a>
+### OC-AG-002 [HIGH] Invalid Color Format
+**Requirement**: The `color` field MUST be a hex string or valid theme color
+**Detection**: Parse JSON, validate agent `color`
+**Fix**: No auto-fix
+**Source**: opencode.ai/docs/config
+
+<a id="oc-ag-003"></a>
+### OC-AG-003 [HIGH] Temperature Out of Range
+**Requirement**: The `temperature` field MUST be between 0 and 2
+**Detection**: Parse JSON, validate agent `temperature`
+**Fix**: No auto-fix
+**Source**: opencode.ai/docs/config
+
+<a id="oc-ag-004"></a>
+### OC-AG-004 [HIGH] Steps Not a Positive Integer
+**Requirement**: The `steps` field MUST be a positive integer
+**Detection**: Parse JSON, validate agent `steps`
+**Fix**: No auto-fix
+**Source**: opencode.ai/docs/config
+
+<a id="oc-pm-002"></a>
+### OC-PM-002 [MEDIUM] Unknown Permission Key
+**Requirement**: Permission keys MUST be known actions/rules
+**Detection**: Parse JSON, validate permission keys
+**Fix**: No auto-fix
+**Source**: opencode.ai/docs/config
+
+<a id="oc-agm-001"></a>
+### OC-AGM-001 [HIGH] Empty AGENTS.md
+**Requirement**: `AGENTS.md` MUST NOT be empty
+**Detection**: Check `AGENTS.md` file size/content
+**Fix**: No auto-fix
+**Source**: opencode.ai/docs/config
+
+<a id="oc-agm-002"></a>
+### OC-AGM-002 [HIGH] Secrets in AGENTS.md
+**Requirement**: `AGENTS.md` MUST NOT contain hardcoded secrets
+**Detection**: Scan `AGENTS.md` for secret patterns
+**Fix**: No auto-fix
+**Source**: opencode.ai/docs/config
+
 ## GEMINI CLI RULES
 
 <a id="gm-001"></a>

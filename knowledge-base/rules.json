@@ -1,7 +1,7 @@
 {
   "description": "Machine-readable source of truth for all validation rules. When adding a new rule, add it here AND in VALIDATION-RULES.md. CI parity tests enforce sync.",
   "version": "1.1.0",
-  "total_rules": 233,
+  "total_rules": 245,
   "last_updated": "2026-03-02",
   "schema": {
     "evidence": {
@@ -6401,6 +6401,330 @@
       },
       "good_example": "---\nname: code-review\ndescription: Reviews code for quality issues\n---\nReview the code for bugs and style issues.",
       "bad_example": "---\nname: code-review\ndescription: Reviews code for quality issues\nmodel: opus\ncontext: fork\nagent: general-purpose\n---\nReview the code for bugs and style issues."
+    },
+    {
+      "id": "OC-CFG-001",
+      "name": "Invalid Model Format",
+      "severity": "HIGH",
+      "category": "opencode",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": [
+          "https://opencode.ai/docs/config"
+        ],
+        "verified_on": "2026-03-02",
+        "applies_to": {
+          "tool": "opencode"
+        },
+        "normative_level": "MUST",
+        "tests": {
+          "unit": true,
+          "fixtures": true,
+          "e2e": false
+        }
+      },
+      "fix": {
+        "autofix": false
+      },
+      "good_example": "{\n  \"model\": \"anthropic/claude-3-opus\"\n}",
+      "bad_example": "{\n  \"model\": \"claude-3-opus\"\n}"
+    },
+    {
+      "id": "OC-CFG-004",
+      "name": "Invalid Default Agent",
+      "severity": "MEDIUM",
+      "category": "opencode",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": [
+          "https://opencode.ai/docs/config"
+        ],
+        "verified_on": "2026-03-02",
+        "applies_to": {
+          "tool": "opencode"
+        },
+        "normative_level": "SHOULD",
+        "tests": {
+          "unit": true,
+          "fixtures": true,
+          "e2e": false
+        }
+      },
+      "fix": {
+        "autofix": false
+      },
+      "good_example": "{\n  \"default_agent\": \"build\"\n}",
+      "bad_example": "{\n  \"default_agent\": \"unknown-agent\"\n}"
+    },
+    {
+      "id": "OC-CFG-005",
+      "name": "Hardcoded API Key",
+      "severity": "HIGH",
+      "category": "opencode",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": [
+          "https://opencode.ai/docs/config"
+        ],
+        "verified_on": "2026-03-02",
+        "applies_to": {
+          "tool": "opencode"
+        },
+        "normative_level": "MUST",
+        "tests": {
+          "unit": true,
+          "fixtures": true,
+          "e2e": false
+        }
+      },
+      "fix": {
+        "autofix": false
+      },
+      "good_example": "{\n  \"provider\": { \"options\": { \"apiKey\": \"{env:OPENAI_API_KEY}\" } }\n}",
+      "bad_example": "{\n  \"provider\": { \"options\": { \"apiKey\": \"sk-1234567890abcdef\" } }\n}"
+    },
+    {
+      "id": "OC-CFG-006",
+      "name": "Invalid MCP Server Structure",
+      "severity": "HIGH",
+      "category": "opencode",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": [
+          "https://opencode.ai/docs/config"
+        ],
+        "verified_on": "2026-03-02",
+        "applies_to": {
+          "tool": "opencode"
+        },
+        "normative_level": "MUST",
+        "tests": {
+          "unit": true,
+          "fixtures": true,
+          "e2e": false
+        }
+      },
+      "fix": {
+        "autofix": false
+      },
+      "good_example": "{\n  \"mcp\": { \"server\": { \"type\": \"local\", \"command\": [\"node\"] } }\n}",
+      "bad_example": "{\n  \"mcp\": { \"server\": { \"type\": \"invalid\" } }\n}"
+    },
+    {
+      "id": "OC-CFG-007",
+      "name": "MCP Server Missing Command or URL",
+      "severity": "HIGH",
+      "category": "opencode",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": [
+          "https://opencode.ai/docs/config"
+        ],
+        "verified_on": "2026-03-02",
+        "applies_to": {
+          "tool": "opencode"
+        },
+        "normative_level": "MUST",
+        "tests": {
+          "unit": true,
+          "fixtures": true,
+          "e2e": false
+        }
+      },
+      "fix": {
+        "autofix": false
+      },
+      "good_example": "{\n  \"mcp\": { \"server\": { \"type\": \"local\", \"command\": [\"node\"] } }\n}",
+      "bad_example": "{\n  \"mcp\": { \"server\": { \"type\": \"local\" } }\n}"
+    },
+    {
+      "id": "OC-AG-001",
+      "name": "Invalid Agent Mode Value",
+      "severity": "HIGH",
+      "category": "opencode",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": [
+          "https://opencode.ai/docs/config"
+        ],
+        "verified_on": "2026-03-02",
+        "applies_to": {
+          "tool": "opencode"
+        },
+        "normative_level": "MUST",
+        "tests": {
+          "unit": true,
+          "fixtures": true,
+          "e2e": false
+        }
+      },
+      "fix": {
+        "autofix": false
+      },
+      "good_example": "{\n  \"agent\": { \"custom\": { \"mode\": \"subagent\" } }\n}",
+      "bad_example": "{\n  \"agent\": { \"custom\": { \"mode\": \"invalid\" } }\n}"
+    },
+    {
+      "id": "OC-AG-002",
+      "name": "Invalid Color Format",
+      "severity": "HIGH",
+      "category": "opencode",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": [
+          "https://opencode.ai/docs/config"
+        ],
+        "verified_on": "2026-03-02",
+        "applies_to": {
+          "tool": "opencode"
+        },
+        "normative_level": "MUST",
+        "tests": {
+          "unit": true,
+          "fixtures": true,
+          "e2e": false
+        }
+      },
+      "fix": {
+        "autofix": false
+      },
+      "good_example": "{\n  \"agent\": { \"custom\": { \"color\": \"#ff0000\" } }\n}",
+      "bad_example": "{\n  \"agent\": { \"custom\": { \"color\": \"red\" } }\n}"
+    },
+    {
+      "id": "OC-AG-003",
+      "name": "Temperature Out of Range",
+      "severity": "HIGH",
+      "category": "opencode",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": [
+          "https://opencode.ai/docs/config"
+        ],
+        "verified_on": "2026-03-02",
+        "applies_to": {
+          "tool": "opencode"
+        },
+        "normative_level": "MUST",
+        "tests": {
+          "unit": true,
+          "fixtures": true,
+          "e2e": false
+        }
+      },
+      "fix": {
+        "autofix": false
+      },
+      "good_example": "{\n  \"agent\": { \"custom\": { \"temperature\": 0.7 } }\n}",
+      "bad_example": "{\n  \"agent\": { \"custom\": { \"temperature\": 3.5 } }\n}"
+    },
+    {
+      "id": "OC-AG-004",
+      "name": "Steps Not a Positive Integer",
+      "severity": "HIGH",
+      "category": "opencode",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": [
+          "https://opencode.ai/docs/config"
+        ],
+        "verified_on": "2026-03-02",
+        "applies_to": {
+          "tool": "opencode"
+        },
+        "normative_level": "MUST",
+        "tests": {
+          "unit": true,
+          "fixtures": true,
+          "e2e": false
+        }
+      },
+      "fix": {
+        "autofix": false
+      },
+      "good_example": "{\n  \"agent\": { \"custom\": { \"steps\": 50 } }\n}",
+      "bad_example": "{\n  \"agent\": { \"custom\": { \"steps\": -5 } }\n}"
+    },
+    {
+      "id": "OC-PM-002",
+      "name": "Unknown Permission Key",
+      "severity": "MEDIUM",
+      "category": "opencode",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": [
+          "https://opencode.ai/docs/config"
+        ],
+        "verified_on": "2026-03-02",
+        "applies_to": {
+          "tool": "opencode"
+        },
+        "normative_level": "SHOULD",
+        "tests": {
+          "unit": true,
+          "fixtures": true,
+          "e2e": false
+        }
+      },
+      "fix": {
+        "autofix": false
+      },
+      "good_example": "{\n  \"permission\": { \"read\": \"allow\" }\n}",
+      "bad_example": "{\n  \"permission\": { \"unknown\": \"allow\" }\n}"
+    },
+    {
+      "id": "OC-AGM-001",
+      "name": "Empty AGENTS.md",
+      "severity": "HIGH",
+      "category": "opencode",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": [
+          "https://opencode.ai/docs/config"
+        ],
+        "verified_on": "2026-03-02",
+        "applies_to": {
+          "tool": "opencode"
+        },
+        "normative_level": "MUST",
+        "tests": {
+          "unit": true,
+          "fixtures": true,
+          "e2e": false
+        }
+      },
+      "fix": {
+        "autofix": false
+      },
+      "good_example": "# AGENTS\n\nSome content.",
+      "bad_example": ""
+    },
+    {
+      "id": "OC-AGM-002",
+      "name": "Secrets in AGENTS.md",
+      "severity": "HIGH",
+      "category": "opencode",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": [
+          "https://opencode.ai/docs/config"
+        ],
+        "verified_on": "2026-03-02",
+        "applies_to": {
+          "tool": "opencode"
+        },
+        "normative_level": "MUST",
+        "tests": {
+          "unit": true,
+          "fixtures": true,
+          "e2e": false
+        }
+      },
+      "fix": {
+        "autofix": false
+      },
+      "good_example": "# AGENTS\n\nUse environment variables.",
+      "bad_example": "# AGENTS\n\nAPI_KEY=sk-123456"
     }
   ],
   "categories": {

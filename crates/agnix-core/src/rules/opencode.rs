@@ -25,7 +25,24 @@ use std::path::Path;
 use crate::rules::{find_closest_value, find_unique_json_string_value_span};
 
 const RULE_IDS: &[&str] = &[
-    "OC-001", "OC-002", "OC-003", "OC-004", "OC-006", "OC-007", "OC-008", "OC-009",
+    "OC-001",
+    "OC-002",
+    "OC-003",
+    "OC-004",
+    "OC-006",
+    "OC-007",
+    "OC-008",
+    "OC-009",
+    "OC-CFG-001",
+    "OC-CFG-004",
+    "OC-CFG-005",
+    "OC-CFG-006",
+    "OC-CFG-007",
+    "OC-AG-001",
+    "OC-AG-002",
+    "OC-AG-003",
+    "OC-AG-004",
+    "OC-PM-002",
 ];
 
 pub struct OpenCodeValidator;
@@ -397,6 +414,238 @@ impl Validator for OpenCodeValidator {
         if config.is_rule_enabled("OC-009") {
             if let Some(ref raw_value) = parsed.raw_value {
                 validate_substitutions(raw_value, path, content, &mut diagnostics);
+            }
+        }
+
+        // New OpenCode Rules
+
+        if let Some(ref raw_value) = parsed.raw_value {
+            if let Some(obj) = raw_value.as_object() {
+                // OC-CFG-001: Invalid Model Format
+                if config.is_rule_enabled("OC-CFG-001") {
+                    for key in &["model", "small_model"] {
+                        if let Some(model_val) = obj.get(*key) {
+                            if let Some(model_str) = model_val.as_str() {
+                                if !model_str.contains('/') && !model_str.contains("{env:") {
+                                    diagnostics.push(Diagnostic::error(
+                                        path.to_path_buf(),
+                                        find_key_line(content, key).unwrap_or(1),
+                                        0,
+                                        "OC-CFG-001",
+                                        "Invalid model format. Must be 'provider/model'"
+                                            .to_string(),
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // OC-CFG-004: Invalid Default Agent
+                if config.is_rule_enabled("OC-CFG-004") {
+                    if let Some(agent_val) = obj.get("default_agent") {
+                        if let Some(agent_str) = agent_val.as_str() {
+                            let mut known_agents = std::collections::HashSet::new();
+                            known_agents.insert("build");
+                            known_agents.insert("plan");
+                            known_agents.insert("general");
+                            known_agents.insert("explore");
+
+                            if let Some(agents_obj) = obj.get("agent").and_then(|a| a.as_object()) {
+                                for k in agents_obj.keys() {
+                                    known_agents.insert(k.as_str());
+                                }
+                            }
+
+                            if !known_agents.contains(agent_str) {
+                                diagnostics.push(
+                                    Diagnostic::warning(
+                                        path.to_path_buf(),
+                                        find_key_line(content, "default_agent").unwrap_or(1),
+                                        0,
+                                        "OC-CFG-004",
+                                        format!("Invalid default_agent '{}'. Must be 'build' or a defined custom agent", agent_str),
+                                    )
+                                );
+                            }
+                        }
+                    }
+                }
+
+                // OC-CFG-005: Hardcoded API Key
+                if config.is_rule_enabled("OC-CFG-005") {
+                    if let Some(provider_obj) = obj.get("provider").and_then(|p| p.as_object()) {
+                        for (_p_name, p_val) in provider_obj {
+                            if let Some(p_opts) = p_val.get("options").and_then(|o| o.as_object()) {
+                                if let Some(api_key) = p_opts.get("apiKey").and_then(|k| k.as_str())
+                                {
+                                    if !api_key.starts_with("{env:") {
+                                        diagnostics.push(
+                                            Diagnostic::error(
+                                                path.to_path_buf(),
+                                                find_key_line(content, "apiKey").unwrap_or(1),
+                                                0,
+                                                "OC-CFG-005",
+                                                "Hardcoded API key in provider options. Use {env:VAR} instead".to_string(),
+                                            )
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // OC-CFG-006 & OC-CFG-007: MCP Server Structure & Requirements
+                let check_mcp =
+                    config.is_rule_enabled("OC-CFG-006") || config.is_rule_enabled("OC-CFG-007");
+                if check_mcp {
+                    if let Some(mcp_obj) = obj.get("mcp").and_then(|m| m.as_object()) {
+                        for (srv_name, srv_val) in mcp_obj {
+                            if let Some(srv) = srv_val.as_object() {
+                                let srv_type =
+                                    srv.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                                if srv_type != "local" && srv_type != "remote" {
+                                    if config.is_rule_enabled("OC-CFG-006") {
+                                        diagnostics.push(Diagnostic::error(
+                                            path.to_path_buf(),
+                                            find_key_line(content, srv_name).unwrap_or(1),
+                                            0,
+                                            "OC-CFG-006",
+                                            format!("Invalid MCP server type '{}'", srv_type),
+                                        ));
+                                    }
+                                } else if config.is_rule_enabled("OC-CFG-007") {
+                                    if srv_type == "local" && !srv.contains_key("command") {
+                                        diagnostics.push(Diagnostic::error(
+                                            path.to_path_buf(),
+                                            find_key_line(content, srv_name).unwrap_or(1),
+                                            0,
+                                            "OC-CFG-007",
+                                            "Local MCP server missing 'command'".to_string(),
+                                        ));
+                                    } else if srv_type == "remote" && !srv.contains_key("url") {
+                                        diagnostics.push(Diagnostic::error(
+                                            path.to_path_buf(),
+                                            find_key_line(content, srv_name).unwrap_or(1),
+                                            0,
+                                            "OC-CFG-007",
+                                            "Remote MCP server missing 'url'".to_string(),
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Agent Validation (OC-AG-*)
+                if let Some(agent_obj) = obj.get("agent").and_then(|a| a.as_object()) {
+                    for (ag_name, ag_val) in agent_obj {
+                        if let Some(ag) = ag_val.as_object() {
+                            // OC-AG-001
+                            if config.is_rule_enabled("OC-AG-001") {
+                                if let Some(mode_val) = ag.get("mode").and_then(|m| m.as_str()) {
+                                    if mode_val != "subagent"
+                                        && mode_val != "primary"
+                                        && mode_val != "all"
+                                    {
+                                        diagnostics.push(Diagnostic::error(
+                                            path.to_path_buf(),
+                                            find_key_line(content, ag_name).unwrap_or(1),
+                                            0,
+                                            "OC-AG-001",
+                                            format!("Invalid agent mode '{}'", mode_val),
+                                        ));
+                                    }
+                                }
+                            }
+
+                            // OC-AG-002
+                            if config.is_rule_enabled("OC-AG-002") {
+                                if let Some(color_val) = ag.get("color").and_then(|c| c.as_str()) {
+                                    if !color_val.starts_with('#') {
+                                        // simplistic check
+                                        diagnostics.push(Diagnostic::error(
+                                            path.to_path_buf(),
+                                            find_key_line(content, "color").unwrap_or(1),
+                                            0,
+                                            "OC-AG-002",
+                                            format!("Invalid color format '{}'", color_val),
+                                        ));
+                                    }
+                                }
+                            }
+
+                            // OC-AG-003
+                            if config.is_rule_enabled("OC-AG-003") {
+                                if let Some(temp_val) =
+                                    ag.get("temperature").and_then(|t| t.as_f64())
+                                {
+                                    if temp_val < 0.0 || temp_val > 2.0 {
+                                        diagnostics.push(Diagnostic::error(
+                                            path.to_path_buf(),
+                                            find_key_line(content, "temperature").unwrap_or(1),
+                                            0,
+                                            "OC-AG-003",
+                                            "Temperature out of range (must be 0-2)".to_string(),
+                                        ));
+                                    }
+                                }
+                            }
+
+                            // OC-AG-004
+                            if config.is_rule_enabled("OC-AG-004") {
+                                if let Some(steps_val) = ag.get("steps").and_then(|s| s.as_i64()) {
+                                    if steps_val <= 0 {
+                                        diagnostics.push(Diagnostic::error(
+                                            path.to_path_buf(),
+                                            find_key_line(content, "steps").unwrap_or(1),
+                                            0,
+                                            "OC-AG-004",
+                                            "Steps must be a positive integer".to_string(),
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // OC-PM-002: Unknown Permission Key
+                if config.is_rule_enabled("OC-PM-002") {
+                    if let Some(perm_obj) = obj.get("permission").and_then(|p| p.as_object()) {
+                        let known_perms = [
+                            "read",
+                            "edit",
+                            "glob",
+                            "grep",
+                            "list",
+                            "bash",
+                            "task",
+                            "lsp",
+                            "skill",
+                            "todowrite",
+                            "todoread",
+                            "question",
+                            "webfetch",
+                            "websearch",
+                            "external_directory",
+                            "doom_loop",
+                        ];
+                        for key in perm_obj.keys() {
+                            if !known_perms.contains(&key.as_str()) {
+                                diagnostics.push(Diagnostic::warning(
+                                    path.to_path_buf(),
+                                    find_key_line(content, key).unwrap_or(1),
+                                    0,
+                                    "OC-PM-002",
+                                    format!("Unknown permission key '{}'", key),
+                                ));
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -1316,5 +1565,89 @@ mod tests {
         // "share" only appears as a value, never as a key
         let content = "{\n  \"comment\": \"share\"\n}";
         assert_eq!(find_key_line(content, "share"), None);
+    }
+
+    // ===== OC-CFG-001: Invalid Model Format =====
+    #[test]
+    fn test_oc_cfg_001_invalid_model() {
+        let diagnostics = validate(r#"{"model": "gpt-4"}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-CFG-001"));
+    }
+
+    #[test]
+    fn test_oc_cfg_001_valid_model() {
+        let diagnostics = validate(r#"{"model": "openai/gpt-4"}"#);
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-CFG-001"));
+    }
+
+    // ===== OC-CFG-004: Invalid Default Agent =====
+    #[test]
+    fn test_oc_cfg_004_invalid_agent() {
+        let diagnostics = validate(r#"{"default_agent": "foo"}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-CFG-004"));
+    }
+
+    #[test]
+    fn test_oc_cfg_004_valid_agent() {
+        let diagnostics = validate(r#"{"default_agent": "build"}"#);
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-CFG-004"));
+    }
+
+    // ===== OC-CFG-005: Hardcoded API Key =====
+    #[test]
+    fn test_oc_cfg_005_hardcoded_key() {
+        let diagnostics = validate(r#"{"provider": {"test": {"options": {"apiKey": "sk-123"}}}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-CFG-005"));
+    }
+
+    #[test]
+    fn test_oc_cfg_005_env_key() {
+        let diagnostics =
+            validate(r#"{"provider": {"test": {"options": {"apiKey": "{env:TEST}"}}}}"#);
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-CFG-005"));
+    }
+
+    // ===== OC-CFG-006 & OC-CFG-007: MCP Server =====
+    #[test]
+    fn test_oc_cfg_006_invalid_mcp_type() {
+        let diagnostics = validate(r#"{"mcp": {"srv": {"type": "foo"}}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-CFG-006"));
+    }
+
+    #[test]
+    fn test_oc_cfg_007_missing_command() {
+        let diagnostics = validate(r#"{"mcp": {"srv": {"type": "local"}}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-CFG-007"));
+    }
+
+    // ===== Agent tests =====
+    #[test]
+    fn test_oc_ag_001_invalid_mode() {
+        let diagnostics = validate(r#"{"agent": {"a": {"mode": "foo"}}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-AG-001"));
+    }
+
+    #[test]
+    fn test_oc_ag_002_invalid_color() {
+        let diagnostics = validate(r#"{"agent": {"a": {"color": "red"}}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-AG-002"));
+    }
+
+    #[test]
+    fn test_oc_ag_003_invalid_temp() {
+        let diagnostics = validate(r#"{"agent": {"a": {"temperature": 3.0}}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-AG-003"));
+    }
+
+    #[test]
+    fn test_oc_ag_004_invalid_steps() {
+        let diagnostics = validate(r#"{"agent": {"a": {"steps": -1}}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-AG-004"));
+    }
+
+    #[test]
+    fn test_oc_pm_002_invalid_perm() {
+        let diagnostics = validate(r#"{"permission": {"foo": "allow"}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-PM-002"));
     }
 }

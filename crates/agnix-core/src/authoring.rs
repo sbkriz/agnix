@@ -88,10 +88,10 @@ fn catalog() -> &'static AuthoringCatalog {
 fn family_id_for_file_type(file_type: FileType) -> Option<&'static str> {
     match file_type {
         FileType::Skill => Some("skill"),
-        FileType::Agent => Some("agent"),
-        FileType::Hooks => Some("hooks"),
+        FileType::Agent | FileType::KiroAgent => Some("agent"),
+        FileType::Hooks | FileType::KiroHook => Some("hooks"),
         FileType::Plugin => Some("plugin"),
-        FileType::Mcp => Some("mcp"),
+        FileType::Mcp | FileType::KiroMcp => Some("mcp"),
         FileType::Copilot | FileType::CopilotScoped => Some("copilot"),
         FileType::CursorRule | FileType::CursorRulesLegacy => Some("cursor"),
         FileType::CursorHooks | FileType::CursorAgent | FileType::CursorEnvironment => None,
@@ -125,7 +125,7 @@ fn is_yaml_family(file_type: FileType) -> bool {
 fn is_json_family(file_type: FileType) -> bool {
     matches!(
         file_type,
-        FileType::Hooks | FileType::Plugin | FileType::Mcp
+        FileType::Hooks | FileType::KiroHook | FileType::Plugin | FileType::Mcp | FileType::KiroMcp
     )
 }
 
@@ -422,6 +422,25 @@ mod tests {
     }
 
     #[test]
+    fn test_completion_kiro_agent_value_context() {
+        let content = "---\nmodel: \n---\n";
+        let byte = content
+            .find("model: ")
+            .expect("test content must contain 'model: '")
+            + "model: ".len();
+        let candidates = completion_candidates(FileType::KiroAgent, content, byte);
+        assert!(
+            candidates.iter().any(|c| c.label == "sonnet"),
+            "KiroAgent model values should include 'sonnet', got: {:?}",
+            candidates.iter().map(|c| &c.label).collect::<Vec<_>>()
+        );
+        assert!(
+            candidates.iter().any(|c| c.label == "opus"),
+            "KiroAgent model values should include 'opus'"
+        );
+    }
+
+    #[test]
     fn test_completion_hooks_key_context() {
         // Hooks files are JSON
         let content = "{\n  \"mat\n}";
@@ -447,6 +466,18 @@ mod tests {
     }
 
     #[test]
+    fn test_completion_kiro_hooks_value_context() {
+        let content = "{\n  \"type\": \n}";
+        let byte = content.find("\"type\": ").unwrap() + "\"type\": ".len();
+        let candidates = completion_candidates(FileType::KiroHook, content, byte);
+        assert!(
+            candidates.iter().any(|c| c.label == "command"),
+            "KiroHook type values should include 'command', got: {:?}",
+            candidates.iter().map(|c| &c.label).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
     fn test_completion_mcp_key_context() {
         let content = "{\n  \"json\n}";
         let byte = content.find("\"json").unwrap() + 1;
@@ -454,6 +485,18 @@ mod tests {
         assert!(
             candidates.iter().any(|c| c.label == "jsonrpc"),
             "MCP key completions should include 'jsonrpc', got: {:?}",
+            candidates.iter().map(|c| &c.label).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn test_completion_kiro_mcp_key_context() {
+        let content = "{\n  \"json\n}";
+        let byte = content.find("\"json").unwrap() + 1;
+        let candidates = completion_candidates(FileType::KiroMcp, content, byte);
+        assert!(
+            candidates.iter().any(|c| c.label == "jsonrpc"),
+            "Kiro MCP key completions should include 'jsonrpc', got: {:?}",
             candidates.iter().map(|c| &c.label).collect::<Vec<_>>()
         );
     }
@@ -537,6 +580,15 @@ mod tests {
     fn test_hover_doc_for_mcp_jsonrpc() {
         let hover = hover_doc(FileType::Mcp, "jsonrpc");
         assert!(hover.is_some(), "MCP should have hover for 'jsonrpc'");
+        let markdown = hover.unwrap().markdown;
+        assert!(markdown.contains("jsonrpc"));
+        assert!(markdown.contains("MCP-001"));
+    }
+
+    #[test]
+    fn test_hover_doc_for_kiro_mcp_jsonrpc() {
+        let hover = hover_doc(FileType::KiroMcp, "jsonrpc");
+        assert!(hover.is_some(), "KiroMcp should have hover for 'jsonrpc'");
         let markdown = hover.unwrap().markdown;
         assert!(markdown.contains("jsonrpc"));
         assert!(markdown.contains("MCP-001"));

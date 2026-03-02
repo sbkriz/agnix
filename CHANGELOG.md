@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Kiro fixture expansion**: Added fixture packs for Kiro powers, agents, hooks, and MCP settings plus integration tests to keep the corpus present and CLI-runnable (#599).
 - **Kiro real-world repo coverage**: Added/updated explicit Kiro-tagged real-world repos (`awsdataarchitect/kiro-best-practices`, `dereknguyen269/derek-power`, `cremich/promptz`, `Theadd/kiro-agents`) and tightened CI gating to require the expanded baseline in `tests/real-world/repos.yaml` (#598).
 - **Kiro S-tier promotion**: Moved Kiro CLI from B tier to S tier in project memory docs (`CLAUDE.md`/`AGENTS.md`) and added Kiro CI gate coverage to prevent regression (#592).
+- **Kiro file type detection expansion**: Added dedicated `KiroPower`, `KiroAgent`, `KiroHook`, and `KiroMcp` file type detection with registry coverage to route these surfaces through the validation pipeline (#594).
 
 ### Changed
 - **Kiro docs and tests**: Expanded integration/contract tests for Kiro target paths and updated usage docs to clarify legacy `--target` behavior versus `tools = [...]` filtering.

@@ -86,6 +86,14 @@ pub enum FileType {
     WindsurfRulesLegacy,
     /// Kiro steering files (.kiro/steering/*.md)
     KiroSteering,
+    /// Kiro power definition files (POWER.md in Kiro power directories)
+    KiroPower,
+    /// Kiro custom agent definitions (.kiro/agents/*.json)
+    KiroAgent,
+    /// Kiro IDE hook files (.kiro/hooks/*.kiro.hook)
+    KiroHook,
+    /// Kiro MCP settings (.kiro/settings/mcp.json)
+    KiroMcp,
     /// Other .md files (for XML/import checks)
     GenericMarkdown,
     /// Skip validation
@@ -154,6 +162,10 @@ impl fmt::Display for FileType {
             FileType::WindsurfWorkflow => "WindsurfWorkflow",
             FileType::WindsurfRulesLegacy => "WindsurfRulesLegacy",
             FileType::KiroSteering => "KiroSteering",
+            FileType::KiroPower => "KiroPower",
+            FileType::KiroAgent => "KiroAgent",
+            FileType::KiroHook => "KiroHook",
+            FileType::KiroMcp => "KiroMcp",
             FileType::GenericMarkdown => "GenericMarkdown",
             FileType::Unknown => "Unknown",
         })
@@ -204,6 +216,10 @@ mod tests {
             (FileType::WindsurfWorkflow, "WindsurfWorkflow"),
             (FileType::WindsurfRulesLegacy, "WindsurfRulesLegacy"),
             (FileType::KiroSteering, "KiroSteering"),
+            (FileType::KiroPower, "KiroPower"),
+            (FileType::KiroAgent, "KiroAgent"),
+            (FileType::KiroHook, "KiroHook"),
+            (FileType::KiroMcp, "KiroMcp"),
             (FileType::GenericMarkdown, "GenericMarkdown"),
             (FileType::Unknown, "Unknown"),
         ];
@@ -253,6 +269,10 @@ mod tests {
             FileType::WindsurfWorkflow,
             FileType::WindsurfRulesLegacy,
             FileType::KiroSteering,
+            FileType::KiroPower,
+            FileType::KiroAgent,
+            FileType::KiroHook,
+            FileType::KiroMcp,
             FileType::GenericMarkdown,
         ];
 
@@ -316,6 +336,10 @@ mod tests {
             FileType::WindsurfWorkflow,
             FileType::WindsurfRulesLegacy,
             FileType::KiroSteering,
+            FileType::KiroPower,
+            FileType::KiroAgent,
+            FileType::KiroHook,
+            FileType::KiroMcp,
             FileType::Unknown,
         ];
 

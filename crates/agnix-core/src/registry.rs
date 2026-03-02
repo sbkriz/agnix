@@ -398,7 +398,7 @@ impl ValidatorRegistryBuilder {
 ///
 /// Used by `BuiltinProvider` (via `debug_assert_eq!`) and tests to catch
 /// accidental additions or removals without updating all providers.
-const EXPECTED_BUILTIN_COUNT: usize = 62;
+const EXPECTED_BUILTIN_COUNT: usize = 66;
 
 // -- Category providers -----------------------------------------------------
 //
@@ -748,6 +748,22 @@ impl ValidatorProvider for MiscProvider {
                 Some("KiroSteeringValidator"),
                 kiro_steering_validator,
             ),
+            (
+                FileType::KiroPower,
+                Some("ImportsValidator"),
+                imports_validator,
+            ),
+            (
+                FileType::KiroAgent,
+                Some("ImportsValidator"),
+                imports_validator,
+            ),
+            (
+                FileType::KiroHook,
+                Some("ImportsValidator"),
+                imports_validator,
+            ),
+            (FileType::KiroMcp, Some("McpValidator"), mcp_validator),
             (
                 FileType::GenericMarkdown,
                 Some("CrossPlatformValidator"),
@@ -1276,7 +1292,7 @@ mod tests {
 
     #[test]
     fn every_validatable_file_type_has_at_least_one_validator() {
-        let validatable_types: [FileType; 37] = [
+        let validatable_types: [FileType; 41] = [
             FileType::Skill,
             FileType::ClaudeMd,
             FileType::Agent,
@@ -1313,6 +1329,10 @@ mod tests {
             FileType::WindsurfWorkflow,
             FileType::WindsurfRulesLegacy,
             FileType::KiroSteering,
+            FileType::KiroPower,
+            FileType::KiroAgent,
+            FileType::KiroHook,
+            FileType::KiroMcp,
             FileType::GenericMarkdown,
         ];
 
@@ -1356,6 +1376,10 @@ mod tests {
                 | FileType::WindsurfWorkflow
                 | FileType::WindsurfRulesLegacy
                 | FileType::KiroSteering
+                | FileType::KiroPower
+                | FileType::KiroAgent
+                | FileType::KiroHook
+                | FileType::KiroMcp
                 | FileType::GenericMarkdown => (),
                 FileType::Unknown => {
                     panic!("Unknown must not appear in validatable_types")
@@ -1372,6 +1396,24 @@ mod tests {
                 "{ft:?} has no validators registered in the default registry"
             );
         }
+    }
+
+    #[test]
+    fn kiro_file_types_route_to_expected_validators() {
+        let registry = ValidatorRegistry::with_defaults();
+
+        let names_for = |file_type: FileType| -> Vec<&'static str> {
+            registry
+                .validators_for(file_type)
+                .iter()
+                .map(|validator| validator.name())
+                .collect()
+        };
+
+        assert_eq!(names_for(FileType::KiroPower), vec!["ImportsValidator"]);
+        assert_eq!(names_for(FileType::KiroAgent), vec!["ImportsValidator"]);
+        assert_eq!(names_for(FileType::KiroHook), vec!["ImportsValidator"]);
+        assert_eq!(names_for(FileType::KiroMcp), vec!["McpValidator"]);
     }
 
     // ---- Caching correctness tests ----
@@ -1812,7 +1854,7 @@ mod tests {
 
     #[test]
     fn misc_provider_count() {
-        assert_eq!(MiscProvider.named_validators().len(), 13);
+        assert_eq!(MiscProvider.named_validators().len(), 17);
     }
 
     #[test]

@@ -99,10 +99,25 @@ fn path_contains_consecutive_components(path: &Path, first: &str, second: &str) 
     false
 }
 
-/// Returns true if the path contains two consecutive normal path components,
-/// compared case-insensitively.
-fn path_contains_consecutive_components_ci(path: &Path, first: &str, second: &str) -> bool {
-    path_contains_consecutive_components(path, first, second)
+/// Case-insensitive suffix check that avoids allocating temporary strings.
+fn ends_with_ignore_ascii_case(value: &str, suffix: &str) -> bool {
+    if value.len() < suffix.len() {
+        return false;
+    }
+
+    value
+        .get(value.len() - suffix.len()..)
+        .is_some_and(|tail| tail.eq_ignore_ascii_case(suffix))
+}
+
+fn starts_with_ignore_ascii_case(value: &str, prefix: &str) -> bool {
+    if value.len() < prefix.len() {
+        return false;
+    }
+
+    value
+        .get(..prefix.len())
+        .is_some_and(|head| head.eq_ignore_ascii_case(prefix))
 }
 
 fn parent_eq_ignore_ascii_case(parent: Option<&str>, expected: &str) -> bool {
@@ -163,7 +178,7 @@ fn is_under_roo_rules(path: &Path) -> bool {
 /// Returns true if the path contains `.agents/checks` as consecutive
 /// components anywhere in the path.
 fn is_under_agents_checks(path: &Path) -> bool {
-    path_contains_consecutive_components_ci(path, ".agents", "checks")
+    path_contains_consecutive_components(path, ".agents", "checks")
 }
 
 /// Returns true if the path has a parent directory starting with `rules-`
@@ -189,6 +204,11 @@ fn is_under_windsurf_workflows(path: &Path) -> bool {
 /// components anywhere in the path.
 fn is_under_kiro_steering(path: &Path) -> bool {
     path_contains_consecutive_components(path, ".kiro", "steering")
+}
+
+/// Returns true if the path points to a Kiro power definition.
+fn is_kiro_power(path: &Path) -> bool {
+    path_contains_consecutive_components(path, ".kiro", "powers")
 }
 
 fn is_excluded_filename(name: &str) -> bool {
@@ -228,14 +248,49 @@ pub fn detect_file_type(path: &Path) -> FileType {
 
     // Cursor subagent definitions should always be classified as CursorAgent,
     // including AGENTS.md / CLAUDE.md filenames under .cursor/agents.
-    if filename.to_ascii_lowercase().ends_with(".md") && is_under_cursor_agents(path) {
+    if ends_with_ignore_ascii_case(filename, ".md") && is_under_cursor_agents(path) {
         return FileType::CursorAgent;
     }
 
     // Kiro steering files take precedence over filename-based matches
     // (e.g., .kiro/steering/AGENTS.md should be KiroSteering, not ClaudeMd).
-    if filename.to_ascii_lowercase().ends_with(".md") && is_under_kiro_steering(path) {
+    if ends_with_ignore_ascii_case(filename, ".md") && is_under_kiro_steering(path) {
         return FileType::KiroSteering;
+    }
+
+    if filename.eq_ignore_ascii_case("POWER.md") && is_kiro_power(path) {
+        return FileType::KiroPower;
+    }
+
+    if ends_with_ignore_ascii_case(filename, ".json")
+        && parent_eq_ignore_ascii_case(parent, "agents")
+        && parent_eq_ignore_ascii_case(grandparent, ".kiro")
+        && ![
+            "plugin.json",
+            "mcp.json",
+            "settings.json",
+            "settings.local.json",
+        ]
+        .iter()
+        .any(|reserved| filename.eq_ignore_ascii_case(reserved))
+        && !starts_with_ignore_ascii_case(filename, "mcp-")
+        && !ends_with_ignore_ascii_case(filename, ".mcp.json")
+    {
+        return FileType::KiroAgent;
+    }
+
+    if ends_with_ignore_ascii_case(filename, ".kiro.hook")
+        && parent_eq_ignore_ascii_case(parent, "hooks")
+        && parent_eq_ignore_ascii_case(grandparent, ".kiro")
+    {
+        return FileType::KiroHook;
+    }
+
+    if filename.eq_ignore_ascii_case("mcp.json")
+        && parent_eq_ignore_ascii_case(parent, "settings")
+        && parent_eq_ignore_ascii_case(grandparent, ".kiro")
+    {
+        return FileType::KiroMcp;
     }
 
     match filename {
@@ -264,38 +319,44 @@ pub fn detect_file_type(path: &Path) -> FileType {
         // Classify any plugin.json as Plugin - validator checks location constraint (CC-PL-001)
         "plugin.json" => FileType::Plugin,
         // Roo Code MCP configuration (.roo/mcp.json) - must be before generic mcp.json
-        "mcp.json" if parent == Some(".roo") => FileType::RooMcp,
+        "mcp.json" if parent_eq_ignore_ascii_case(parent, ".roo") => FileType::RooMcp,
         // MCP configuration files
         "mcp.json" => FileType::Mcp,
         name if name.ends_with(".mcp.json") => FileType::Mcp,
         name if name.starts_with("mcp-") && name.ends_with(".json") => FileType::Mcp,
         // GitHub Copilot global instructions (.github/copilot-instructions.md)
-        "copilot-instructions.md" if parent == Some(".github") => FileType::Copilot,
+        "copilot-instructions.md" if parent_eq_ignore_ascii_case(parent, ".github") => {
+            FileType::Copilot
+        }
         // GitHub Copilot scoped instructions (.github/instructions/**/*.instructions.md)
         name if name.ends_with(".instructions.md") && is_under_github_instructions(path) => {
             FileType::CopilotScoped
         }
         // GitHub Copilot custom agents (.github/agents/*.agent.md)
         name if name.ends_with(".agent.md")
-            && parent == Some("agents")
-            && grandparent == Some(".github") =>
+            && parent_eq_ignore_ascii_case(parent, "agents")
+            && parent_eq_ignore_ascii_case(grandparent, ".github") =>
         {
             FileType::CopilotAgent
         }
         // GitHub Copilot reusable prompts (.github/prompts/*.prompt.md)
         name if name.ends_with(".prompt.md")
-            && parent == Some("prompts")
-            && grandparent == Some(".github") =>
+            && parent_eq_ignore_ascii_case(parent, "prompts")
+            && parent_eq_ignore_ascii_case(grandparent, ".github") =>
         {
             FileType::CopilotPrompt
         }
         // GitHub Copilot hooks configuration (.github/hooks/hooks.json)
-        "hooks.json" if parent == Some("hooks") && grandparent == Some(".github") => {
+        "hooks.json"
+            if parent_eq_ignore_ascii_case(parent, "hooks")
+                && parent_eq_ignore_ascii_case(grandparent, ".github") =>
+        {
             FileType::CopilotHooks
         }
         // GitHub Copilot setup workflow (.github/workflows/copilot-setup-steps.yml/.yaml)
         "copilot-setup-steps.yml" | "copilot-setup-steps.yaml"
-            if parent == Some("workflows") && grandparent == Some(".github") =>
+            if parent_eq_ignore_ascii_case(parent, "workflows")
+                && parent_eq_ignore_ascii_case(grandparent, ".github") =>
         {
             FileType::CopilotHooks
         }
@@ -526,6 +587,10 @@ mod tests {
             detect_file_type(Path::new(".github/copilot-instructions.md")),
             FileType::Copilot
         );
+        assert_eq!(
+            detect_file_type(Path::new(".GITHUB/copilot-instructions.md")),
+            FileType::Copilot
+        );
     }
 
     #[test]
@@ -542,6 +607,10 @@ mod tests {
             detect_file_type(Path::new(".github/agents/reviewer.agent.md")),
             FileType::CopilotAgent
         );
+        assert_eq!(
+            detect_file_type(Path::new(".GITHUB/AGENTS/reviewer.agent.md")),
+            FileType::CopilotAgent
+        );
     }
 
     #[test]
@@ -550,12 +619,20 @@ mod tests {
             detect_file_type(Path::new(".github/prompts/refactor.prompt.md")),
             FileType::CopilotPrompt
         );
+        assert_eq!(
+            detect_file_type(Path::new(".GITHUB/PROMPTS/refactor.prompt.md")),
+            FileType::CopilotPrompt
+        );
     }
 
     #[test]
     fn detect_copilot_hooks_json() {
         assert_eq!(
             detect_file_type(Path::new(".github/hooks/hooks.json")),
+            FileType::CopilotHooks
+        );
+        assert_eq!(
+            detect_file_type(Path::new(".GITHUB/HOOKS/hooks.json")),
             FileType::CopilotHooks
         );
     }
@@ -568,6 +645,10 @@ mod tests {
         );
         assert_eq!(
             detect_file_type(Path::new(".github/workflows/copilot-setup-steps.yaml")),
+            FileType::CopilotHooks
+        );
+        assert_eq!(
+            detect_file_type(Path::new(".GITHUB/WORKFLOWS/copilot-setup-steps.yml")),
             FileType::CopilotHooks
         );
     }
@@ -1153,6 +1234,10 @@ mod tests {
             detect_file_type(Path::new("project/.roo/mcp.json")),
             FileType::RooMcp
         );
+        assert_eq!(
+            detect_file_type(Path::new("project/.ROO/mcp.json")),
+            FileType::RooMcp
+        );
     }
 
     #[test]
@@ -1253,6 +1338,132 @@ mod tests {
         assert_eq!(
             detect_file_type(Path::new(".kiro/steering/SKILL.md")),
             FileType::KiroSteering
+        );
+    }
+
+    #[test]
+    fn detect_kiro_power_from_fixture_path() {
+        assert_eq!(
+            detect_file_type(Path::new(
+                "tests/fixtures/kiro-powers/.kiro/powers/valid-power/POWER.md"
+            )),
+            FileType::KiroPower
+        );
+    }
+
+    #[test]
+    fn detect_kiro_power_from_dot_kiro_powers_path() {
+        assert_eq!(
+            detect_file_type(Path::new(".kiro/powers/deploy/POWER.md")),
+            FileType::KiroPower
+        );
+    }
+
+    #[test]
+    fn detect_kiro_power_not_any_power_md() {
+        assert_ne!(
+            detect_file_type(Path::new("docs/POWER.md")),
+            FileType::KiroPower
+        );
+    }
+
+    #[test]
+    fn detect_kiro_power_avoids_non_kiro_powers_dirs() {
+        assert_ne!(
+            detect_file_type(Path::new("tmp/kiro-powers/POWER.md")),
+            FileType::KiroPower
+        );
+        assert_ne!(
+            detect_file_type(Path::new("docs/fixtures/kiro-powers/POWER.md")),
+            FileType::KiroPower
+        );
+    }
+
+    #[test]
+    fn detect_kiro_agent_json() {
+        assert_eq!(
+            detect_file_type(Path::new(".kiro/agents/reviewer.json")),
+            FileType::KiroAgent
+        );
+        assert_eq!(
+            detect_file_type(Path::new("home/.kiro/agents/reviewer.JSON")),
+            FileType::KiroAgent
+        );
+    }
+
+    #[test]
+    fn detect_kiro_agent_not_other_kiro_json() {
+        assert_ne!(
+            detect_file_type(Path::new(".kiro/settings/agent.json")),
+            FileType::KiroAgent
+        );
+        assert_ne!(
+            detect_file_type(Path::new(".kiro/agents/plugin.json")),
+            FileType::KiroAgent
+        );
+        assert_ne!(
+            detect_file_type(Path::new(".kiro/agents/settings.json")),
+            FileType::KiroAgent
+        );
+        assert_ne!(
+            detect_file_type(Path::new(".kiro/agents/mcp.json")),
+            FileType::KiroAgent
+        );
+        assert_ne!(
+            detect_file_type(Path::new(".kiro/agents/mcp-prod.json")),
+            FileType::KiroAgent
+        );
+        assert_ne!(
+            detect_file_type(Path::new(".kiro/agents/server.mcp.json")),
+            FileType::KiroAgent
+        );
+        assert_ne!(
+            detect_file_type(Path::new(".kiro/agents/settings.local.json")),
+            FileType::KiroAgent
+        );
+        assert_ne!(
+            detect_file_type(Path::new(".kiro/agents/SETTINGS.LOCAL.JSON")),
+            FileType::KiroAgent
+        );
+    }
+
+    #[test]
+    fn detect_kiro_hook_file() {
+        assert_eq!(
+            detect_file_type(Path::new(".kiro/hooks/on-save.kiro.hook")),
+            FileType::KiroHook
+        );
+    }
+
+    #[test]
+    fn detect_kiro_hook_not_wrong_directory() {
+        assert_ne!(
+            detect_file_type(Path::new(".kiro/agents/on-save.kiro.hook")),
+            FileType::KiroHook
+        );
+    }
+
+    #[test]
+    fn detect_kiro_mcp_settings_file() {
+        assert_eq!(
+            detect_file_type(Path::new(".kiro/settings/mcp.json")),
+            FileType::KiroMcp
+        );
+    }
+
+    #[test]
+    fn detect_kiro_mcp_takes_precedence_over_generic_mcp() {
+        assert_eq!(
+            detect_file_type(Path::new("workspace/.kiro/settings/mcp.json")),
+            FileType::KiroMcp
+        );
+    }
+
+    #[test]
+    fn detect_kiro_mcp_not_other_kiro_json() {
+        assert_ne!(
+            detect_file_type(Path::new(".kiro/settings/not-mcp.json")),
+            FileType::KiroMcp
         );
     }
 }

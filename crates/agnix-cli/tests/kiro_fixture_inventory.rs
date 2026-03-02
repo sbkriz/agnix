@@ -1,4 +1,4 @@
-use agnix_core::detect_file_type;
+use agnix_core::{FileType, detect_file_type};
 use assert_cmd::Command;
 use serde_json::Value;
 use std::collections::BTreeSet;
@@ -35,13 +35,13 @@ fn workspace_root() -> &'static Path {
 
 fn required_paths() -> Vec<&'static str> {
     vec![
-        "tests/fixtures/kiro-powers/valid-power/POWER.md",
-        "tests/fixtures/kiro-powers/valid-power/mcp.json",
-        "tests/fixtures/kiro-powers/missing-frontmatter/POWER.md",
-        "tests/fixtures/kiro-powers/empty-keywords/POWER.md",
-        "tests/fixtures/kiro-powers/empty-body/POWER.md",
-        "tests/fixtures/kiro-powers/bad-mcp/POWER.md",
-        "tests/fixtures/kiro-powers/bad-mcp/mcp.json",
+        "tests/fixtures/kiro-powers/.kiro/powers/valid-power/POWER.md",
+        "tests/fixtures/kiro-powers/.kiro/powers/valid-power/mcp.json",
+        "tests/fixtures/kiro-powers/.kiro/powers/missing-frontmatter/POWER.md",
+        "tests/fixtures/kiro-powers/.kiro/powers/empty-keywords/POWER.md",
+        "tests/fixtures/kiro-powers/.kiro/powers/empty-body/POWER.md",
+        "tests/fixtures/kiro-powers/.kiro/powers/bad-mcp/POWER.md",
+        "tests/fixtures/kiro-powers/.kiro/powers/bad-mcp/mcp.json",
         "tests/fixtures/kiro-agents/.kiro/agents/valid-agent.json",
         "tests/fixtures/kiro-agents/.kiro/agents/minimal-agent.json",
         "tests/fixtures/kiro-agents/.kiro/agents/invalid-resource.json",
@@ -59,6 +59,7 @@ fn required_paths() -> Vec<&'static str> {
         "tests/fixtures/kiro-hooks/.kiro/hooks/missing-patterns.kiro.hook",
         "tests/fixtures/kiro-hooks/.kiro/hooks/missing-action.kiro.hook",
         "tests/fixtures/kiro-hooks/.kiro/hooks/missing-tool-types.kiro.hook",
+        "tests/fixtures/kiro-mcp/.kiro/settings/mcp.json",
         "tests/fixtures/kiro-mcp/.kiro/settings/valid-local-mcp.json",
         "tests/fixtures/kiro-mcp/.kiro/settings/valid-remote-mcp.json",
         "tests/fixtures/kiro-mcp/.kiro/settings/missing-command-url.json",
@@ -206,9 +207,9 @@ fn kiro_fixture_families_are_cli_runnable() {
     let root = workspace_root();
     let fixture_roots = [
         ("tests/fixtures/kiro-powers", 7_u64, 0_u64),
-        ("tests/fixtures/kiro-agents", 0_u64, 0_u64),
-        ("tests/fixtures/kiro-hooks", 0_u64, 0_u64),
-        ("tests/fixtures/kiro-mcp", 0_u64, 0_u64),
+        ("tests/fixtures/kiro-agents", 10_u64, 0_u64),
+        ("tests/fixtures/kiro-hooks", 7_u64, 0_u64),
+        ("tests/fixtures/kiro-mcp", 1_u64, 0_u64),
     ];
 
     for (rel, expected_files_checked, expected_diagnostics) in fixture_roots {
@@ -243,15 +244,45 @@ fn kiro_fixture_families_are_cli_runnable() {
 fn kiro_fixture_files_have_explicit_detection_baselines() {
     for rel in required_paths() {
         let is_detected = detect_file_type(Path::new(rel)).is_validatable();
-        let should_be_detected = if rel.starts_with("tests/fixtures/kiro-powers/") {
-            true
-        } else {
-            false
-        };
+        let should_be_detected = rel.starts_with("tests/fixtures/kiro-powers/")
+            || rel.starts_with("tests/fixtures/kiro-agents/.kiro/agents/")
+            || rel.starts_with("tests/fixtures/kiro-hooks/.kiro/hooks/")
+            || rel == "tests/fixtures/kiro-mcp/.kiro/settings/mcp.json";
 
         assert_eq!(
             is_detected, should_be_detected,
             "Unexpected file-type detection baseline for fixture {}",
+            rel
+        );
+    }
+}
+
+#[test]
+fn kiro_fixture_representatives_map_to_expected_file_types() {
+    let expectations = [
+        (
+            "tests/fixtures/kiro-powers/.kiro/powers/valid-power/POWER.md",
+            FileType::KiroPower,
+        ),
+        (
+            "tests/fixtures/kiro-agents/.kiro/agents/valid-agent.json",
+            FileType::KiroAgent,
+        ),
+        (
+            "tests/fixtures/kiro-hooks/.kiro/hooks/valid-file-save.kiro.hook",
+            FileType::KiroHook,
+        ),
+        (
+            "tests/fixtures/kiro-mcp/.kiro/settings/mcp.json",
+            FileType::KiroMcp,
+        ),
+    ];
+
+    for (rel, expected) in expectations {
+        let detected = detect_file_type(Path::new(rel));
+        assert_eq!(
+            detected, expected,
+            "Unexpected representative file type for fixture {}",
             rel
         );
     }

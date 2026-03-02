@@ -1359,6 +1359,10 @@ mod tests {
             detect_file_type(Path::new(".kiro/powers/deploy/POWER.md")),
             FileType::KiroPower
         );
+        assert_eq!(
+            detect_file_type(Path::new(".KIRO/POWERS/deploy/POWER.md")),
+            FileType::KiroPower
+        );
     }
 
     #[test]
@@ -1389,6 +1393,10 @@ mod tests {
         );
         assert_eq!(
             detect_file_type(Path::new("home/.kiro/agents/reviewer.JSON")),
+            FileType::KiroAgent
+        );
+        assert_eq!(
+            detect_file_type(Path::new("home/.KIRO/AGENTS/reviewer.json")),
             FileType::KiroAgent
         );
     }
@@ -1435,6 +1443,10 @@ mod tests {
             detect_file_type(Path::new(".kiro/hooks/on-save.kiro.hook")),
             FileType::KiroHook
         );
+        assert_eq!(
+            detect_file_type(Path::new(".KIRO/HOOKS/on-save.kiro.hook")),
+            FileType::KiroHook
+        );
     }
 
     #[test]
@@ -1449,6 +1461,10 @@ mod tests {
     fn detect_kiro_mcp_settings_file() {
         assert_eq!(
             detect_file_type(Path::new(".kiro/settings/mcp.json")),
+            FileType::KiroMcp
+        );
+        assert_eq!(
+            detect_file_type(Path::new(".KIRO/SETTINGS/MCP.JSON")),
             FileType::KiroMcp
         );
     }

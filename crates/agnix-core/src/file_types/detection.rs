@@ -110,6 +110,7 @@ fn ends_with_ignore_ascii_case(value: &str, suffix: &str) -> bool {
         .is_some_and(|tail| tail.eq_ignore_ascii_case(suffix))
 }
 
+/// Case-insensitive prefix check that avoids allocating temporary strings.
 fn starts_with_ignore_ascii_case(value: &str, prefix: &str) -> bool {
     if value.len() < prefix.len() {
         return false;
@@ -206,7 +207,8 @@ fn is_under_kiro_steering(path: &Path) -> bool {
     path_contains_consecutive_components(path, ".kiro", "steering")
 }
 
-/// Returns true if the path points to a Kiro power definition.
+/// Returns true if the path contains `.kiro/powers` as consecutive
+/// components anywhere in the path.
 fn is_kiro_power(path: &Path) -> bool {
     path_contains_consecutive_components(path, ".kiro", "powers")
 }

@@ -1,8 +1,8 @@
 {
   "description": "Machine-readable source of truth for all validation rules. When adding a new rule, add it here AND in VALIDATION-RULES.md. CI parity tests enforce sync.",
   "version": "1.1.0",
-  "total_rules": 231,
-  "last_updated": "2026-02-27",
+  "total_rules": 233,
+  "last_updated": "2026-03-02",
   "schema": {
     "evidence": {
       "source_type": "spec|vendor_docs|vendor_code|paper|community",
@@ -4518,6 +4518,62 @@
       "bad_example": "---\nname: my-skill\ndescription: A useful development skill\nmodel: haiku\n---\n# My Skill\n\nSkill instructions here."
     },
     {
+      "id": "KR-AG-006",
+      "name": "Kiro Agent References Unknown Subagent",
+      "severity": "MEDIUM",
+      "category": "kiro-agents",
+      "evidence": {
+        "source_type": "community",
+        "source_urls": [
+          "https://github.com/kirodotdev/kiro/issues/5743",
+          "https://github.com/kirodotdev/kiro/issues/4262"
+        ],
+        "verified_on": "2026-03-02",
+        "applies_to": {
+          "tool": "kiro"
+        },
+        "normative_level": "SHOULD",
+        "tests": {
+          "unit": true,
+          "fixtures": true,
+          "e2e": false
+        }
+      },
+      "fix": {
+        "autofix": false
+      },
+      "good_example": "{\n  \"name\": \"orchestrator\",\n  \"prompt\": \"Delegate review to @reviewer-agent\"\n}",
+      "bad_example": "{\n  \"name\": \"orchestrator\",\n  \"prompt\": \"Delegate review to @missing-agent\"\n}"
+    },
+    {
+      "id": "KR-AG-007",
+      "name": "Kiro Agent Tool Scope Broader Than Referenced Subagent",
+      "severity": "MEDIUM",
+      "category": "kiro-agents",
+      "evidence": {
+        "source_type": "community",
+        "source_urls": [
+          "https://github.com/kirodotdev/kiro/issues/5071",
+          "https://github.com/kirodotdev/kiro/issues/5449"
+        ],
+        "verified_on": "2026-03-02",
+        "applies_to": {
+          "tool": "kiro"
+        },
+        "normative_level": "SHOULD",
+        "tests": {
+          "unit": true,
+          "fixtures": true,
+          "e2e": false
+        }
+      },
+      "fix": {
+        "autofix": false
+      },
+      "good_example": "{\n  \"name\": \"orchestrator\",\n  \"allowedTools\": [\"readFiles\"],\n  \"prompt\": \"Delegate review to @reviewer-agent\"\n}",
+      "bad_example": "{\n  \"name\": \"orchestrator\",\n  \"allowedTools\": [\"readFiles\", \"runShellCommand\"],\n  \"prompt\": \"Delegate review to @reviewer-agent\"\n}"
+    },
+    {
       "id": "MCP-001",
       "name": "Invalid JSON-RPC Version",
       "severity": "HIGH",
@@ -6482,6 +6538,11 @@
       "prefix": "KR-SK",
       "count": 1,
       "description": "Kiro per-client skill rules"
+    },
+    "kiro-agents": {
+      "prefix": "KR-AG",
+      "count": 2,
+      "description": "Kiro subagent invocation consistency rules"
     },
     "amp-skills": {
       "prefix": "AMP-SK",

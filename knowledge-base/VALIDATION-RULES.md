@@ -405,6 +405,20 @@ Rules with an empty `applies_to` object (`{}`) apply universally.
 **Fix**: [AUTO-FIX, safe] Remove unsupported field
 **Source**: kiro.dev/docs/context/steering
 
+<a id="kr-ag-006"></a>
+### KR-AG-006 [MEDIUM] Kiro Agent References Unknown Subagent
+**Requirement**: Kiro agent prompts SHOULD reference only subagents defined in `.kiro/agents/*.json`
+**Detection**: Prompt contains `@agent-name` mention where agent name is not present in sibling Kiro agent definitions
+**Fix**: Add the missing agent file or remove the unresolved `@agent-name` reference
+**Source**: github.com/kirodotdev/kiro/issues/5743, github.com/kirodotdev/kiro/issues/4262
+
+<a id="kr-ag-007"></a>
+### KR-AG-007 [MEDIUM] Kiro Agent Tool Scope Broader Than Referenced Subagent
+**Requirement**: Orchestrator agent tool scope SHOULD NOT exceed the referenced subagent tool scope
+**Detection**: For each referenced `@agent-name`, parent `allowedTools/tools` contains entries not present in the referenced subagent
+**Fix**: Narrow parent tool scope or align referenced subagent permissions
+**Source**: github.com/kirodotdev/kiro/issues/5071, github.com/kirodotdev/kiro/issues/5449
+
 <a id="amp-sk-001"></a>
 ### AMP-SK-001 [MEDIUM] Amp Skill Uses Unsupported Field
 **Requirement**: Skills in `.agents/skills/` SHOULD NOT use frontmatter fields unsupported by Amp
@@ -1860,7 +1874,7 @@ Complete coverage:
 - MCP-001 through MCP-006 (MCP protocol)
 - PE-001 through PE-006 (Prompt engineering)
 - XP-001 through XP-008, XP-SK-001 (Cross-platform)
-- CR-SK-001, CL-SK-001, CP-SK-001, CX-SK-001, OC-SK-001, WS-SK-001, KR-SK-001, AMP-SK-001, RC-SK-001 (Per-client skills)
+- CR-SK-001, CL-SK-001, CP-SK-001, CX-SK-001, OC-SK-001, WS-SK-001, KR-SK-001, KR-AG-006, KR-AG-007, AMP-SK-001, RC-SK-001 (Per-client and Kiro agent rules)
 - Remaining MEDIUM/LOW certainty rules
 
 ---
@@ -2018,13 +2032,14 @@ pub fn validate_skill(path: &Path, content: &str) -> Vec<Diagnostic> {
 | OpenCode Skills | 1 | 0 | 1 | 0 | 1 |
 | Windsurf Skills | 1 | 0 | 1 | 0 | 1 |
 | Kiro Skills | 1 | 0 | 1 | 0 | 1 |
+| Kiro Agents | 2 | 0 | 2 | 0 | 0 |
 | Kiro Steering | 4 | 2 | 2 | 0 | 1 |
 | Amp Skills | 1 | 0 | 1 | 0 | 1 |
 | Amp Checks | 4 | 2 | 2 | 0 | 3 |
 | Roo Code Skills | 1 | 0 | 1 | 0 | 1 |
 | Roo Code | 6 | 3 | 3 | 0 | 0 |
 | Version Awareness | 1 | 0 | 0 | 1 | 0 |
-| **TOTAL** | **231** | **136** | **87** | **8** | **97** |
+| **TOTAL** | **233** | **136** | **89** | **8** | **97** |
 
 
 ---
@@ -2054,7 +2069,7 @@ pub fn validate_skill(path: &Path, content: &str) -> Vec<Diagnostic> {
 
 ---
 
-**Total Coverage**: 231 validation rules across 32 categories
+**Total Coverage**: 233 validation rules across 32 categories
 
 **Knowledge Base**: 11,036 lines, 320KB, 75+ sources
 **Certainty**: 135 HIGH, 87 MEDIUM, 8 LOW

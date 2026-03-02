@@ -526,6 +526,12 @@ rules:
   kiro_004:
     message: "Kiro 引导文件为空"
     suggestion: "向文件添加引导内容"
+  kr_ag_006:
+    message: "Kiro 代理引用了未知子代理 '@%{agent}'"
+    suggestion: "创建 .kiro/agents/%{agent}.json 或删除该子代理引用"
+  kr_ag_007:
+    message: "Kiro 代理比被引用子代理 '@%{agent}' 拥有更宽的工具范围（额外工具: %{extra_tools}）"
+    suggestion: "收窄当前代理工具范围，或对齐 '@%{agent}' 的工具权限"
 
   # --- Prompt engineering (prompt.rs) ---
   pe_001:

@@ -398,7 +398,7 @@ impl ValidatorRegistryBuilder {
 ///
 /// Used by `BuiltinProvider` (via `debug_assert_eq!`) and tests to catch
 /// accidental additions or removals without updating all providers.
-const EXPECTED_BUILTIN_COUNT: usize = 68;
+const EXPECTED_BUILTIN_COUNT: usize = 69;
 
 // -- Category providers -----------------------------------------------------
 //
@@ -761,6 +761,11 @@ impl ValidatorProvider for MiscProvider {
             (FileType::KiroPower, Some("XmlValidator"), xml_validator),
             (
                 FileType::KiroAgent,
+                Some("KiroAgentValidator"),
+                kiro_agent_validator,
+            ),
+            (
+                FileType::KiroAgent,
                 Some("ImportsValidator"),
                 imports_validator,
             ),
@@ -895,6 +900,10 @@ fn windsurf_validator() -> Box<dyn Validator> {
 
 fn kiro_steering_validator() -> Box<dyn Validator> {
     Box::new(crate::rules::kiro_steering::KiroSteeringValidator)
+}
+
+fn kiro_agent_validator() -> Box<dyn Validator> {
+    Box::new(crate::rules::kiro_agent::KiroAgentValidator)
 }
 
 #[cfg(test)]
@@ -1420,7 +1429,10 @@ mod tests {
             names_for(FileType::KiroPower),
             vec!["ImportsValidator", "CrossPlatformValidator", "XmlValidator"]
         );
-        assert_eq!(names_for(FileType::KiroAgent), vec!["ImportsValidator"]);
+        assert_eq!(
+            names_for(FileType::KiroAgent),
+            vec!["KiroAgentValidator", "ImportsValidator"]
+        );
         assert_eq!(names_for(FileType::KiroHook), vec!["ImportsValidator"]);
         assert_eq!(names_for(FileType::KiroMcp), vec!["McpValidator"]);
     }
@@ -1863,7 +1875,7 @@ mod tests {
 
     #[test]
     fn misc_provider_count() {
-        assert_eq!(MiscProvider.named_validators().len(), 19);
+        assert_eq!(MiscProvider.named_validators().len(), 20);
     }
 
     #[test]

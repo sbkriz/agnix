@@ -699,6 +699,12 @@ rules:
   kiro_004:
     message: "Kiro steering file is empty"
     suggestion: "Add steering content to the file"
+  kr_ag_006:
+    message: "Kiro agent references unknown subagent '@%{agent}'"
+    suggestion: "Create .kiro/agents/%{agent}.json or remove the subagent reference"
+  kr_ag_007:
+    message: "Kiro agent has broader tools than referenced subagent '@%{agent}' (extra tools: %{extra_tools})"
+    suggestion: "Narrow this agent's tool scope or align '@%{agent}' tool permissions"
 
   # --- Prompt engineering (prompt.rs) ---
   pe_001:

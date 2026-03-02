@@ -526,6 +526,12 @@ rules:
   kiro_004:
     message: "El archivo de orientacion Kiro esta vacio"
     suggestion: "Agrega contenido de orientacion al archivo"
+  kr_ag_006:
+    message: "El agente de Kiro referencia un subagente desconocido '@%{agent}'"
+    suggestion: "Crea .kiro/agents/%{agent}.json o elimina la referencia al subagente"
+  kr_ag_007:
+    message: "El agente de Kiro tiene herramientas mas amplias que el subagente referenciado '@%{agent}' (herramientas extra: %{extra_tools})"
+    suggestion: "Reduce el alcance de herramientas de este agente o alinea los permisos de '@%{agent}'"
 
   # --- Prompt engineering (prompt.rs) ---
   pe_001:

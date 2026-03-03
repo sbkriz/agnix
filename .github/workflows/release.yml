@@ -407,12 +407,80 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ !contains(github.ref, '-') }}
     steps:
-      - uses: huacnlee/zed-extension-action@8cd592a0d24e1e41157740f1a529aeabddc88a1b # v2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          extension-name: agnix
-          push-to: avifenesh/extensions
+          fetch-depth: 0
+
+      - name: Update Zed extension registry
         env:
-          COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
+          GH_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          export VERSION
+          TAG="v${VERSION}"
+          TAG_SHA="$(git rev-list -n 1 "$TAG")"
+          BRANCH="update-agnix-v${VERSION}"
+
+          WORKDIR="$(mktemp -d)"
+          trap 'rm -rf "$WORKDIR"' EXIT
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/avifenesh/extensions.git" "$WORKDIR/extensions"
+          cd "$WORKDIR/extensions"
+
+          git checkout -B "$BRANCH" origin/main
+          git submodule update --init extensions/agnix
+          git -C extensions/agnix fetch origin "$TAG_SHA"
+          git -C extensions/agnix checkout "$TAG_SHA"
+
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          version = os.environ["VERSION"]
+          path = Path("extensions.toml")
+          lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+
+          in_agnix = False
+          found_version = False
+          for i, line in enumerate(lines):
+            stripped = line.strip()
+            if stripped.startswith("[") and stripped.endswith("]"):
+              in_agnix = stripped == "[agnix]"
+              continue
+            if in_agnix and stripped.startswith("version = "):
+              found_version = True
+              eol = "\r\n" if line.endswith("\r\n") else "\n"
+              lines[i] = f'version = "{version}"{eol}'
+              break
+
+          if not found_version:
+            raise SystemExit("Could not find [agnix] version line in extensions.toml")
+
+          path.write_text("".join(lines), encoding="utf-8")
+          PY
+
+          git add extensions/agnix extensions.toml
+          if git diff --cached --quiet; then
+            echo "No Zed registry changes required for v${VERSION}"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Update agnix to v${VERSION}"
+          git push --force-with-lease origin "$BRANCH"
+
+          EXISTING_PR="$(gh pr list --repo avifenesh/extensions --state open --head "avifenesh:${BRANCH}" --json number --jq '.[0].number // empty')"
+          if [ -n "$EXISTING_PR" ]; then
+            echo "PR #${EXISTING_PR} already exists for ${BRANCH}"
+          else
+            gh pr create \
+              --repo avifenesh/extensions \
+              --base main \
+              --head "$BRANCH" \
+              --title "Update agnix to v${VERSION}" \
+              --body "Auto-generated update for the agnix Zed extension release v${VERSION}."
+          fi
 
   version-docs:
     name: Version Docs & Push to Main
@@ -480,23 +548,15 @@ jobs:
             # Force-push to update the auto-generated docs branch on workflow re-runs
             git push --force-with-lease origin "$BRANCH"
             # Create PR only if one doesn't already exist for this branch
-            PR_CHECK_ERR="$(mktemp)"
-            if gh pr view --head "$BRANCH" --json number --jq '.number' >/dev/null 2>"$PR_CHECK_ERR"; then
-              echo "PR already exists for $BRANCH, updated with force push"
+            EXISTING_PR="$(gh pr list --head "$BRANCH" --base main --state open --json number --jq '.[0].number // empty')"
+            if [ -n "$EXISTING_PR" ]; then
+              echo "PR #${EXISTING_PR} already exists for $BRANCH, updated with force push"
             else
-              if grep -qiE 'not[[:space:]]+found|could not find pull request|no pull requests' "$PR_CHECK_ERR"; then
-                gh pr create \
-                  --base main \
-                  --head "$BRANCH" \
-                  --title "docs: version ${{ steps.version.outputs.version }} docs" \
-                  --body "Auto-generated versioned docs snapshot for v${{ steps.version.outputs.version }}, including updated rule docs and site data." \
-                  --label "documentation"
-              else
-                echo "Error checking for existing PR:"
-                cat "$PR_CHECK_ERR"
-                rm -f "$PR_CHECK_ERR"
-                exit 1
-              fi
+              gh pr create \
+                --base main \
+                --head "$BRANCH" \
+                --title "docs: version ${{ steps.version.outputs.version }} docs" \
+                --body "Auto-generated versioned docs snapshot for v${{ steps.version.outputs.version }}, including updated rule docs and site data." \
+                --label "documentation"
             fi
-            rm -f "$PR_CHECK_ERR"
           fi

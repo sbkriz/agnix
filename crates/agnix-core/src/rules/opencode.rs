@@ -15,9 +15,9 @@ use crate::{
     diagnostics::{Diagnostic, Fix},
     rules::{Validator, ValidatorMetadata},
     schemas::opencode::{
-        DEPRECATED_KEYS, KNOWN_TUI_KEYS, VALID_DIFF_STYLES, VALID_LOG_LEVELS,
-        VALID_NAMED_COLORS, VALID_PERMISSION_MODES, VALID_SHARE_MODES, is_glob_pattern,
-        parse_opencode_json, validate_glob_pattern,
+        DEPRECATED_KEYS, KNOWN_TUI_KEYS, VALID_DIFF_STYLES, VALID_LOG_LEVELS, VALID_NAMED_COLORS,
+        VALID_PERMISSION_MODES, VALID_SHARE_MODES, is_glob_pattern, parse_opencode_json,
+        validate_glob_pattern,
     },
 };
 use rust_i18n::t;
@@ -655,7 +655,8 @@ impl Validator for OpenCodeValidator {
                                                 diagnostics.push(
                                                     Diagnostic::error(
                                                         path.to_path_buf(),
-                                                        find_key_line(content, srv_name).unwrap_or(1),
+                                                        find_key_line(content, srv_name)
+                                                            .unwrap_or(1),
                                                         0,
                                                         "OC-CFG-007",
                                                         t!("rules.oc_cfg_007.local_missing")
@@ -666,8 +667,7 @@ impl Validator for OpenCodeValidator {
                                                             .to_string(),
                                                     ),
                                                 );
-                                            } else if let Some(command_val) = srv.get("command")
-                                            {
+                                            } else if let Some(command_val) = srv.get("command") {
                                                 let valid_command =
                                                     command_val.as_array().is_some_and(|arr| {
                                                         !arr.is_empty()
@@ -699,7 +699,8 @@ impl Validator for OpenCodeValidator {
                                                 diagnostics.push(
                                                     Diagnostic::error(
                                                         path.to_path_buf(),
-                                                        find_key_line(content, srv_name).unwrap_or(1),
+                                                        find_key_line(content, srv_name)
+                                                            .unwrap_or(1),
                                                         0,
                                                         "OC-CFG-007",
                                                         t!("rules.oc_cfg_007.remote_missing")
@@ -710,14 +711,14 @@ impl Validator for OpenCodeValidator {
                                                             .to_string(),
                                                     ),
                                                 );
-                                            } else if let Some(url_val) = srv.get("url")
-                                            {
-                                                let valid_url = url_val.as_str().is_some_and(|url| {
-                                                    let trimmed = url.trim();
-                                                    !trimmed.is_empty()
-                                                        && (trimmed.starts_with("http://")
-                                                            || trimmed.starts_with("https://"))
-                                                });
+                                            } else if let Some(url_val) = srv.get("url") {
+                                                let valid_url =
+                                                    url_val.as_str().is_some_and(|url| {
+                                                        let trimmed = url.trim();
+                                                        !trimmed.is_empty()
+                                                            && (trimmed.starts_with("http://")
+                                                                || trimmed.starts_with("https://"))
+                                                    });
 
                                                 if !valid_url {
                                                     diagnostics.push(
@@ -936,14 +937,11 @@ impl Validator for OpenCodeValidator {
                             // Only fires for values that look like named colors (no '#' prefix)
                             // but aren't in VALID_NAMED_COLORS. Hex validation is handled by OC-AG-002.
                             if config.is_rule_enabled("OC-AG-006") {
-                                if let Some(color_val) =
-                                    ag.get("color").and_then(|c| c.as_str())
-                                {
+                                if let Some(color_val) = ag.get("color").and_then(|c| c.as_str()) {
                                     if !color_val.starts_with('#')
                                         && !VALID_NAMED_COLORS.contains(&color_val)
                                     {
-                                        let line =
-                                            find_key_line(content, "color").unwrap_or(1);
+                                        let line = find_key_line(content, "color").unwrap_or(1);
                                         let mut diagnostic = Diagnostic::warning(
                                             path.to_path_buf(),
                                             line,
@@ -968,17 +966,13 @@ impl Validator for OpenCodeValidator {
                                                     content, "color", color_val,
                                                 )
                                             {
-                                                diagnostic =
-                                                    diagnostic.with_fix(Fix::replace(
-                                                        start,
-                                                        end,
-                                                        suggested,
-                                                        format!(
-                                                            "Replace color with '{}'",
-                                                            suggested
-                                                        ),
-                                                        false,
-                                                    ));
+                                                diagnostic = diagnostic.with_fix(Fix::replace(
+                                                    start,
+                                                    end,
+                                                    suggested,
+                                                    format!("Replace color with '{}'", suggested),
+                                                    false,
+                                                ));
                                             }
                                         }
 
@@ -1197,15 +1191,9 @@ impl Validator for OpenCodeValidator {
                             line,
                             0,
                             rule_id,
-                            format!(
-                                "Deprecated key '{}'. Use '{}' instead",
-                                old_key, new_key
-                            ),
+                            format!("Deprecated key '{}'. Use '{}' instead", old_key, new_key),
                         )
-                        .with_suggestion(format!(
-                            "Rename '{}' to '{}'",
-                            old_key, new_key
-                        ));
+                        .with_suggestion(format!("Rename '{}' to '{}'", old_key, new_key));
 
                         if let Some((start, end)) = find_json_key_span(content, old_key) {
                             diagnostic = diagnostic.with_fix(Fix::replace(
@@ -1223,8 +1211,7 @@ impl Validator for OpenCodeValidator {
 
                 // OC-DEP-004: CONTEXT.md deprecated filename in instructions
                 if config.is_rule_enabled("OC-DEP-004") {
-                    if let Some(instructions) = obj.get("instructions").and_then(|v| v.as_array())
-                    {
+                    if let Some(instructions) = obj.get("instructions").and_then(|v| v.as_array()) {
                         for instr in instructions {
                             if let Some(instr_str) = instr.as_str() {
                                 let instr_path = Path::new(instr_str);
@@ -1280,9 +1267,9 @@ impl Validator for OpenCodeValidator {
                                 if let Some(suggested) =
                                     find_closest_value(&lower, VALID_LOG_LEVELS)
                                 {
-                                    if let Some((start, end)) =
-                                        find_unique_json_string_value_span(content, "logLevel", log_str)
-                                    {
+                                    if let Some((start, end)) = find_unique_json_string_value_span(
+                                        content, "logLevel", log_str,
+                                    ) {
                                         diagnostic = diagnostic.with_fix(Fix::replace(
                                             start,
                                             end,
@@ -1442,15 +1429,13 @@ impl Validator for OpenCodeValidator {
                             if let Some(srv) = srv_val.as_object() {
                                 if let Some(oauth) = srv.get("oauth") {
                                     if let Some(oauth_obj) = oauth.as_object() {
-                                        let has_client_id =
-                                            oauth_obj.contains_key("client_id");
+                                        let has_client_id = oauth_obj.contains_key("client_id");
                                         let has_auth_url =
                                             oauth_obj.contains_key("authorization_url");
                                         if !has_client_id || !has_auth_url {
                                             let missing: Vec<&str> = [
                                                 (!has_client_id).then_some("client_id"),
-                                                (!has_auth_url)
-                                                    .then_some("authorization_url"),
+                                                (!has_auth_url).then_some("authorization_url"),
                                             ]
                                             .into_iter()
                                             .flatten()
@@ -1503,8 +1488,7 @@ impl Validator for OpenCodeValidator {
                     if let Some(lsp_obj) = obj.get("lsp").and_then(|l| l.as_object()) {
                         for (lsp_name, lsp_val) in lsp_obj {
                             if let Some(lsp) = lsp_val.as_object() {
-                                if lsp.contains_key("command") && !lsp.contains_key("extensions")
-                                {
+                                if lsp.contains_key("command") && !lsp.contains_key("extensions") {
                                     diagnostics.push(
                                         Diagnostic::warning(
                                             path.to_path_buf(),
@@ -1534,8 +1518,7 @@ impl Validator for OpenCodeValidator {
                             if let Some(lsp) = lsp_val.as_object() {
                                 if let Some(ext_val) = lsp.get("extensions") {
                                     let is_invalid = if let Some(arr) = ext_val.as_array() {
-                                        arr.is_empty()
-                                            || arr.iter().any(|v| !v.is_string())
+                                        arr.is_empty() || arr.iter().any(|v| !v.is_string())
                                     } else {
                                         !ext_val.is_null()
                                     };
@@ -1598,10 +1581,7 @@ impl Validator for OpenCodeValidator {
                                             find_key_line(content, "scroll_speed").unwrap_or(1),
                                             0,
                                             "OC-TUI-002",
-                                            format!(
-                                                "scroll_speed must be >= 0.001, got {}",
-                                                val
-                                            ),
+                                            format!("scroll_speed must be >= 0.001, got {}", val),
                                         )
                                         .with_suggestion(
                                             "Set scroll_speed to a number >= 0.001".to_string(),
@@ -1632,8 +1612,7 @@ impl Validator for OpenCodeValidator {
                         if let Some(style_val) = tui_obj.get("diff_style") {
                             if let Some(style_str) = style_val.as_str() {
                                 if !VALID_DIFF_STYLES.contains(&style_str) {
-                                    let line =
-                                        find_key_line(content, "diff_style").unwrap_or(1);
+                                    let line = find_key_line(content, "diff_style").unwrap_or(1);
                                     let mut diagnostic = Diagnostic::error(
                                         path.to_path_buf(),
                                         line,
@@ -1664,10 +1643,7 @@ impl Validator for OpenCodeValidator {
                                                 start,
                                                 end,
                                                 suggested,
-                                                format!(
-                                                    "Replace diff_style with '{}'",
-                                                    suggested
-                                                ),
+                                                format!("Replace diff_style with '{}'", suggested),
                                                 false,
                                             ));
                                         }
@@ -2821,7 +2797,10 @@ mod tests {
     #[test]
     fn test_oc_dep_001_deprecated_mode() {
         let diagnostics = validate(r#"{"mode": "agent"}"#);
-        let dep: Vec<_> = diagnostics.iter().filter(|d| d.rule == "OC-DEP-001").collect();
+        let dep: Vec<_> = diagnostics
+            .iter()
+            .filter(|d| d.rule == "OC-DEP-001")
+            .collect();
         assert_eq!(dep.len(), 1);
         assert_eq!(dep[0].level, DiagnosticLevel::Warning);
         assert!(dep[0].message.contains("mode"));
@@ -2832,7 +2811,10 @@ mod tests {
     fn test_oc_dep_001_autofix() {
         let content = r#"{"mode": "agent"}"#;
         let diagnostics = validate(content);
-        let dep: Vec<_> = diagnostics.iter().filter(|d| d.rule == "OC-DEP-001").collect();
+        let dep: Vec<_> = diagnostics
+            .iter()
+            .filter(|d| d.rule == "OC-DEP-001")
+            .collect();
         assert_eq!(dep.len(), 1);
         assert!(dep[0].has_fixes(), "OC-DEP-001 should have auto-fix");
         let fix = &dep[0].fixes[0];
@@ -2853,7 +2835,10 @@ mod tests {
     #[test]
     fn test_oc_dep_002_deprecated_tools() {
         let diagnostics = validate(r#"{"tools": {}}"#);
-        let dep: Vec<_> = diagnostics.iter().filter(|d| d.rule == "OC-DEP-002").collect();
+        let dep: Vec<_> = diagnostics
+            .iter()
+            .filter(|d| d.rule == "OC-DEP-002")
+            .collect();
         assert_eq!(dep.len(), 1);
         assert!(dep[0].message.contains("tools"));
     }
@@ -2862,7 +2847,10 @@ mod tests {
     fn test_oc_dep_002_autofix() {
         let content = r#"{"tools": {}}"#;
         let diagnostics = validate(content);
-        let dep: Vec<_> = diagnostics.iter().filter(|d| d.rule == "OC-DEP-002").collect();
+        let dep: Vec<_> = diagnostics
+            .iter()
+            .filter(|d| d.rule == "OC-DEP-002")
+            .collect();
         assert!(dep[0].has_fixes());
         let fix = &dep[0].fixes[0];
         let target = &content[fix.start_byte..fix.end_byte];
@@ -2875,7 +2863,10 @@ mod tests {
     #[test]
     fn test_oc_dep_003_deprecated_autoshare() {
         let diagnostics = validate(r#"{"autoshare": "manual"}"#);
-        let dep: Vec<_> = diagnostics.iter().filter(|d| d.rule == "OC-DEP-003").collect();
+        let dep: Vec<_> = diagnostics
+            .iter()
+            .filter(|d| d.rule == "OC-DEP-003")
+            .collect();
         assert_eq!(dep.len(), 1);
         assert!(dep[0].message.contains("autoshare"));
     }
@@ -2884,7 +2875,10 @@ mod tests {
     fn test_oc_dep_003_autofix() {
         let content = r#"{"autoshare": "manual"}"#;
         let diagnostics = validate(content);
-        let dep: Vec<_> = diagnostics.iter().filter(|d| d.rule == "OC-DEP-003").collect();
+        let dep: Vec<_> = diagnostics
+            .iter()
+            .filter(|d| d.rule == "OC-DEP-003")
+            .collect();
         assert!(dep[0].has_fixes());
         let fix = &dep[0].fixes[0];
         let target = &content[fix.start_byte..fix.end_byte];
@@ -2949,9 +2943,15 @@ mod tests {
     fn test_oc_cfg_008_autofix() {
         let content = r#"{"logLevel": "debu"}"#;
         let diagnostics = validate(content);
-        let cfg: Vec<_> = diagnostics.iter().filter(|d| d.rule == "OC-CFG-008").collect();
+        let cfg: Vec<_> = diagnostics
+            .iter()
+            .filter(|d| d.rule == "OC-CFG-008")
+            .collect();
         assert_eq!(cfg.len(), 1);
-        assert!(cfg[0].has_fixes(), "OC-CFG-008 should have auto-fix for close match");
+        assert!(
+            cfg[0].has_fixes(),
+            "OC-CFG-008 should have auto-fix for close match"
+        );
         let fix = &cfg[0].fixes[0];
         let target = &content[fix.start_byte..fix.end_byte];
         assert_eq!(target, "debu");
@@ -3108,9 +3108,15 @@ mod tests {
     fn test_oc_ag_006_autofix() {
         let content = r#"{"agent": {"a": {"color": "erro"}}}"#;
         let diagnostics = validate(content);
-        let ag: Vec<_> = diagnostics.iter().filter(|d| d.rule == "OC-AG-006").collect();
+        let ag: Vec<_> = diagnostics
+            .iter()
+            .filter(|d| d.rule == "OC-AG-006")
+            .collect();
         assert_eq!(ag.len(), 1);
-        assert!(ag[0].has_fixes(), "OC-AG-006 should have auto-fix for close match");
+        assert!(
+            ag[0].has_fixes(),
+            "OC-AG-006 should have auto-fix for close match"
+        );
         let fix = &ag[0].fixes[0];
         let target = &content[fix.start_byte..fix.end_byte];
         assert_eq!(target, "erro");
@@ -3121,8 +3127,7 @@ mod tests {
 
     #[test]
     fn test_oc_ag_007_redundant_steps() {
-        let diagnostics =
-            validate(r#"{"agent": {"a": {"steps": 10, "maxSteps": 20}}}"#);
+        let diagnostics = validate(r#"{"agent": {"a": {"steps": 10, "maxSteps": 20}}}"#);
         assert!(diagnostics.iter().any(|d| d.rule == "OC-AG-007"));
     }
 
@@ -3240,9 +3245,15 @@ mod tests {
     fn test_oc_tui_003_autofix() {
         let content = r#"{"tui": {"diff_style": "stack"}}"#;
         let diagnostics = validate(content);
-        let tui: Vec<_> = diagnostics.iter().filter(|d| d.rule == "OC-TUI-003").collect();
+        let tui: Vec<_> = diagnostics
+            .iter()
+            .filter(|d| d.rule == "OC-TUI-003")
+            .collect();
         assert_eq!(tui.len(), 1);
-        assert!(tui[0].has_fixes(), "OC-TUI-003 should have auto-fix for close match");
+        assert!(
+            tui[0].has_fixes(),
+            "OC-TUI-003 should have auto-fix for close match"
+        );
         let fix = &tui[0].fixes[0];
         let target = &content[fix.start_byte..fix.end_byte];
         assert_eq!(target, "stack");
@@ -3290,7 +3301,10 @@ mod tests {
     fn test_oc_cfg_012_empty_oauth() {
         let diagnostics =
             validate(r#"{"mcp": {"srv": {"type": "remote", "url": "http://x", "oauth": {}}}}"#);
-        let cfg_012: Vec<_> = diagnostics.iter().filter(|d| d.rule == "OC-CFG-012").collect();
+        let cfg_012: Vec<_> = diagnostics
+            .iter()
+            .filter(|d| d.rule == "OC-CFG-012")
+            .collect();
         assert_eq!(
             cfg_012.len(),
             1,

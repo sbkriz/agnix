@@ -65,7 +65,13 @@ pub const VALID_DIFF_STYLES: &[&str] = &["auto", "stacked"];
 
 /// Valid named color values for agent configuration
 pub const VALID_NAMED_COLORS: &[&str] = &[
-    "primary", "secondary", "accent", "success", "warning", "error", "info",
+    "primary",
+    "secondary",
+    "accent",
+    "success",
+    "warning",
+    "error",
+    "info",
 ];
 
 /// Known TUI configuration keys

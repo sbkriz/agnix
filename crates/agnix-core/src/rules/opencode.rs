@@ -3366,16 +3366,15 @@ mod tests {
     // ===== Fix #8: find_json_key_span nested key =====
 
     #[test]
-    fn test_find_json_key_span_nested_returns_first() {
+    fn test_find_json_key_span_nested_returns_none() {
         // When the same key appears at multiple nesting levels,
-        // find_json_key_span returns the first occurrence.
-        // This is a known limitation - it does not distinguish nesting depth.
+        // find_json_key_span returns None to prevent unsafe autofixes.
         let content = r#"{"name": "outer", "nested": {"name": "inner"}}"#;
         let span = find_json_key_span(content, "name");
-        assert!(span.is_some());
-        let (start, _end) = span.unwrap();
-        // Should match the first "name" key
-        assert!(start < content.find("nested").unwrap());
+        assert!(
+            span.is_none(),
+            "Should return None when key appears multiple times"
+        );
     }
 
     // ===== Fix #11: truncate_for_display =====

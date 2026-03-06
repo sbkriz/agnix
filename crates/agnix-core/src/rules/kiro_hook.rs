@@ -159,7 +159,7 @@ impl Validator for KiroHookValidator {
                 .or_else(|| hook.extra.get("timeoutMs"))
             {
                 if let Some(timeout) = timeout_val.as_u64() {
-                    if timeout > MAX_HOOK_TIMEOUT_MS {
+                    if timeout == 0 || timeout > MAX_HOOK_TIMEOUT_MS {
                         diagnostics.push(
                             Diagnostic::warning(
                                 path.to_path_buf(),

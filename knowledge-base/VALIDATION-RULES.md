@@ -2857,5 +2857,5 @@ pub fn validate_skill(path: &Path, content: &str) -> Vec<Diagnostic> {
 **Total Coverage**: 342 validation rules across 36 categories
 
 **Knowledge Base**: 11,036 lines, 320KB, 75+ sources
-**Certainty**: 180 HIGH, 115 MEDIUM, 9 LOW
+**Certainty**: 190 HIGH, 138 MEDIUM, 14 LOW
 **Auto-Fixable**: 102 rules (34%)

@@ -454,6 +454,48 @@ Rules with an empty `applies_to` object (`{}`) apply universally.
 **Fix**: Narrow parent tool scope or align referenced subagent permissions
 **Source**: github.com/kirodotdev/kiro/issues/5071, github.com/kirodotdev/kiro/issues/5449
 
+<a id="kr-ag-008"></a>
+### KR-AG-008 [HIGH] Agent Missing Name
+**Requirement**: Kiro agent JSON MUST include a non-empty `name` field
+**Detection**: Check if `name` field is present and non-empty
+**Fix**: No auto-fix (add a name field)
+**Source**: kiro.dev/docs/agents, kiro.dev/docs/configuration
+
+<a id="kr-ag-009"></a>
+### KR-AG-009 [HIGH] Agent Missing Prompt
+**Requirement**: Kiro agent JSON MUST include a non-empty `prompt` field
+**Detection**: Check if `prompt` field is present and non-empty
+**Fix**: No auto-fix (add a prompt field)
+**Source**: kiro.dev/docs/agents, kiro.dev/docs/configuration
+
+<a id="kr-ag-010"></a>
+### KR-AG-010 [MEDIUM] Duplicate Tool Entries
+**Requirement**: Kiro agent `tools` array SHOULD NOT contain duplicate entries
+**Detection**: Check for duplicate tool names (case-insensitive)
+**Fix**: No auto-fix (remove duplicates)
+**Source**: kiro.dev/docs/agents, kiro.dev/docs/configuration
+
+<a id="kr-ag-011"></a>
+### KR-AG-011 [LOW] Empty Tools Array
+**Requirement**: Kiro agent `tools` array SHOULD contain at least one entry if present
+**Detection**: Check if `tools` is an empty array
+**Fix**: No auto-fix (add tools or remove the field)
+**Source**: kiro.dev/docs/agents, kiro.dev/docs/configuration
+
+<a id="kr-ag-012"></a>
+### KR-AG-012 [MEDIUM] toolAliases References Unknown Tool
+**Requirement**: `toolAliases` targets SHOULD reference tools in the `tools` array
+**Detection**: Check each alias target against the tools set
+**Fix**: No auto-fix (fix alias or add missing tool)
+**Source**: kiro.dev/docs/agents, kiro.dev/docs/configuration
+
+<a id="kr-ag-013"></a>
+### KR-AG-013 [HIGH] Secrets in Agent Prompt
+**Requirement**: Kiro agent `prompt` MUST NOT contain hardcoded credentials
+**Detection**: Scan prompt for secret patterns (API keys, tokens, passwords)
+**Fix**: No auto-fix (use environment variables)
+**Source**: kiro.dev/docs/agents, kiro.dev/docs/configuration
+
 <a id="kr-hk-005"></a>
 ### KR-HK-005 [HIGH] Invalid Kiro CLI Hook Event Key
 **Requirement**: Agent JSON `hooks` keys MUST use valid CLI hook event names
@@ -1929,6 +1971,118 @@ Rules with an empty `applies_to` object (`{}`) apply universally.
 **Fix**: No auto-fix (set to a supported value)
 **Source**: developers.openai.com/codex/config-reference, developers.openai.com/codex/config-schema.json
 
+<a id="cdx-cfg-013"></a>
+### CDX-CFG-013 [HIGH] Invalid sandbox_workspace_write Mode
+**Requirement**: `sandbox_workspace_write.mode` MUST be one of `allowlist|denylist|all`
+**Detection**: Parse config and validate `sandbox_workspace_write.mode` enum values
+**Fix**: No auto-fix (set to a supported value)
+**Source**: developers.openai.com/codex/config-reference, developers.openai.com/codex/config-schema.json
+
+<a id="cdx-cfg-014"></a>
+### CDX-CFG-014 [MEDIUM] Invalid model Value
+**Requirement**: `model` SHOULD be a string
+**Detection**: Parse config and verify `model` is a string type
+**Fix**: No auto-fix (set to a valid model name string)
+**Source**: developers.openai.com/codex/config-reference, developers.openai.com/codex/config-schema.json
+
+<a id="cdx-cfg-015"></a>
+### CDX-CFG-015 [HIGH] Invalid model_provider Value
+**Requirement**: `model_provider` MUST be a string
+**Detection**: Parse config and verify `model_provider` is a string type
+**Fix**: No auto-fix (set to a valid provider string)
+**Source**: developers.openai.com/codex/config-reference, developers.openai.com/codex/config-schema.json
+
+<a id="cdx-cfg-016"></a>
+### CDX-CFG-016 [MEDIUM] Invalid model_reasoning_summary Value
+**Requirement**: `model_reasoning_summary` SHOULD be one of `auto|always|none|concise|detailed`
+**Detection**: Parse config and validate `model_reasoning_summary` enum values
+**Fix**: No auto-fix (set to a supported value)
+**Source**: developers.openai.com/codex/config-reference, developers.openai.com/codex/config-schema.json
+
+<a id="cdx-cfg-017"></a>
+### CDX-CFG-017 [MEDIUM] Invalid history Configuration
+**Requirement**: `history` SHOULD be a TOML table (object)
+**Detection**: Parse config and verify `history` is an object type
+**Fix**: No auto-fix (configure as a TOML table)
+**Source**: developers.openai.com/codex/config-reference, developers.openai.com/codex/config-schema.json
+
+<a id="cdx-cfg-018"></a>
+### CDX-CFG-018 [MEDIUM] Invalid tui Configuration
+**Requirement**: `tui` SHOULD be a TOML table (object)
+**Detection**: Parse config and verify `tui` is an object type
+**Fix**: No auto-fix (configure as a TOML table)
+**Source**: developers.openai.com/codex/config-reference, developers.openai.com/codex/config-schema.json
+
+<a id="cdx-cfg-019"></a>
+### CDX-CFG-019 [MEDIUM] Invalid file_opener Value
+**Requirement**: `file_opener` SHOULD be a string
+**Detection**: Parse config and verify `file_opener` is a string type
+**Fix**: No auto-fix (set to a valid opener string)
+**Source**: developers.openai.com/codex/config-reference, developers.openai.com/codex/config-schema.json
+
+<a id="cdx-cfg-020"></a>
+### CDX-CFG-020 [HIGH] Invalid MCP OAuth Config
+**Requirement**: `mcp_oauth_credentials_store` MUST be one of `file|keyring|auto|ephemeral`
+**Detection**: Parse config and validate `mcp_oauth_credentials_store` enum values
+**Fix**: No auto-fix (set to a supported value)
+**Source**: developers.openai.com/codex/config-reference, developers.openai.com/codex/config-schema.json
+
+<a id="cdx-cfg-021"></a>
+### CDX-CFG-021 [MEDIUM] Invalid model_context_window Value
+**Requirement**: `model_context_window` SHOULD be a positive integer
+**Detection**: Parse config and verify value is a positive integer
+**Fix**: No auto-fix (set to a valid positive integer)
+**Source**: developers.openai.com/codex/config-reference, developers.openai.com/codex/config-schema.json
+
+<a id="cdx-cfg-022"></a>
+### CDX-CFG-022 [MEDIUM] Invalid model_auto_compact_token_limit Value
+**Requirement**: `model_auto_compact_token_limit` SHOULD be a positive integer
+**Detection**: Parse config and verify value is a positive integer
+**Fix**: No auto-fix (set to a valid positive integer)
+**Source**: developers.openai.com/codex/config-reference, developers.openai.com/codex/config-schema.json
+
+<a id="cdx-ag-004"></a>
+### CDX-AG-004 [MEDIUM] AGENTS.md Exceeds Size Limit
+**Requirement**: AGENTS.md SHOULD not exceed 100,000 bytes
+**Detection**: Check file size against the limit
+**Fix**: No auto-fix (reduce content length)
+**Source**: developers.openai.com/codex/guides/agents-md
+
+<a id="cdx-ag-005"></a>
+### CDX-AG-005 [MEDIUM] AGENTS.md References Missing File
+**Requirement**: File references in AGENTS.md SHOULD point to existing files
+**Detection**: Extract backtick-quoted file paths and check existence
+**Fix**: No auto-fix (fix reference or create missing file)
+**Source**: developers.openai.com/codex/guides/agents-md
+
+<a id="cdx-ag-006"></a>
+### CDX-AG-006 [LOW] AGENTS.md Missing Project Context
+**Requirement**: AGENTS.md SHOULD include project-specific structure like headings, commands, and paths
+**Detection**: Check for presence of headings, backtick commands, and file paths
+**Fix**: No auto-fix (add project-specific content)
+**Source**: developers.openai.com/codex/guides/agents-md
+
+<a id="cdx-ag-007"></a>
+### CDX-AG-007 [MEDIUM] AGENTS.md Contradicts config.toml
+**Requirement**: AGENTS.md instructions SHOULD be consistent with config.toml values
+**Detection**: Cross-file analysis (project-level check)
+**Fix**: No auto-fix (align instructions with configuration)
+**Source**: developers.openai.com/codex/guides/agents-md
+
+<a id="cdx-app-002"></a>
+### CDX-APP-002 [MEDIUM] Invalid skills Configuration
+**Requirement**: `skills` SHOULD be a TOML table (object)
+**Detection**: Parse config and verify `skills` is an object type
+**Fix**: No auto-fix (configure as a TOML table)
+**Source**: developers.openai.com/codex/config-reference, developers.openai.com/codex/config-schema.json
+
+<a id="cdx-app-003"></a>
+### CDX-APP-003 [MEDIUM] Invalid profile Configuration
+**Requirement**: `profile` SHOULD be a string
+**Detection**: Parse config and verify `profile` is a string type
+**Fix**: No auto-fix (set to a valid profile name string)
+**Source**: developers.openai.com/codex/config-reference, developers.openai.com/codex/config-schema.json
+
 ---
 
 ## ROO CODE RULES
@@ -2074,6 +2228,41 @@ Rules with an empty `applies_to` object (`{}`) apply universally.
 **Fix**: Correct the file reference path or create the missing file
 **Source**: kiro.dev/docs/steering/
 
+<a id="kiro-010"></a>
+### KIRO-010 [MEDIUM] Missing Inclusion Mode
+**Requirement**: Kiro steering frontmatter SHOULD include an `inclusion` field
+**Detection**: Check if `inclusion` field is absent from frontmatter
+**Fix**: No auto-fix (add inclusion field)
+**Source**: kiro.dev/docs/steering
+
+<a id="kiro-011"></a>
+### KIRO-011 [LOW] Steering Doc Excessively Long
+**Requirement**: Kiro steering documents SHOULD be concise (under 50,000 bytes)
+**Detection**: Check document byte length against threshold
+**Fix**: No auto-fix (split into smaller files)
+**Source**: kiro.dev/docs/steering
+
+<a id="kiro-012"></a>
+### KIRO-012 [MEDIUM] Duplicate Steering Name
+**Requirement**: Kiro steering file names SHOULD be unique across the project
+**Detection**: Cross-file analysis (project-level check)
+**Fix**: No auto-fix (rename steering files)
+**Source**: kiro.dev/docs/steering
+
+<a id="kiro-013"></a>
+### KIRO-013 [MEDIUM] Conflicting Inclusion Modes
+**Requirement**: Kiro steering frontmatter SHOULD have exactly one `inclusion` key
+**Detection**: Count `inclusion:` entries in frontmatter
+**Fix**: No auto-fix (remove duplicate entries)
+**Source**: kiro.dev/docs/steering
+
+<a id="kiro-014"></a>
+### KIRO-014 [LOW] Markdown Structure Issues
+**Requirement**: Kiro steering body SHOULD have Markdown heading structure
+**Detection**: Check if body content contains at least one heading
+**Fix**: No auto-fix (add headings for structure)
+**Source**: kiro.dev/docs/steering
+
 ---
 
 ## KIRO POWERS RULES
@@ -2105,6 +2294,34 @@ Rules with an empty `applies_to` object (`{}`) apply universally.
 **Detection**: Adjacent `mcp.json` is malformed, missing `mcpServers`, or uses invalid `mcpServers` shape
 **Fix**: Update `mcp.json` to use valid `mcpServers` object structure
 **Source**: kiro.dev/docs/powers/
+
+<a id="kr-pw-005"></a>
+### KR-PW-005 [HIGH] Step Missing Description
+**Requirement**: Each step heading in POWER.md MUST have description content below it
+**Detection**: Check for empty sections after `## Step` headings
+**Fix**: No auto-fix (add step description)
+**Source**: kiro.dev/docs/powers
+
+<a id="kr-pw-006"></a>
+### KR-PW-006 [LOW] Duplicate Keywords
+**Requirement**: POWER.md keywords SHOULD be unique
+**Detection**: Check for duplicate entries in keywords array (case-insensitive)
+**Fix**: No auto-fix (remove duplicate keywords)
+**Source**: kiro.dev/docs/powers
+
+<a id="kr-pw-007"></a>
+### KR-PW-007 [MEDIUM] Name Invalid Characters
+**Requirement**: POWER.md name SHOULD use lowercase alphanumeric characters and hyphens only
+**Detection**: Validate name against `^[a-z0-9][a-z0-9_-]*$` pattern
+**Fix**: No auto-fix (rename to valid format)
+**Source**: kiro.dev/docs/powers
+
+<a id="kr-pw-008"></a>
+### KR-PW-008 [HIGH] Secrets in Power Body
+**Requirement**: POWER.md body MUST NOT contain hardcoded credentials
+**Detection**: Scan body for secret patterns (API keys, tokens, passwords)
+**Fix**: No auto-fix (use environment variables)
+**Source**: kiro.dev/docs/powers
 
 ---
 
@@ -2138,6 +2355,34 @@ Rules with an empty `applies_to` object (`{}`) apply universally.
 **Fix**: Add `toolTypes` to narrow hook scope
 **Source**: kiro.dev/docs/hooks/types
 
+<a id="kr-hk-007"></a>
+### KR-HK-007 [MEDIUM] Hook Timeout Out of Range
+**Requirement**: Hook timeout SHOULD be between 1 and 300,000 milliseconds
+**Detection**: Check timeout value is within valid range
+**Fix**: No auto-fix (set to a valid timeout)
+**Source**: kiro.dev/docs/hooks
+
+<a id="kr-hk-008"></a>
+### KR-HK-008 [MEDIUM] Duplicate Event Handlers
+**Requirement**: Hook files SHOULD NOT duplicate the same event+pattern combination
+**Detection**: Cross-file analysis (project-level check)
+**Fix**: No auto-fix (remove duplicate handlers)
+**Source**: kiro.dev/docs/hooks
+
+<a id="kr-hk-009"></a>
+### KR-HK-009 [MEDIUM] Command Uses Absolute Path
+**Requirement**: Hook commands SHOULD use relative paths for portability
+**Detection**: Check if command starts with `/` or drive letter
+**Fix**: No auto-fix (use relative paths)
+**Source**: kiro.dev/docs/hooks
+
+<a id="kr-hk-010"></a>
+### KR-HK-010 [HIGH] Secrets in Hook Command
+**Requirement**: Hook commands MUST NOT contain hardcoded credentials
+**Detection**: Scan command for secret patterns (API keys, tokens, passwords)
+**Fix**: No auto-fix (use environment variables)
+**Source**: kiro.dev/docs/hooks
+
 ---
 
 ## KIRO MCP RULES
@@ -2155,6 +2400,27 @@ Rules with an empty `applies_to` object (`{}`) apply universally.
 **Detection**: Sensitive env keys (API_KEY/SECRET/TOKEN/PASSWORD) contain hardcoded values
 **Fix**: Use `${VAR_NAME}` expansion for sensitive env values
 **Source**: kiro.dev/docs/mcp/configuration
+
+<a id="kr-mcp-003"></a>
+### KR-MCP-003 [MEDIUM] Missing Required Args
+**Requirement**: Command-based MCP servers SHOULD include an `args` array
+**Detection**: Server has `command` but no `args` or empty `args`
+**Fix**: No auto-fix (add args array)
+**Source**: kiro.dev/docs/mcp
+
+<a id="kr-mcp-004"></a>
+### KR-MCP-004 [HIGH] Invalid MCP URL
+**Requirement**: Remote MCP server `url` MUST use a valid scheme (http/https/ws/wss/sse)
+**Detection**: Validate URL scheme
+**Fix**: No auto-fix (fix URL format)
+**Source**: kiro.dev/docs/mcp
+
+<a id="kr-mcp-005"></a>
+### KR-MCP-005 [MEDIUM] Duplicate MCP Server Names
+**Requirement**: MCP server names SHOULD be unique across configurations
+**Detection**: Cross-file analysis (project-level check)
+**Fix**: No auto-fix (rename servers)
+**Source**: kiro.dev/docs/mcp
 
 ---
 
@@ -2534,7 +2800,7 @@ pub fn validate_skill(path: &Path, content: &str) -> Vec<Diagnostic> {
 | Cline | 4 | 3 | 1 | 0 | 2 |
 | OpenCode | 41 | 26 | 14 | 1 | 8 |
 | Gemini CLI | 9 | 3 | 4 | 2 | 3 |
-| Codex CLI | 23 | 18 | 5 | 0 | 3 |
+| Codex CLI | 39 | 21 | 17 | 1 | 3 |
 | Windsurf | 4 | 1 | 2 | 1 | 0 |
 | MCP | 24 | 19 | 5 | 0 | 7 |
 | XML | 3 | 3 | 0 | 0 | 3 |
@@ -2548,17 +2814,17 @@ pub fn validate_skill(path: &Path, content: &str) -> Vec<Diagnostic> {
 | OpenCode Skills | 1 | 0 | 1 | 0 | 1 |
 | Windsurf Skills | 1 | 0 | 1 | 0 | 1 |
 | Kiro Skills | 1 | 0 | 1 | 0 | 1 |
-| Kiro Agents | 7 | 1 | 5 | 1 | 0 |
-| Kiro Hooks | 6 | 5 | 1 | 0 | 0 |
-| Kiro MCP | 2 | 1 | 1 | 0 | 0 |
-| Kiro Powers | 4 | 1 | 3 | 0 | 0 |
-| Kiro Steering | 9 | 3 | 6 | 0 | 1 |
+| Kiro Agents | 13 | 4 | 7 | 2 | 0 |
+| Kiro Hooks | 10 | 6 | 4 | 0 | 0 |
+| Kiro MCP | 5 | 2 | 3 | 0 | 0 |
+| Kiro Powers | 8 | 3 | 4 | 1 | 0 |
+| Kiro Steering | 14 | 3 | 9 | 2 | 1 |
 | Amp Skills | 1 | 0 | 1 | 0 | 1 |
 | Amp Checks | 4 | 2 | 2 | 0 | 3 |
 | Roo Code Skills | 1 | 0 | 1 | 0 | 1 |
 | Roo Code | 6 | 3 | 3 | 0 | 0 |
 | Version Awareness | 1 | 0 | 0 | 1 | 0 |
-| **TOTAL** | **304** | **180** | **115** | **9** | **102** |
+| **TOTAL** | **342** | **190** | **138** | **14** | **102** |
 
 
 ---
@@ -2588,8 +2854,8 @@ pub fn validate_skill(path: &Path, content: &str) -> Vec<Diagnostic> {
 
 ---
 
-**Total Coverage**: 304 validation rules across 36 categories
+**Total Coverage**: 342 validation rules across 36 categories
 
 **Knowledge Base**: 11,036 lines, 320KB, 75+ sources
-**Certainty**: 180 HIGH, 115 MEDIUM, 9 LOW
+**Certainty**: 190 HIGH, 138 MEDIUM, 14 LOW
 **Auto-Fixable**: 102 rules (34%)

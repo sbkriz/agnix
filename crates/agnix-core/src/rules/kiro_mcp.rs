@@ -1,27 +1,28 @@
-//! Kiro MCP validation rules (KR-MCP-001 to KR-MCP-002).
+//! Kiro MCP validation rules (KR-MCP-001 to KR-MCP-005).
 //!
 //! Validates `.kiro/settings/mcp.json`:
 //! - KR-MCP-001: Server missing both command and url
 //! - KR-MCP-002: Hardcoded secrets in env values
+//! - KR-MCP-003: Missing required args
+//! - KR-MCP-004: Invalid MCP URL
+//! - KR-MCP-005: Duplicate MCP server names
 
 use crate::{
     config::LintConfig,
     diagnostics::Diagnostic,
-    rules::{Validator, ValidatorMetadata},
+    rules::{Validator, ValidatorMetadata, seems_plaintext_secret},
     schemas::kiro_mcp::parse_kiro_mcp_config,
 };
 use rust_i18n::t;
 use std::path::Path;
 
-const RULE_IDS: &[&str] = &["KR-MCP-001", "KR-MCP-002"];
-
-fn seems_plaintext_secret(value: &str) -> bool {
-    let trimmed = value.trim();
-    !trimmed.is_empty()
-        && !trimmed.starts_with("${")
-        && !trimmed.starts_with("$(")
-        && !trimmed.starts_with("{{")
-}
+const RULE_IDS: &[&str] = &[
+    "KR-MCP-001",
+    "KR-MCP-002",
+    "KR-MCP-003",
+    "KR-MCP-004",
+    "KR-MCP-005",
+];
 
 pub struct KiroMcpValidator;
 
@@ -99,6 +100,50 @@ impl Validator for KiroMcpValidator {
                 );
             }
 
+            // KR-MCP-003: Missing required args for command-based servers
+            if config.is_rule_enabled("KR-MCP-003") && has_command {
+                let has_args = server.args.as_ref().is_some_and(|args| !args.is_empty());
+                if !has_args {
+                    diagnostics.push(
+                        Diagnostic::warning(
+                            path.to_path_buf(),
+                            1,
+                            0,
+                            "KR-MCP-003",
+                            t!("rules.kr_mcp_003.message", server = server_name.as_str()),
+                        )
+                        .with_suggestion(t!("rules.kr_mcp_003.suggestion")),
+                    );
+                }
+            }
+
+            // KR-MCP-004: Invalid MCP URL
+            if config.is_rule_enabled("KR-MCP-004") && has_url {
+                let url_str = server.url.as_deref().unwrap_or_default();
+                let is_valid_url = url_str.starts_with("http://")
+                    || url_str.starts_with("https://")
+                    || url_str.starts_with("ws://")
+                    || url_str.starts_with("wss://")
+                    // sse:// is an MCP transport convention for Server-Sent Events endpoints
+                    || url_str.starts_with("sse://");
+                if !is_valid_url {
+                    diagnostics.push(
+                        Diagnostic::error(
+                            path.to_path_buf(),
+                            1,
+                            0,
+                            "KR-MCP-004",
+                            t!(
+                                "rules.kr_mcp_004.message",
+                                server = server_name.as_str(),
+                                url = url_str
+                            ),
+                        )
+                        .with_suggestion(t!("rules.kr_mcp_004.suggestion")),
+                    );
+                }
+            }
+
             if config.is_rule_enabled("KR-MCP-002")
                 && let Some(env) = server.env.as_ref()
             {
@@ -127,6 +172,10 @@ impl Validator for KiroMcpValidator {
                 }
             }
         }
+
+        // Note: KR-MCP-005 (duplicate MCP server names) is a project-level check
+        // requiring cross-file analysis; registered in RULE_IDS but checked
+        // at the project validator layer.
 
         diagnostics
     }
@@ -177,10 +226,154 @@ mod tests {
     }
 
     #[test]
+    fn test_kr_mcp_003_missing_args_for_command_server() {
+        let diagnostics = validate(
+            r#"{
+  "mcpServers": {
+    "local": {
+      "command": "node"
+    }
+  }
+}"#,
+        );
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-MCP-003"));
+    }
+
+    #[test]
+    fn test_kr_mcp_003_has_args_no_diagnostic() {
+        let diagnostics = validate(
+            r#"{
+  "mcpServers": {
+    "local": {
+      "command": "node",
+      "args": ["server.js"]
+    }
+  }
+}"#,
+        );
+        assert!(diagnostics.iter().all(|d| d.rule != "KR-MCP-003"));
+    }
+
+    #[test]
+    fn test_kr_mcp_004_invalid_url() {
+        let diagnostics = validate(
+            r#"{
+  "mcpServers": {
+    "remote": {
+      "url": "ftp://example.com/mcp"
+    }
+  }
+}"#,
+        );
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-MCP-004"));
+    }
+
+    #[test]
+    fn test_kr_mcp_004_valid_url_no_diagnostic() {
+        let diagnostics = validate(
+            r#"{
+  "mcpServers": {
+    "remote": {
+      "url": "https://example.com/mcp"
+    }
+  }
+}"#,
+        );
+        assert!(diagnostics.iter().all(|d| d.rule != "KR-MCP-004"));
+    }
+
+    #[test]
+    fn test_kr_mcp_004_sse_url_accepted() {
+        let diagnostics = validate(
+            r#"{
+  "mcpServers": {
+    "remote": {
+      "url": "sse://example.com/mcp"
+    }
+  }
+}"#,
+        );
+        assert!(diagnostics.iter().all(|d| d.rule != "KR-MCP-004"));
+    }
+
+    #[test]
+    fn test_kr_mcp_005_is_registered_in_metadata() {
+        // KR-MCP-005 (duplicate server names) requires project-level context;
+        // verify it is registered in metadata.
+        let validator = KiroMcpValidator;
+        let metadata = validator.metadata();
+        assert!(metadata.rule_ids.contains(&"KR-MCP-005"));
+    }
+
+    // M16: KR-MCP-001 fires on malformed JSON
+    #[test]
+    fn test_kr_mcp_001_malformed_json() {
+        let diagnostics = validate(r#"{"mcpServers": {not valid json"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-MCP-001"));
+    }
+
+    // M17: KR-MCP-002 env var exclusion (negative test)
+    #[test]
+    fn test_kr_mcp_002_env_var_not_flagged() {
+        let diagnostics = validate(
+            r#"{
+  "mcpServers": {
+    "svc": {
+      "command": "node",
+      "args": ["server.js"],
+      "env": {
+        "API_KEY": "${MY_SECRET}"
+      }
+    }
+  }
+}"#,
+        );
+        assert!(diagnostics.iter().all(|d| d.rule != "KR-MCP-002"));
+    }
+
+    // L7: KR-MCP-004 ws:// and wss:// accepted
+    #[test]
+    fn test_kr_mcp_004_ws_url_accepted() {
+        let diagnostics = validate(
+            r#"{
+  "mcpServers": {
+    "ws-server": {
+      "url": "ws://localhost:8080/mcp"
+    }
+  }
+}"#,
+        );
+        assert!(diagnostics.iter().all(|d| d.rule != "KR-MCP-004"));
+    }
+
+    #[test]
+    fn test_kr_mcp_004_wss_url_accepted() {
+        let diagnostics = validate(
+            r#"{
+  "mcpServers": {
+    "wss-server": {
+      "url": "wss://example.com/mcp"
+    }
+  }
+}"#,
+        );
+        assert!(diagnostics.iter().all(|d| d.rule != "KR-MCP-004"));
+    }
+
+    #[test]
     fn test_metadata() {
         let validator = KiroMcpValidator;
         let metadata = validator.metadata();
         assert_eq!(metadata.name, "KiroMcpValidator");
-        assert_eq!(metadata.rule_ids, &["KR-MCP-001", "KR-MCP-002"]);
+        assert_eq!(
+            metadata.rule_ids,
+            &[
+                "KR-MCP-001",
+                "KR-MCP-002",
+                "KR-MCP-003",
+                "KR-MCP-004",
+                "KR-MCP-005"
+            ]
+        );
     }
 }

@@ -724,6 +724,59 @@ rules:
     message: "Invalid default_tools_approval_mode '%{value}' for app '%{app}'. Valid values: 'auto', 'prompt', 'approve'"
     type_error: "default_tools_approval_mode for app '%{app}' must be a string"
     suggestion: "Use one of: 'auto', 'prompt', 'approve'"
+  cdx_cfg_013:
+    message: "Invalid sandbox_workspace_write mode '%{value}'. Valid values: 'allowlist', 'denylist', 'all'"
+    type_error: "Field 'sandbox_workspace_write.mode' must be a string"
+    suggestion: "Use one of: 'allowlist', 'denylist', 'all'"
+  cdx_cfg_014:
+    type_error: "Field 'model' must be a string"
+    suggestion: "Set model to a valid model name string"
+  cdx_cfg_015:
+    type_error: "Field 'model_provider' must be a string"
+    suggestion: "Set model_provider to a valid provider name string"
+  cdx_cfg_016:
+    message: "Invalid model_reasoning_summary '%{value}'. Valid values: 'auto', 'always', 'none', 'concise', 'detailed'"
+    type_error: "Field 'model_reasoning_summary' must be a string"
+    suggestion: "Use one of: 'auto', 'always', 'none', 'concise', 'detailed'"
+  cdx_cfg_017:
+    type_error: "Field 'history' must be an object (table)"
+    suggestion: "Configure history as a TOML table: [history]"
+  cdx_cfg_018:
+    type_error: "Field 'tui' must be an object (table)"
+    suggestion: "Configure tui as a TOML table: [tui]"
+  cdx_cfg_019:
+    type_error: "Field 'file_opener' must be a string"
+    suggestion: "Set file_opener to a valid opener string (e.g., 'vscode')"
+  cdx_cfg_020:
+    message: "Invalid mcp_oauth_credentials_store '%{value}'. Valid values: 'file', 'keyring', 'auto', 'ephemeral'"
+    type_error: "Field 'mcp_oauth_credentials_store' must be a string"
+    suggestion: "Use one of: 'file', 'keyring', 'auto', 'ephemeral'"
+  cdx_cfg_021:
+    message: "model_context_window value %{value} is not valid"
+    type_error: "Field 'model_context_window' must be a positive integer"
+    suggestion: "Set model_context_window to a positive integer (e.g., 128000)"
+  cdx_cfg_022:
+    message: "model_auto_compact_token_limit value %{value} is not valid"
+    type_error: "Field 'model_auto_compact_token_limit' must be a positive integer"
+    suggestion: "Set model_auto_compact_token_limit to a positive integer"
+  cdx_ag_004:
+    message: "AGENTS.md is %{size} bytes, exceeding %{limit} byte limit"
+    suggestion: "Reduce AGENTS.md content to stay within the size limit"
+  cdx_ag_005:
+    message: "AGENTS.md references file '%{reference}' that does not exist"
+    suggestion: "Fix the file reference or create the missing file"
+  cdx_ag_006:
+    message: "AGENTS.md lacks project context such as headings, commands, or file paths"
+    suggestion: "Add repository-specific structure: headings, commands in backticks, and file paths"
+  cdx_ag_007:
+    message: "AGENTS.md may contradict config.toml settings"
+    suggestion: "Ensure AGENTS.md instructions are consistent with config.toml values"
+  cdx_app_002:
+    type_error: "Field 'skills' must be an object (table)"
+    suggestion: "Configure skills as a TOML table: [skills]"
+  cdx_app_003:
+    type_error: "Field 'profile' must be a string"
+    suggestion: "Set profile to a valid profile name string"
 
   # --- Windsurf (windsurf.rs) ---
   ws_001:
@@ -773,6 +826,21 @@ rules:
   kiro_009:
     message: "Inline file reference points to a missing file: %{reference}"
     suggestion: "Fix the reference path or create the referenced file"
+  kiro_010:
+    message: "Kiro steering file is missing the 'inclusion' frontmatter field"
+    suggestion: "Add inclusion: always, fileMatch, manual, or auto"
+  kiro_011:
+    message: "Kiro steering doc is %{size} bytes, exceeding %{limit} byte recommended limit"
+    suggestion: "Split long steering docs into smaller focused files"
+  kiro_012:
+    message: "Duplicate Kiro steering name '%{name}' found across multiple files"
+    suggestion: "Use unique names for each steering file"
+  kiro_013:
+    message: "Multiple 'inclusion' keys detected in Kiro steering frontmatter"
+    suggestion: "Remove duplicate 'inclusion' entries; only one is used"
+  kiro_014:
+    message: "Kiro steering body lacks Markdown heading structure"
+    suggestion: "Add a heading (e.g., '# Guidelines') for better structure"
   kr_pw_001:
     message: "POWER.md is missing required frontmatter fields: %{fields}"
     suggestion: "Add required frontmatter fields: name, description, keywords"
@@ -788,6 +856,18 @@ rules:
   kr_pw_004:
     message: "Adjacent power mcp.json has invalid mcpServers structure"
     suggestion: "Ensure mcp.json uses an object mcpServers map with valid server entries"
+  kr_pw_005:
+    message: "POWER.md step '%{step}' has no description content"
+    suggestion: "Add step description content below each step heading"
+  kr_pw_006:
+    message: "POWER.md has duplicate keyword '%{keyword}'"
+    suggestion: "Remove duplicate keywords from the keywords list"
+  kr_pw_007:
+    message: "POWER.md name '%{name}' contains invalid characters"
+    suggestion: "Use lowercase alphanumeric characters and hyphens only (e.g., 'my-power')"
+  kr_pw_008:
+    message: "Potential secret detected in POWER.md body"
+    suggestion: "Remove hardcoded credentials and reference environment variables instead"
   kr_ag_001:
     message: "Unknown field '%{field}' in Kiro agent JSON"
     suggestion: "Remove unsupported fields or use documented Kiro agent keys"
@@ -809,6 +889,24 @@ rules:
   kr_ag_007:
     message: "Kiro agent has broader tools than referenced subagent '@%{agent}' (extra tools: %{extra_tools})"
     suggestion: "Narrow this agent's tool scope or align '@%{agent}' tool permissions"
+  kr_ag_008:
+    message: "Kiro agent is missing required 'name' field"
+    suggestion: "Add a 'name' field to the agent JSON"
+  kr_ag_009:
+    message: "Kiro agent is missing required 'prompt' field"
+    suggestion: "Add a 'prompt' field with agent instructions"
+  kr_ag_010:
+    message: "Duplicate tool entry '%{tool}' in Kiro agent tools array"
+    suggestion: "Remove duplicate entries from the tools array"
+  kr_ag_011:
+    message: "Kiro agent has an empty tools array"
+    suggestion: "Add at least one tool or remove the tools field entirely"
+  kr_ag_012:
+    message: "toolAliases entry '%{alias}' references unknown tool '%{tool}'"
+    suggestion: "Ensure all toolAliases targets are present in the tools array"
+  kr_ag_013:
+    message: "Potential secret detected in Kiro agent prompt"
+    suggestion: "Remove hardcoded credentials and reference environment variables instead"
   kr_hk_001:
     message: "Invalid Kiro IDE hook event '%{event}'"
     suggestion: "Use one of: fileEdited, fileCreate, fileDelete, promptSubmit, agentStop, preToolUse, postToolUse, manual"
@@ -830,6 +928,18 @@ rules:
   kr_hk_006:
     message: "Kiro CLI hook entry at %{event}[%{index}] is missing required command"
     suggestion: "Add a non-empty command to each CLI hook entry"
+  kr_hk_007:
+    message: "Kiro hook timeout value %{value}ms exceeds maximum of %{limit}ms"
+    suggestion: "Set timeout to a value between 1 and 300000 milliseconds"
+  kr_hk_008:
+    message: "Duplicate event handlers detected for the same event and pattern"
+    suggestion: "Remove duplicate hook files or differentiate their patterns"
+  kr_hk_009:
+    message: "Kiro hook command uses an absolute path"
+    suggestion: "Use relative paths or command names without absolute paths for portability"
+  kr_hk_010:
+    message: "Potential secret detected in Kiro hook command"
+    suggestion: "Remove hardcoded credentials and reference environment variables instead"
   kr_mcp_001:
     message: "Kiro MCP server '%{server}' is missing both command and url"
     suggestion: "Set command for local servers or url for remote servers"
@@ -842,6 +952,15 @@ rules:
   kr_mcp_002:
     message: "Kiro MCP server '%{server}' has potential hardcoded secret in env '%{env_key}'"
     suggestion: "Use environment variable indirection such as ${VAR_NAME} instead of plaintext secrets"
+  kr_mcp_003:
+    message: "Kiro MCP server '%{server}' has a command but no args"
+    suggestion: "Add an args array to specify command arguments"
+  kr_mcp_004:
+    message: "Kiro MCP server '%{server}' has invalid URL '%{url}'"
+    suggestion: "Use a valid URL with http://, https://, ws://, wss://, or sse:// scheme"
+  kr_mcp_005:
+    message: "Duplicate MCP server name '%{server}' found across configurations"
+    suggestion: "Use unique server names to avoid conflicts"
 
   # --- Prompt engineering (prompt.rs) ---
   pe_001:

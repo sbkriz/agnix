@@ -1,6 +1,6 @@
 ---
 id: oc-cfg-010
-title: "OC-CFG-010: Invalid Skills URL - Opencode"
+title: "OC-CFG-010: Invalid Skills URL - OpenCode"
 sidebar_label: "OC-CFG-010"
 description: "agnix rule OC-CFG-010 checks for invalid skills url in opencode files. Severity: HIGH. See examples and fix guidance."
 keywords: ["OC-CFG-010", "invalid skills url", "opencode", "validation", "agnix", "linter"]
@@ -10,7 +10,7 @@ keywords: ["OC-CFG-010", "invalid skills url", "opencode", "validation", "agnix"
 
 - **Rule ID**: `OC-CFG-010`
 - **Severity**: `HIGH`
-- **Category**: `Opencode`
+- **Category**: `OpenCode`
 - **Normative Level**: `MUST`
 - **Auto-Fix**: `No`
 - **Verified On**: `2026-03-06`

@@ -1,6 +1,6 @@
 ---
 id: oc-dep-001
-title: "OC-DEP-001: Deprecated mode Field - Opencode"
+title: "OC-DEP-001: Deprecated mode Field - OpenCode"
 sidebar_label: "OC-DEP-001"
 description: "agnix rule OC-DEP-001 checks for deprecated mode field in opencode files. Severity: MEDIUM. See examples and fix guidance."
 keywords: ["OC-DEP-001", "deprecated mode field", "opencode", "validation", "agnix", "linter"]
@@ -10,7 +10,7 @@ keywords: ["OC-DEP-001", "deprecated mode field", "opencode", "validation", "agn
 
 - **Rule ID**: `OC-DEP-001`
 - **Severity**: `MEDIUM`
-- **Category**: `Opencode`
+- **Category**: `OpenCode`
 - **Normative Level**: `SHOULD`
 - **Auto-Fix**: `Yes (safe)`
 - **Verified On**: `2026-03-06`

@@ -1,6 +1,6 @@
 ---
 id: oc-cfg-008
-title: "OC-CFG-008: Invalid Log Level - Opencode"
+title: "OC-CFG-008: Invalid Log Level - OpenCode"
 sidebar_label: "OC-CFG-008"
 description: "agnix rule OC-CFG-008 checks for invalid log level in opencode files. Severity: HIGH. See examples and fix guidance."
 keywords: ["OC-CFG-008", "invalid log level", "opencode", "validation", "agnix", "linter"]
@@ -10,7 +10,7 @@ keywords: ["OC-CFG-008", "invalid log level", "opencode", "validation", "agnix",
 
 - **Rule ID**: `OC-CFG-008`
 - **Severity**: `HIGH`
-- **Category**: `Opencode`
+- **Category**: `OpenCode`
 - **Normative Level**: `MUST`
 - **Auto-Fix**: `Yes (unsafe)`
 - **Verified On**: `2026-03-06`

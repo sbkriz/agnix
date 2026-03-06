@@ -1,6 +1,6 @@
 ---
 id: oc-ag-008
-title: "OC-AG-008: Invalid hidden Type - Opencode"
+title: "OC-AG-008: Invalid hidden Type - OpenCode"
 sidebar_label: "OC-AG-008"
 description: "agnix rule OC-AG-008 checks for invalid hidden type in opencode files. Severity: HIGH. See examples and fix guidance."
 keywords: ["OC-AG-008", "invalid hidden type", "opencode", "validation", "agnix", "linter"]
@@ -10,7 +10,7 @@ keywords: ["OC-AG-008", "invalid hidden type", "opencode", "validation", "agnix"
 
 - **Rule ID**: `OC-AG-008`
 - **Severity**: `HIGH`
-- **Category**: `Opencode`
+- **Category**: `OpenCode`
 - **Normative Level**: `MUST`
 - **Auto-Fix**: `No`
 - **Verified On**: `2026-03-06`

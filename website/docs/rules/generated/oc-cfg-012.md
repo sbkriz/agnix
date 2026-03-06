@@ -1,6 +1,6 @@
 ---
 id: oc-cfg-012
-title: "OC-CFG-012: Invalid MCP OAuth Config - Opencode"
+title: "OC-CFG-012: Invalid MCP OAuth Config - OpenCode"
 sidebar_label: "OC-CFG-012"
 description: "agnix rule OC-CFG-012 checks for invalid mcp oauth config in opencode files. Severity: HIGH. See examples and fix guidance."
 keywords: ["OC-CFG-012", "invalid mcp oauth config", "opencode", "validation", "agnix", "linter"]
@@ -10,7 +10,7 @@ keywords: ["OC-CFG-012", "invalid mcp oauth config", "opencode", "validation", "
 
 - **Rule ID**: `OC-CFG-012`
 - **Severity**: `HIGH`
-- **Category**: `Opencode`
+- **Category**: `OpenCode`
 - **Normative Level**: `MUST`
 - **Auto-Fix**: `No`
 - **Verified On**: `2026-03-06`

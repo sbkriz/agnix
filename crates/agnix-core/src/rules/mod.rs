@@ -35,6 +35,46 @@ pub mod xml;
 use crate::{config::LintConfig, diagnostics::Diagnostic};
 use std::path::Path;
 
+/// Shared secret-detection helper used by kiro_steering, kiro_power, kiro_mcp,
+/// and kiro_hook validators. Determines whether a captured value looks like a
+/// plaintext secret rather than a template/variable reference.
+///
+/// Returns `false` for empty values, template expressions (`${...}`, `$(...)`,
+/// `{{...}}`, `<...>`), and values shorter than 8 characters (too short to be
+/// a real secret).
+pub(crate) fn seems_plaintext_secret(value: &str) -> bool {
+    let trimmed = value.trim_matches(|ch| ch == '"' || ch == '\'').trim();
+    !trimmed.is_empty()
+        && !trimmed.starts_with("${")
+        && !trimmed.starts_with("$(")
+        && !trimmed.starts_with("{{")
+        && !trimmed.starts_with('<')
+        && !trimmed.starts_with("env:")
+        && trimmed.len() >= 8
+}
+
+/// Compute 1-based (line, column) from a byte offset in `content`.
+///
+/// Shared by kiro_steering and kiro_agent validators.
+pub(crate) fn line_col_at_offset(content: &str, offset: usize) -> (usize, usize) {
+    let mut line = 1usize;
+    let mut col = 1usize;
+
+    for (idx, ch) in content.char_indices() {
+        if idx >= offset {
+            break;
+        }
+        if ch == '\n' {
+            line += 1;
+            col = 1;
+        } else {
+            col += 1;
+        }
+    }
+
+    (line, col)
+}
+
 /// Extract the short (unqualified) type name from `std::any::type_name`.
 ///
 /// Given a fully-qualified path like `"agnix_core::rules::skill::SkillValidator"`,

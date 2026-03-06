@@ -1,6 +1,6 @@
 ---
 id: oc-lsp-002
-title: "OC-LSP-002: Invalid LSP Extensions - Opencode"
+title: "OC-LSP-002: Invalid LSP Extensions - OpenCode"
 sidebar_label: "OC-LSP-002"
 description: "agnix rule OC-LSP-002 checks for invalid lsp extensions in opencode files. Severity: HIGH. See examples and fix guidance."
 keywords: ["OC-LSP-002", "invalid lsp extensions", "opencode", "validation", "agnix", "linter"]
@@ -10,7 +10,7 @@ keywords: ["OC-LSP-002", "invalid lsp extensions", "opencode", "validation", "ag
 
 - **Rule ID**: `OC-LSP-002`
 - **Severity**: `HIGH`
-- **Category**: `Opencode`
+- **Category**: `OpenCode`
 - **Normative Level**: `MUST`
 - **Auto-Fix**: `No`
 - **Verified On**: `2026-03-06`

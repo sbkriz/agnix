@@ -1,6 +1,6 @@
 ---
 id: oc-dep-003
-title: "OC-DEP-003: Deprecated autoshare Field - Opencode"
+title: "OC-DEP-003: Deprecated autoshare Field - OpenCode"
 sidebar_label: "OC-DEP-003"
 description: "agnix rule OC-DEP-003 checks for deprecated autoshare field in opencode files. Severity: MEDIUM. See examples and fix guidance."
 keywords: ["OC-DEP-003", "deprecated autoshare field", "opencode", "validation", "agnix", "linter"]
@@ -10,7 +10,7 @@ keywords: ["OC-DEP-003", "deprecated autoshare field", "opencode", "validation",
 
 - **Rule ID**: `OC-DEP-003`
 - **Severity**: `MEDIUM`
-- **Category**: `Opencode`
+- **Category**: `OpenCode`
 - **Normative Level**: `SHOULD`
 - **Auto-Fix**: `Yes (safe)`
 - **Verified On**: `2026-03-06`

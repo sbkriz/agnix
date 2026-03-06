@@ -1,6 +1,6 @@
 ---
 id: oc-cfg-011
-title: "OC-CFG-011: Invalid MCP Timeout - Opencode"
+title: "OC-CFG-011: Invalid MCP Timeout - OpenCode"
 sidebar_label: "OC-CFG-011"
 description: "agnix rule OC-CFG-011 checks for invalid mcp timeout in opencode files. Severity: HIGH. See examples and fix guidance."
 keywords: ["OC-CFG-011", "invalid mcp timeout", "opencode", "validation", "agnix", "linter"]
@@ -10,7 +10,7 @@ keywords: ["OC-CFG-011", "invalid mcp timeout", "opencode", "validation", "agnix
 
 - **Rule ID**: `OC-CFG-011`
 - **Severity**: `HIGH`
-- **Category**: `Opencode`
+- **Category**: `OpenCode`
 - **Normative Level**: `MUST`
 - **Auto-Fix**: `No`
 - **Verified On**: `2026-03-06`

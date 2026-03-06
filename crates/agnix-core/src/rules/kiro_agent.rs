@@ -1,4 +1,4 @@
-//! Kiro agent validation rules (KR-AG-001 to KR-AG-007, KR-HK-005 to KR-HK-006).
+//! Kiro agent validation rules (KR-AG-001 to KR-AG-013, KR-HK-005 to KR-HK-006).
 //!
 //! Validates cross-agent invocation references in `.kiro/agents/*.json`:
 //! - KR-AG-001: Unknown top-level field in agent JSON.
@@ -8,13 +8,19 @@
 //! - KR-AG-005: includeMcpJson disabled with no inline mcpServers.
 //! - KR-AG-006: Prompt references a non-existent subagent.
 //! - KR-AG-007: Invoking agent has a broader tool scope than referenced subagent.
+//! - KR-AG-008: Agent missing name.
+//! - KR-AG-009: Agent missing prompt.
+//! - KR-AG-010: Duplicate tool entries.
+//! - KR-AG-011: Empty tools array.
+//! - KR-AG-012: toolAliases references unknown tool.
+//! - KR-AG-013: Secrets in agent prompt.
 //! - KR-HK-005: Invalid CLI hook event key.
 //! - KR-HK-006: CLI hook entry missing required command.
 
 use crate::{
     config::LintConfig,
     diagnostics::Diagnostic,
-    rules::{Validator, ValidatorMetadata},
+    rules::{Validator, ValidatorMetadata, line_col_at_offset},
     schemas::kiro_agent::VALID_KIRO_AGENT_MODELS,
 };
 use rust_i18n::t;
@@ -31,6 +37,12 @@ const RULE_IDS: &[&str] = &[
     "KR-AG-005",
     "KR-AG-006",
     "KR-AG-007",
+    "KR-AG-008",
+    "KR-AG-009",
+    "KR-AG-010",
+    "KR-AG-011",
+    "KR-AG-012",
+    "KR-AG-013",
     "KR-HK-005",
     "KR-HK-006",
 ];
@@ -123,7 +135,9 @@ fn extract_prompt_agent_mentions(content: &str) -> Vec<AgentMention> {
             }
 
             // Keep the first occurrence for stable diagnostics.
-            if seen.insert(normalized.clone()) {
+            // Check contains first to avoid cloning on the non-duplicate path.
+            if !seen.contains(&normalized) {
+                seen.insert(normalized.clone());
                 mentions.push(AgentMention {
                     name: normalized,
                     byte_offset: value_match.start() + name_match.start().saturating_sub(1), // include '@'
@@ -291,12 +305,18 @@ fn validate_agent_schema_rules(
     let check_allowed_tools_subset = config.is_rule_enabled("KR-AG-003");
     let check_model = config.is_rule_enabled("KR-AG-004");
     let check_no_mcp_access = config.is_rule_enabled("KR-AG-005");
-    if !check_unknown_fields
-        && !check_resource_protocols
-        && !check_allowed_tools_subset
-        && !check_model
-        && !check_no_mcp_access
-    {
+    let any_schema_rule = check_unknown_fields
+        || check_resource_protocols
+        || check_allowed_tools_subset
+        || check_model
+        || check_no_mcp_access
+        || config.is_rule_enabled("KR-AG-008")
+        || config.is_rule_enabled("KR-AG-009")
+        || config.is_rule_enabled("KR-AG-010")
+        || config.is_rule_enabled("KR-AG-011")
+        || config.is_rule_enabled("KR-AG-012")
+        || config.is_rule_enabled("KR-AG-013");
+    if !any_schema_rule {
         return;
     }
 
@@ -408,6 +428,154 @@ fn validate_agent_schema_rules(
             .with_suggestion(t!("rules.kr_ag_005.suggestion")),
         );
     }
+
+    // KR-AG-008: Agent missing name
+    if config.is_rule_enabled("KR-AG-008") {
+        let name_present = obj
+            .get("name")
+            .and_then(Value::as_str)
+            .is_some_and(|n| !n.trim().is_empty());
+        if !name_present {
+            diagnostics.push(
+                Diagnostic::error(
+                    path.to_path_buf(),
+                    1,
+                    0,
+                    "KR-AG-008",
+                    t!("rules.kr_ag_008.message"),
+                )
+                .with_suggestion(t!("rules.kr_ag_008.suggestion")),
+            );
+        }
+    }
+
+    // KR-AG-009: Agent missing prompt
+    if config.is_rule_enabled("KR-AG-009") {
+        let prompt_present = obj
+            .get("prompt")
+            .and_then(Value::as_str)
+            .is_some_and(|p| !p.trim().is_empty());
+        if !prompt_present {
+            diagnostics.push(
+                Diagnostic::error(
+                    path.to_path_buf(),
+                    1,
+                    0,
+                    "KR-AG-009",
+                    t!("rules.kr_ag_009.message"),
+                )
+                .with_suggestion(t!("rules.kr_ag_009.suggestion")),
+            );
+        }
+    }
+
+    // KR-AG-010: Duplicate tool entries
+    if config.is_rule_enabled("KR-AG-010")
+        && let Some(tools) = current_agent.get("tools").and_then(Value::as_array)
+    {
+        let mut seen = HashSet::new();
+        for tool in tools {
+            if let Some(tool_str) = tool.as_str() {
+                if !seen.insert(tool_str.to_ascii_lowercase()) {
+                    diagnostics.push(
+                        Diagnostic::warning(
+                            path.to_path_buf(),
+                            1,
+                            0,
+                            "KR-AG-010",
+                            t!("rules.kr_ag_010.message", tool = tool_str),
+                        )
+                        .with_suggestion(t!("rules.kr_ag_010.suggestion")),
+                    );
+                }
+            }
+        }
+    }
+
+    // KR-AG-011: Empty tools array
+    if config.is_rule_enabled("KR-AG-011")
+        && let Some(tools) = current_agent.get("tools").and_then(Value::as_array)
+        && tools.is_empty()
+    {
+        diagnostics.push(
+            Diagnostic::info(
+                path.to_path_buf(),
+                1,
+                0,
+                "KR-AG-011",
+                t!("rules.kr_ag_011.message"),
+            )
+            .with_suggestion(t!("rules.kr_ag_011.suggestion")),
+        );
+    }
+
+    // KR-AG-012: toolAliases references unknown tool
+    if config.is_rule_enabled("KR-AG-012")
+        && let Some(aliases) = current_agent.get("toolAliases").and_then(Value::as_object)
+    {
+        let tools_set: HashSet<String> = current_agent
+            .get("tools")
+            .and_then(Value::as_array)
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(Value::as_str)
+                    .map(|s| s.to_ascii_lowercase())
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        for (alias, target) in aliases {
+            if let Some(target_str) = target.as_str() {
+                if !tools_set.contains(&target_str.to_ascii_lowercase()) {
+                    diagnostics.push(
+                        Diagnostic::warning(
+                            path.to_path_buf(),
+                            1,
+                            0,
+                            "KR-AG-012",
+                            t!(
+                                "rules.kr_ag_012.message",
+                                alias = alias.as_str(),
+                                tool = target_str
+                            ),
+                        )
+                        .with_suggestion(t!("rules.kr_ag_012.suggestion")),
+                    );
+                }
+            }
+        }
+    }
+
+    // KR-AG-013: Secrets in agent prompt
+    // The regex already excludes env var patterns because ${...} doesn't match
+    // the required value prefixes (sk-, ghp_, AKIA, etc.) or base64 patterns.
+    if config.is_rule_enabled("KR-AG-013")
+        && let Some(prompt) = obj.get("prompt").and_then(Value::as_str)
+    {
+        let secret_re = agent_secret_pattern();
+        if secret_re.is_match(prompt) {
+            diagnostics.push(
+                Diagnostic::error(
+                    path.to_path_buf(),
+                    1,
+                    0,
+                    "KR-AG-013",
+                    t!("rules.kr_ag_013.message"),
+                )
+                .with_suggestion(t!("rules.kr_ag_013.suggestion")),
+            );
+        }
+    }
+}
+
+fn agent_secret_pattern() -> &'static regex::Regex {
+    static RE: OnceLock<regex::Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        regex::Regex::new(
+            r"(?i)\b(?:api[_-]?key|token|password|secret)\b\s*[:=]\s*(?:sk-|sk-ant-|sk-proj-|ghp_|gho_|AKIA|xoxb-|glpat-|[A-Za-z0-9+/]{20,})"
+        )
+        .expect("agent secret pattern must compile")
+    })
 }
 
 fn is_reserved_kiro_agent_filename(filename: &str) -> bool {
@@ -417,25 +585,6 @@ fn is_reserved_kiro_agent_filename(filename: &str) -> bool {
         "plugin.json" | "mcp.json" | "settings.json" | "settings.local.json"
     ) || lowered.starts_with("mcp-")
         || lowered.ends_with(".mcp.json")
-}
-
-fn line_col_at_offset(content: &str, offset: usize) -> (usize, usize) {
-    let mut line = 1usize;
-    let mut col = 1usize;
-
-    for (idx, ch) in content.char_indices() {
-        if idx >= offset {
-            break;
-        }
-        if ch == '\n' {
-            line += 1;
-            col = 1;
-        } else {
-            col += 1;
-        }
-    }
-
-    (line, col)
 }
 
 fn find_kiro_agents_dir(path: &Path, config: &LintConfig) -> Option<PathBuf> {
@@ -575,26 +724,11 @@ impl Validator for KiroAgentValidator {
     fn validate(&self, path: &Path, content: &str, config: &LintConfig) -> Vec<Diagnostic> {
         let mut diagnostics = Vec::new();
 
-        let check_unknown_fields = config.is_rule_enabled("KR-AG-001");
-        let check_resource_protocols = config.is_rule_enabled("KR-AG-002");
-        let check_allowed_tools_subset = config.is_rule_enabled("KR-AG-003");
-        let check_model = config.is_rule_enabled("KR-AG-004");
-        let check_no_mcp_access = config.is_rule_enabled("KR-AG-005");
         let check_missing_reference = config.is_rule_enabled("KR-AG-006");
         let check_tool_scope = config.is_rule_enabled("KR-AG-007");
-        let check_cli_hook_event = config.is_rule_enabled("KR-HK-005");
-        let check_cli_hook_command = config.is_rule_enabled("KR-HK-006");
 
-        if !check_unknown_fields
-            && !check_resource_protocols
-            && !check_allowed_tools_subset
-            && !check_model
-            && !check_no_mcp_access
-            && !check_missing_reference
-            && !check_tool_scope
-            && !check_cli_hook_event
-            && !check_cli_hook_command
-        {
+        let any_enabled = RULE_IDS.iter().any(|id| config.is_rule_enabled(id));
+        if !any_enabled {
             return diagnostics;
         }
 
@@ -1333,6 +1467,325 @@ mod tests {
     }
 
     #[test]
+    fn test_kr_ag_008_missing_name() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let agents_dir = temp.path().join(".kiro").join("agents");
+        fs::create_dir_all(&agents_dir).unwrap();
+
+        let agent = agents_dir.join("no-name.json");
+        write_agent(
+            &agent,
+            r#"{
+  "prompt": "Do something"
+}"#,
+        );
+
+        let diagnostics = validate(&agent);
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-AG-008"));
+    }
+
+    #[test]
+    fn test_kr_ag_008_has_name_no_diagnostic() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let agents_dir = temp.path().join(".kiro").join("agents");
+        fs::create_dir_all(&agents_dir).unwrap();
+
+        let agent = agents_dir.join("named.json");
+        write_agent(
+            &agent,
+            r#"{
+  "name": "named-agent",
+  "prompt": "Do something"
+}"#,
+        );
+
+        let diagnostics = validate(&agent);
+        assert!(diagnostics.iter().all(|d| d.rule != "KR-AG-008"));
+    }
+
+    #[test]
+    fn test_kr_ag_009_missing_prompt() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let agents_dir = temp.path().join(".kiro").join("agents");
+        fs::create_dir_all(&agents_dir).unwrap();
+
+        let agent = agents_dir.join("no-prompt.json");
+        write_agent(
+            &agent,
+            r#"{
+  "name": "no-prompt"
+}"#,
+        );
+
+        let diagnostics = validate(&agent);
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-AG-009"));
+    }
+
+    #[test]
+    fn test_kr_ag_009_has_prompt_no_diagnostic() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let agents_dir = temp.path().join(".kiro").join("agents");
+        fs::create_dir_all(&agents_dir).unwrap();
+
+        let agent = agents_dir.join("with-prompt.json");
+        write_agent(
+            &agent,
+            r#"{
+  "name": "with-prompt",
+  "prompt": "Do the work"
+}"#,
+        );
+
+        let diagnostics = validate(&agent);
+        assert!(diagnostics.iter().all(|d| d.rule != "KR-AG-009"));
+    }
+
+    #[test]
+    fn test_kr_ag_010_duplicate_tools() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let agents_dir = temp.path().join(".kiro").join("agents");
+        fs::create_dir_all(&agents_dir).unwrap();
+
+        let agent = agents_dir.join("dup-tools.json");
+        write_agent(
+            &agent,
+            r#"{
+  "name": "dup-tools",
+  "prompt": "Work",
+  "tools": ["readFiles", "readFiles"]
+}"#,
+        );
+
+        let diagnostics = validate(&agent);
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-AG-010"));
+    }
+
+    #[test]
+    fn test_kr_ag_010_unique_tools_no_diagnostic() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let agents_dir = temp.path().join(".kiro").join("agents");
+        fs::create_dir_all(&agents_dir).unwrap();
+
+        let agent = agents_dir.join("unique-tools.json");
+        write_agent(
+            &agent,
+            r#"{
+  "name": "unique-tools",
+  "prompt": "Work",
+  "tools": ["readFiles", "writeFiles"]
+}"#,
+        );
+
+        let diagnostics = validate(&agent);
+        assert!(diagnostics.iter().all(|d| d.rule != "KR-AG-010"));
+    }
+
+    #[test]
+    fn test_kr_ag_011_empty_tools_array() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let agents_dir = temp.path().join(".kiro").join("agents");
+        fs::create_dir_all(&agents_dir).unwrap();
+
+        let agent = agents_dir.join("empty-tools.json");
+        write_agent(
+            &agent,
+            r#"{
+  "name": "empty-tools",
+  "prompt": "Work",
+  "tools": []
+}"#,
+        );
+
+        let diagnostics = validate(&agent);
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-AG-011"));
+    }
+
+    #[test]
+    fn test_kr_ag_012_tool_alias_references_unknown_tool() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let agents_dir = temp.path().join(".kiro").join("agents");
+        fs::create_dir_all(&agents_dir).unwrap();
+
+        let agent = agents_dir.join("bad-alias.json");
+        write_agent(
+            &agent,
+            r#"{
+  "name": "bad-alias",
+  "prompt": "Work",
+  "tools": ["readFiles"],
+  "toolAliases": {
+    "write": "writeFiles"
+  }
+}"#,
+        );
+
+        let diagnostics = validate(&agent);
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-AG-012"));
+    }
+
+    #[test]
+    fn test_kr_ag_012_valid_alias_no_diagnostic() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let agents_dir = temp.path().join(".kiro").join("agents");
+        fs::create_dir_all(&agents_dir).unwrap();
+
+        let agent = agents_dir.join("good-alias.json");
+        write_agent(
+            &agent,
+            r#"{
+  "name": "good-alias",
+  "prompt": "Work",
+  "tools": ["readFiles"],
+  "toolAliases": {
+    "read": "readFiles"
+  }
+}"#,
+        );
+
+        let diagnostics = validate(&agent);
+        assert!(diagnostics.iter().all(|d| d.rule != "KR-AG-012"));
+    }
+
+    // L5: KR-AG-011 non-empty tools should NOT fire
+    #[test]
+    fn test_kr_ag_011_non_empty_tools_no_diagnostic() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let agents_dir = temp.path().join(".kiro").join("agents");
+        fs::create_dir_all(&agents_dir).unwrap();
+
+        let agent = agents_dir.join("has-tools.json");
+        write_agent(
+            &agent,
+            r#"{
+  "name": "has-tools",
+  "prompt": "Work",
+  "tools": ["readFiles"]
+}"#,
+        );
+
+        let diagnostics = validate(&agent);
+        assert!(diagnostics.iter().all(|d| d.rule != "KR-AG-011"));
+    }
+
+    #[test]
+    fn test_kr_ag_013_secrets_in_prompt() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let agents_dir = temp.path().join(".kiro").join("agents");
+        fs::create_dir_all(&agents_dir).unwrap();
+
+        let agent = agents_dir.join("secret-prompt.json");
+        write_agent(
+            &agent,
+            r#"{
+  "name": "secret-prompt",
+  "prompt": "Use api_key= sk-test_PLACEHOLDER_NOT_REAL_KEY_000"
+}"#,
+        );
+
+        let diagnostics = validate(&agent);
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-AG-013"));
+    }
+
+    #[test]
+    fn test_kr_ag_013_no_secrets_no_diagnostic() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let agents_dir = temp.path().join(".kiro").join("agents");
+        fs::create_dir_all(&agents_dir).unwrap();
+
+        let agent = agents_dir.join("clean-prompt.json");
+        write_agent(
+            &agent,
+            r#"{
+  "name": "clean-prompt",
+  "prompt": "Do normal work without secrets"
+}"#,
+        );
+
+        let diagnostics = validate(&agent);
+        assert!(diagnostics.iter().all(|d| d.rule != "KR-AG-013"));
+    }
+
+    #[test]
+    fn test_kr_ag_013_env_var_not_flagged() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let agents_dir = temp.path().join(".kiro").join("agents");
+        fs::create_dir_all(&agents_dir).unwrap();
+
+        let agent = agents_dir.join("env-prompt.json");
+        write_agent(
+            &agent,
+            r#"{
+  "name": "env-prompt",
+  "prompt": "Use api_key=${MY_SECRET} and token=$(get_token)"
+}"#,
+        );
+
+        let diagnostics = validate(&agent);
+        assert!(
+            diagnostics.iter().all(|d| d.rule != "KR-AG-013"),
+            "Env var references should not trigger KR-AG-013"
+        );
+    }
+
+    #[test]
+    fn test_kr_ag_008_blank_name() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let agents_dir = temp.path().join(".kiro").join("agents");
+        fs::create_dir_all(&agents_dir).unwrap();
+
+        let agent = agents_dir.join("blank-name.json");
+        write_agent(
+            &agent,
+            r#"{
+  "name": "   ",
+  "prompt": "Do something"
+}"#,
+        );
+
+        let diagnostics = validate(&agent);
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-AG-008"));
+    }
+
+    #[test]
+    fn test_kr_ag_009_blank_prompt() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let agents_dir = temp.path().join(".kiro").join("agents");
+        fs::create_dir_all(&agents_dir).unwrap();
+
+        let agent = agents_dir.join("blank-prompt.json");
+        write_agent(
+            &agent,
+            r#"{
+  "name": "blank-prompt",
+  "prompt": "   "
+}"#,
+        );
+
+        let diagnostics = validate(&agent);
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-AG-009"));
+    }
+
+    #[test]
+    fn test_kr_ag_010_case_insensitive_duplicate_tools() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let agents_dir = temp.path().join(".kiro").join("agents");
+        fs::create_dir_all(&agents_dir).unwrap();
+
+        let agent = agents_dir.join("case-dup-tools.json");
+        write_agent(
+            &agent,
+            r#"{
+  "name": "case-dup-tools",
+  "prompt": "Work",
+  "tools": ["readFiles", "READFILES"]
+}"#,
+        );
+
+        let diagnostics = validate(&agent);
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-AG-010"));
+    }
+
+    #[test]
     fn test_metadata_lists_kr_ag_rules() {
         let validator = KiroAgentValidator;
         let metadata = validator.metadata();
@@ -1348,6 +1801,12 @@ mod tests {
                 "KR-AG-005",
                 "KR-AG-006",
                 "KR-AG-007",
+                "KR-AG-008",
+                "KR-AG-009",
+                "KR-AG-010",
+                "KR-AG-011",
+                "KR-AG-012",
+                "KR-AG-013",
                 "KR-HK-005",
                 "KR-HK-006",
             ]

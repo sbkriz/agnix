@@ -718,7 +718,7 @@ fn validate_codex_markdown_rules(
                 || has_token_prefix(line, "glpat-")
                 || has_token_prefix(line, "sk-ant-")
                 || has_token_prefix(line, "sk-proj-");
-            let has_interpolation = line.contains("${") || line.contains('$');
+            let has_interpolation = line.contains("${") || line.contains("$(");
             if (has_sensitive_key || contains_key_prefix) && !has_interpolation {
                 diagnostics.push(
                     Diagnostic::error(

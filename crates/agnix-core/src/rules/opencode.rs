@@ -810,6 +810,7 @@ impl Validator for OpenCodeValidator {
                                     ];
                                     if !is_valid_hex_color(color_val)
                                         && !valid_theme_colors.contains(&color_val)
+                                        && !VALID_NAMED_COLORS.contains(&color_val)
                                     {
                                         diagnostics.push(
                                             Diagnostic::error(
@@ -1520,7 +1521,7 @@ impl Validator for OpenCodeValidator {
                                     let is_invalid = if let Some(arr) = ext_val.as_array() {
                                         arr.is_empty() || arr.iter().any(|v| !v.is_string())
                                     } else {
-                                        !ext_val.is_null()
+                                        true
                                     };
                                     if is_invalid {
                                         diagnostics.push(
@@ -2758,6 +2759,15 @@ mod tests {
     }
 
     #[test]
+    fn test_oc_ag_002_valid_named_color() {
+        // VALID_NAMED_COLORS like "primary", "secondary" must not trigger OC-AG-002
+        let diagnostics = validate(r#"{"agent": {"a": {"color": "primary"}}}"#);
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-AG-002"));
+        let diagnostics = validate(r#"{"agent": {"a": {"color": "secondary"}}}"#);
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-AG-002"));
+    }
+
+    #[test]
     fn test_oc_ag_003_invalid_temp() {
         let diagnostics = validate(r#"{"agent": {"a": {"temperature": 3.0}}}"#);
         assert!(diagnostics.iter().any(|d| d.rule == "OC-AG-003"));
@@ -3193,6 +3203,12 @@ mod tests {
     #[test]
     fn test_oc_lsp_002_not_array() {
         let diagnostics = validate(r#"{"lsp": {"ts": {"extensions": "ts"}}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-LSP-002"));
+    }
+
+    #[test]
+    fn test_oc_lsp_002_null_extensions() {
+        let diagnostics = validate(r#"{"lsp": {"ts": {"extensions": null}}}"#);
         assert!(diagnostics.iter().any(|d| d.rule == "OC-LSP-002"));
     }
 

@@ -1630,7 +1630,7 @@ Rules with an empty `applies_to` object (`{}`) apply universally.
 
 <a id="oc-ag-006"></a>
 ### OC-AG-006 [MEDIUM] Invalid Named Color
-**Requirement**: The agent `color` field MUST be a hex color or one of: primary, secondary, accent, success, warning, error, info
+**Requirement**: The agent `color` field SHOULD be a hex color or one of: primary, secondary, accent, success, warning, error, info
 **Detection**: Parse JSON, validate agent `color` against named colors and hex format
 **Fix**: [AUTO-FIX] Replace with closest named color (unsafe)
 **Source**: opencode.ai/docs/config

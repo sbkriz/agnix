@@ -233,8 +233,7 @@ impl Validator for KiroHookValidator {
                     .iter()
                     .any(|pfx| lower.contains(pfx));
                 // AWS key prefix (4+ uppercase after AKIA)
-                let has_aws_prefix =
-                    lower.contains("akia") && cmd.contains("AKIA");
+                let has_aws_prefix = lower.contains("akia") && cmd.contains("AKIA");
                 // Key=value assignments with sensitive key names
                 let has_secret_assignment = [
                     "api_key=",

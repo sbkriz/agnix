@@ -10,21 +10,13 @@
 use crate::{
     config::LintConfig,
     diagnostics::Diagnostic,
-    rules::{Validator, ValidatorMetadata},
+    rules::{seems_plaintext_secret, Validator, ValidatorMetadata},
     schemas::kiro_mcp::parse_kiro_mcp_config,
 };
 use rust_i18n::t;
 use std::path::Path;
 
 const RULE_IDS: &[&str] = &["KR-MCP-001", "KR-MCP-002", "KR-MCP-003", "KR-MCP-004", "KR-MCP-005"];
-
-fn seems_plaintext_secret(value: &str) -> bool {
-    let trimmed = value.trim();
-    !trimmed.is_empty()
-        && !trimmed.starts_with("${")
-        && !trimmed.starts_with("$(")
-        && !trimmed.starts_with("{{")
-}
 
 pub struct KiroMcpValidator;
 
@@ -129,6 +121,7 @@ impl Validator for KiroMcpValidator {
                     || url_str.starts_with("https://")
                     || url_str.starts_with("ws://")
                     || url_str.starts_with("wss://")
+                    // sse:// is an MCP transport convention for Server-Sent Events endpoints
                     || url_str.starts_with("sse://");
                 if !is_valid_url {
                     diagnostics.push(
@@ -303,6 +296,61 @@ mod tests {
         let validator = KiroMcpValidator;
         let metadata = validator.metadata();
         assert!(metadata.rule_ids.contains(&"KR-MCP-005"));
+    }
+
+    // M16: KR-MCP-001 fires on malformed JSON
+    #[test]
+    fn test_kr_mcp_001_malformed_json() {
+        let diagnostics = validate(r#"{"mcpServers": {not valid json"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-MCP-001"));
+    }
+
+    // M17: KR-MCP-002 env var exclusion (negative test)
+    #[test]
+    fn test_kr_mcp_002_env_var_not_flagged() {
+        let diagnostics = validate(
+            r#"{
+  "mcpServers": {
+    "svc": {
+      "command": "node",
+      "args": ["server.js"],
+      "env": {
+        "API_KEY": "${MY_SECRET}"
+      }
+    }
+  }
+}"#,
+        );
+        assert!(diagnostics.iter().all(|d| d.rule != "KR-MCP-002"));
+    }
+
+    // L7: KR-MCP-004 ws:// and wss:// accepted
+    #[test]
+    fn test_kr_mcp_004_ws_url_accepted() {
+        let diagnostics = validate(
+            r#"{
+  "mcpServers": {
+    "ws-server": {
+      "url": "ws://localhost:8080/mcp"
+    }
+  }
+}"#,
+        );
+        assert!(diagnostics.iter().all(|d| d.rule != "KR-MCP-004"));
+    }
+
+    #[test]
+    fn test_kr_mcp_004_wss_url_accepted() {
+        let diagnostics = validate(
+            r#"{
+  "mcpServers": {
+    "wss-server": {
+      "url": "wss://example.com/mcp"
+    }
+  }
+}"#,
+        );
+        assert!(diagnostics.iter().all(|d| d.rule != "KR-MCP-004"));
     }
 
     #[test]

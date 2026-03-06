@@ -20,7 +20,7 @@
 use crate::{
     config::LintConfig,
     diagnostics::Diagnostic,
-    rules::{Validator, ValidatorMetadata},
+    rules::{line_col_at_offset, Validator, ValidatorMetadata},
     schemas::kiro_agent::VALID_KIRO_AGENT_MODELS,
 };
 use rust_i18n::t;
@@ -135,7 +135,9 @@ fn extract_prompt_agent_mentions(content: &str) -> Vec<AgentMention> {
             }
 
             // Keep the first occurrence for stable diagnostics.
-            if seen.insert(normalized.clone()) {
+            // Check contains first to avoid cloning on the non-duplicate path.
+            if !seen.contains(&normalized) {
+                seen.insert(normalized.clone());
                 mentions.push(AgentMention {
                     name: normalized,
                     byte_offset: value_match.start() + name_match.start().saturating_sub(1), // include '@'
@@ -568,7 +570,7 @@ fn agent_secret_pattern() -> &'static regex::Regex {
     static RE: OnceLock<regex::Regex> = OnceLock::new();
     RE.get_or_init(|| {
         regex::Regex::new(
-            r"(?i)\b(?:api[_-]?key|token|password|secret)\b\s*[:=]\s*(?:sk-|[A-Za-z0-9+/]{20,})"
+            r"(?i)\b(?:api[_-]?key|token|password|secret)\b\s*[:=]\s*(?:sk-|sk-ant-|sk-proj-|ghp_|gho_|AKIA|xoxb-|glpat-|[A-Za-z0-9+/]{20,})"
         )
         .expect("agent secret pattern must compile")
     })
@@ -581,25 +583,6 @@ fn is_reserved_kiro_agent_filename(filename: &str) -> bool {
         "plugin.json" | "mcp.json" | "settings.json" | "settings.local.json"
     ) || lowered.starts_with("mcp-")
         || lowered.ends_with(".mcp.json")
-}
-
-fn line_col_at_offset(content: &str, offset: usize) -> (usize, usize) {
-    let mut line = 1usize;
-    let mut col = 1usize;
-
-    for (idx, ch) in content.char_indices() {
-        if idx >= offset {
-            break;
-        }
-        if ch == '\n' {
-            line += 1;
-            col = 1;
-        } else {
-            col += 1;
-        }
-    }
-
-    (line, col)
 }
 
 fn find_kiro_agents_dir(path: &Path, config: &LintConfig) -> Option<PathBuf> {
@@ -1663,6 +1646,27 @@ mod tests {
         assert!(diagnostics.iter().all(|d| d.rule != "KR-AG-012"));
     }
 
+    // L5: KR-AG-011 non-empty tools should NOT fire
+    #[test]
+    fn test_kr_ag_011_non_empty_tools_no_diagnostic() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let agents_dir = temp.path().join(".kiro").join("agents");
+        fs::create_dir_all(&agents_dir).unwrap();
+
+        let agent = agents_dir.join("has-tools.json");
+        write_agent(
+            &agent,
+            r#"{
+  "name": "has-tools",
+  "prompt": "Work",
+  "tools": ["readFiles"]
+}"#,
+        );
+
+        let diagnostics = validate(&agent);
+        assert!(diagnostics.iter().all(|d| d.rule != "KR-AG-011"));
+    }
+
     #[test]
     fn test_kr_ag_013_secrets_in_prompt() {
         let temp = tempfile::TempDir::new().unwrap();
@@ -1674,7 +1678,7 @@ mod tests {
             &agent,
             r#"{
   "name": "secret-prompt",
-  "prompt": "Use api_key= sk-1234567890abcdef1234567890abcdef"
+  "prompt": "Use api_key= sk-test_PLACEHOLDER_NOT_REAL_KEY_000"
 }"#,
         );
 

@@ -13,7 +13,7 @@
 use crate::{
     config::LintConfig,
     diagnostics::Diagnostic,
-    rules::{Validator, ValidatorMetadata},
+    rules::{seems_plaintext_secret, Validator, ValidatorMetadata},
     schemas::{kiro_mcp::parse_kiro_mcp_config, kiro_power::parse_kiro_power},
 };
 use regex::Regex;
@@ -48,16 +48,6 @@ fn power_secret_pattern() -> &'static Regex {
         )
         .expect("power secret pattern must compile")
     })
-}
-
-fn seems_plaintext_secret(value: &str) -> bool {
-    let trimmed = value.trim_matches(|ch| ch == '"' || ch == '\'').trim();
-    !trimmed.is_empty()
-        && !trimmed.starts_with("${")
-        && !trimmed.starts_with("$(")
-        && !trimmed.starts_with("{{")
-        && !trimmed.starts_with('<')
-        && trimmed.len() >= 8
 }
 
 pub struct KiroPowerValidator;
@@ -221,11 +211,15 @@ impl Validator for KiroPowerValidator {
         }
 
         // KR-PW-005: Step missing description (empty heading section in body)
+        // Intentionally checks only ## headings - Kiro power files use ## for steps
+        // per Kiro convention. Higher/lower heading levels are not step markers.
         if config.is_rule_enabled("KR-PW-005")
             && parsed.has_frontmatter
             && parsed.parse_error.is_none()
         {
             let body = parsed.body.trim();
+            // Collected into Vec intentionally for look-ahead (checking next headings).
+            // Power files are small, so the allocation is negligible.
             let lines: Vec<&str> = body.lines().collect();
             for (i, line) in lines.iter().enumerate() {
                 if line.starts_with("## ") {
@@ -258,7 +252,7 @@ impl Validator for KiroPowerValidator {
             let mut seen = HashSet::new();
             for keyword in keywords {
                 let normalized = keyword.trim().to_ascii_lowercase();
-                if !normalized.is_empty() && !seen.insert(normalized.clone()) {
+                if !normalized.is_empty() && !seen.insert(normalized) {
                     diagnostics.push(
                         Diagnostic::info(
                             path.to_path_buf(),
@@ -612,6 +606,38 @@ Configure with api_key= ${API_KEY}
 "#,
         );
         assert!(diagnostics.iter().all(|d| d.rule != "KR-PW-008"));
+    }
+
+    // M14: KR-PW-005 step at end of body with no content after
+    #[test]
+    fn test_kr_pw_005_step_at_end_of_body() {
+        let diagnostics = validate(
+            r#"---
+name: end-step
+description: test
+keywords:
+  - one
+---
+## Step 1
+"#,
+        );
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-PW-005"));
+    }
+
+    // L4: KR-PW-007 valid kebab-case name should not trigger
+    #[test]
+    fn test_kr_pw_007_valid_kebab_case_no_diagnostic() {
+        let diagnostics = validate(
+            r#"---
+name: my-power-test-123
+description: test
+keywords:
+  - one
+---
+# Body
+"#,
+        );
+        assert!(diagnostics.iter().all(|d| d.rule != "KR-PW-007"));
     }
 
     #[test]

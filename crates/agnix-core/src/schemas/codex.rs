@@ -10,7 +10,6 @@
 //! - `project_doc_fallback_filenames` shape/content (CDX-006)
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 
 /// Valid values for the `approvalMode` field
 pub const VALID_APPROVAL_MODES: &[&str] = &["suggest", "auto-edit", "full-auto"];
@@ -314,12 +313,11 @@ fn detect_unknown_keys(
         return Vec::new();
     };
 
-    let known_top: HashSet<&str> = KNOWN_TOP_LEVEL_KEYS.iter().copied().collect();
-    let known_tables: HashSet<&str> = KNOWN_TABLE_KEYS.iter().copied().collect();
-
+    // Use .contains() on the slices directly - they are small (~90 entries)
+    // and this avoids HashSet allocation on every call.
     let mut unknown = Vec::new();
     for key in table.keys() {
-        if !known_top.contains(key.as_str()) && !known_tables.contains(key.as_str()) {
+        if !KNOWN_TOP_LEVEL_KEYS.contains(&key.as_str()) && !KNOWN_TABLE_KEYS.contains(&key.as_str()) {
             unknown.push(UnknownKey {
                 key: key.clone(),
                 line: find_toml_key_line(content, key).unwrap_or(1),

@@ -192,7 +192,7 @@ impl Validator for KiroHookValidator {
         if config.is_rule_enabled("KR-HK-009") {
             if let Some(cmd) = hook.effective_run_command() {
                 let trimmed = cmd.trim();
-                if trimmed.starts_with('/') || (trimmed.len() >= 3 && trimmed.as_bytes()[0].is_ascii_alphabetic() && trimmed.as_bytes().get(1) == Some(&b':')) {
+                if trimmed.starts_with('/') || (trimmed.len() >= 3 && trimmed.as_bytes()[0].is_ascii_alphabetic() && trimmed.as_bytes().get(1) == Some(&b':') && matches!(trimmed.as_bytes().get(2), Some(b'\\') | Some(b'/'))) {
                     diagnostics.push(
                         Diagnostic::warning(
                             path.to_path_buf(),
@@ -210,10 +210,20 @@ impl Validator for KiroHookValidator {
         // KR-HK-010: Secrets in hook command
         if config.is_rule_enabled("KR-HK-010") {
             if let Some(cmd) = hook.effective_run_command() {
-                let lower = cmd.to_ascii_lowercase();
-                let has_secret_marker = ["sk-", "api_key=", "apikey=", "token=", "password=", "bearer "]
+                // Quick pre-check: only lowercase if cmd might contain a marker.
+                // All markers contain at least one of these chars (case-insensitive).
+                let might_have_marker = cmd.bytes().any(|b| matches!(b.to_ascii_lowercase(), b's' | b'a' | b't' | b'p' | b'b' | b'g' | b'x'));
+                let has_secret_marker = might_have_marker && {
+                    let lower = cmd.to_ascii_lowercase();
+                    [
+                        "sk-", "sk-ant-", "sk-proj-",
+                        "api_key=", "apikey=", "token=", "password=", "bearer ",
+                        "ghp_", "gho_", "xoxb-", "xoxp-",
+                        "akia", "aiza", "glpat-",
+                    ]
                     .iter()
-                    .any(|marker| lower.contains(marker));
+                    .any(|marker| lower.contains(marker))
+                };
                 if has_secret_marker {
                     diagnostics.push(
                         Diagnostic::error(

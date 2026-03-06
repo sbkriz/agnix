@@ -15,7 +15,7 @@ use crate::{
     config::LintConfig,
     diagnostics::{Diagnostic, Fix},
     parsers::frontmatter::split_frontmatter,
-    rules::{Validator, ValidatorMetadata},
+    rules::{line_col_at_offset, seems_plaintext_secret, Validator, ValidatorMetadata},
 };
 use regex::Regex;
 use rust_i18n::t;
@@ -30,25 +30,6 @@ const RULE_IDS: &[&str] = &[
 const MAX_STEERING_DOC_LENGTH: usize = 50_000;
 const VALID_INCLUSION_MODES: &[&str] = &["always", "fileMatch", "manual", "auto"];
 const VALID_FRONTMATTER_FIELDS: &[&str] = &["inclusion", "name", "description", "fileMatchPattern"];
-
-fn line_col_at_offset(content: &str, offset: usize) -> (usize, usize) {
-    let mut line = 1usize;
-    let mut col = 1usize;
-
-    for (idx, ch) in content.char_indices() {
-        if idx >= offset {
-            break;
-        }
-        if ch == '\n' {
-            line += 1;
-            col = 1;
-        } else {
-            col += 1;
-        }
-    }
-
-    (line, col)
-}
 
 fn find_frontmatter_key_line(frontmatter: &str, key: &str) -> usize {
     for (idx, line) in frontmatter.lines().enumerate() {
@@ -77,16 +58,6 @@ fn inline_file_ref_pattern() -> &'static Regex {
     RE.get_or_init(|| {
         Regex::new(r"#\[\[file:(?P<path>[^\]\n]+)\]\]").expect("inline file pattern must compile")
     })
-}
-
-fn seems_plaintext_secret(value: &str) -> bool {
-    let trimmed = value.trim_matches(|ch| ch == '"' || ch == '\'').trim();
-    !trimmed.is_empty()
-        && !trimmed.starts_with("${")
-        && !trimmed.starts_with("$(")
-        && !trimmed.starts_with("{{")
-        && !trimmed.starts_with('<')
-        && trimmed.len() >= 8
 }
 
 fn has_parent_dir_traversal(reference: &str) -> bool {
@@ -1105,6 +1076,14 @@ mod tests {
         let content = "---\ninclusion: always\n---\n# Short doc\n";
         let diagnostics = validate_steering(content);
         assert!(diagnostics.iter().all(|d| d.rule != "KIRO-011"));
+    }
+
+    // M15: KIRO-006 all template values should not fire
+    #[test]
+    fn test_kiro_006_all_template_values_no_fire() {
+        let content = "---\ninclusion: always\n---\n# Config\napi_key= ${API_KEY}\ntoken= $(get_token)\npassword= {{VAULT_PW}}\nsecret= <from-env>\n";
+        let diagnostics = validate_steering(content);
+        assert!(diagnostics.iter().all(|d| d.rule != "KIRO-006"));
     }
 
     // ===== KIRO-013: Conflicting inclusion modes =====

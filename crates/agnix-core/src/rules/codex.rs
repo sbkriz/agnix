@@ -581,21 +581,26 @@ impl Validator for CodexValidator {
                         }
 
                         if let Some(filenames) = &schema.project_doc_fallback_filenames {
+                            // Single pass: detect duplicates and suspicious filenames together
                             let mut seen: HashSet<String> = HashSet::new();
-                            let mut duplicates: Vec<String> = Vec::new();
+                            let mut duplicates: HashSet<String> = HashSet::new();
+                            let mut suspicious: HashSet<String> = HashSet::new();
                             for filename in filenames {
                                 let normalized = filename.trim();
                                 if normalized.is_empty() {
                                     continue;
                                 }
                                 if !seen.insert(normalized.to_string()) {
-                                    duplicates.push(normalized.to_string());
+                                    duplicates.insert(normalized.to_string());
+                                }
+                                if is_suspicious_fallback_filename(normalized) {
+                                    suspicious.insert(normalized.to_string());
                                 }
                             }
 
-                            duplicates.sort();
-                            duplicates.dedup();
-                            for filename in duplicates {
+                            let mut dup_sorted: Vec<_> = duplicates.into_iter().collect();
+                            dup_sorted.sort();
+                            for filename in dup_sorted {
                                 diagnostics.push(
                                     Diagnostic::warning(
                                         path.to_path_buf(),
@@ -608,16 +613,9 @@ impl Validator for CodexValidator {
                                 );
                             }
 
-                            let mut suspicious: Vec<String> = filenames
-                                .iter()
-                                .map(|name| name.trim())
-                                .filter(|name| is_suspicious_fallback_filename(name))
-                                .map(|name| name.to_string())
-                                .collect();
-                            suspicious.sort();
-                            suspicious.dedup();
-
-                            for filename in suspicious {
+                            let mut sus_sorted: Vec<_> = suspicious.into_iter().collect();
+                            sus_sorted.sort();
+                            for filename in sus_sorted {
                                 diagnostics.push(
                                     Diagnostic::warning(
                                         path.to_path_buf(),
@@ -702,11 +700,24 @@ fn validate_codex_markdown_rules(
 
     if config.is_rule_enabled("CDX-AG-002") {
         for (line_no, line) in content.lines().enumerate() {
+            // Quick pre-check: only lowercase if the line might contain a marker.
+            let might_have_marker = line.bytes().any(|b| matches!(b.to_ascii_lowercase(), b'a' | b's' | b't' | b'p' | b'b' | b'g' | b'x'));
+            if !might_have_marker {
+                continue;
+            }
             let lower = line.to_ascii_lowercase();
             let has_sensitive_key = ["api_key", "apikey", "secret", "token", "password", "bearer"]
                 .iter()
-                .any(|needle| lower.contains(needle));
-            let contains_key_prefix = has_sk_token_prefix(line);
+                .any(|needle| contains_word(&lower, needle));
+            let contains_key_prefix = has_sk_token_prefix(line)
+                || has_token_prefix(line, "ghp_")
+                || has_token_prefix(line, "gho_")
+                || has_token_prefix(line, "AKIA")
+                || has_token_prefix(line, "xoxb-")
+                || has_token_prefix(line, "xoxp-")
+                || has_token_prefix(line, "glpat-")
+                || has_token_prefix(line, "sk-ant-")
+                || has_token_prefix(line, "sk-proj-");
             let has_interpolation = line.contains("${") || line.contains('$');
             if (has_sensitive_key || contains_key_prefix) && !has_interpolation {
                 diagnostics.push(
@@ -844,6 +855,44 @@ fn find_backtick_file_refs(line: &str) -> Vec<&str> {
         }
     }
     refs
+}
+
+/// Check if `haystack` contains `word` at a word boundary (not preceded/followed by alphanumeric).
+/// Avoids false positives like "secretary" matching "secret" or "tokenize" matching "token".
+fn contains_word(haystack: &str, word: &str) -> bool {
+    let bytes = haystack.as_bytes();
+    let word_bytes = word.as_bytes();
+    if word_bytes.len() > bytes.len() {
+        return false;
+    }
+    let mut start = 0;
+    while let Some(pos) = haystack[start..].find(word) {
+        let abs = start + pos;
+        let before_ok = abs == 0 || !bytes[abs - 1].is_ascii_alphanumeric();
+        let after_idx = abs + word_bytes.len();
+        let after_ok = after_idx >= bytes.len() || !bytes[after_idx].is_ascii_alphanumeric();
+        if before_ok && after_ok {
+            return true;
+        }
+        start = abs + 1;
+    }
+    false
+}
+
+/// Check if a line contains a known secret token prefix at a word boundary.
+fn has_token_prefix(line: &str, prefix: &str) -> bool {
+    line.match_indices(prefix).any(|(idx, _)| {
+        let prev_is_alnum = idx > 0
+            && line[..idx]
+                .chars()
+                .next_back()
+                .is_some_and(|ch| ch.is_ascii_alphanumeric());
+        let next_is_alnum = line[idx + prefix.len()..]
+            .chars()
+            .next()
+            .is_some_and(|ch| ch.is_ascii_alphanumeric());
+        !prev_is_alnum && next_is_alnum
+    })
 }
 
 fn has_sk_token_prefix(line: &str) -> bool {
@@ -3008,6 +3057,83 @@ name = "test"
     fn test_cdx_app_003_valid_profile_no_diagnostic() {
         let diagnostics = validate_config("profile = \"default\"");
         assert!(diagnostics.iter().all(|d| d.rule != "CDX-APP-003"));
+    }
+
+    // M10: Comprehensive negative test - valid config values don't trigger CDX-CFG rules
+    #[test]
+    fn test_cdx_cfg_negative_all_valid_values() {
+        let content = r#"
+model = "o4-mini"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+model_reasoning_effort = "medium"
+model_verbosity = "medium"
+personality = "pragmatic"
+model_reasoning_summary = "auto"
+cli_auth_credentials_store = "auto"
+mcp_oauth_credentials_store = "auto"
+model_context_window = 128000
+model_auto_compact_token_limit = 50000
+profile = "default"
+file_opener = "code"
+
+[sandbox_workspace_write]
+mode = "allowlist"
+
+[shell_environment_policy]
+inherit = "core"
+
+[history]
+max_entries = 100
+
+[tui]
+theme = "dark"
+
+[features]
+web_search = true
+
+[skills]
+enabled = true
+
+[mcp_servers.local]
+command = "node"
+args = ["server.js"]
+url = "https://example.com"
+"#;
+        let diagnostics = validate_config(content);
+        let cdx_cfg: Vec<_> = diagnostics
+            .iter()
+            .filter(|d| d.rule.starts_with("CDX-CFG-"))
+            .collect();
+        assert!(cdx_cfg.is_empty(), "No CDX-CFG rules should fire for valid config, got: {:?}", cdx_cfg.iter().map(|d| &d.rule).collect::<Vec<_>>());
+    }
+
+    // M11: CDX-AG-002 interpolation exclusion
+    #[test]
+    fn test_cdx_ag_002_interpolation_not_flagged() {
+        let diagnostics = validate_claude_md("AGENTS.md", "api_key=${MY_SECRET}");
+        assert!(diagnostics.iter().all(|d| d.rule != "CDX-AG-002"));
+    }
+
+    // M12: CDX-CFG-007 suppression with hide_full_access_warning
+    #[test]
+    fn test_cdx_cfg_007_suppressed_with_hide_warning() {
+        let content = r#"
+sandbox_mode = "danger-full-access"
+
+[notice]
+hide_full_access_warning = true
+"#;
+        let diagnostics = validate_config(content);
+        assert!(diagnostics.iter().all(|d| d.rule != "CDX-CFG-007"));
+    }
+
+    // M13: CDX-CFG-010 env-var exclusion
+    #[test]
+    fn test_cdx_cfg_010_env_var_not_flagged() {
+        let content = r#"api_key = "${MY_SECRET}""#;
+        let diagnostics = validate_config(content);
+        assert!(diagnostics.iter().all(|d| d.rule != "CDX-CFG-010"));
     }
 
     #[test]

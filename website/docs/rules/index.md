@@ -289,5 +289,23 @@ This section contains all `286` validation rules generated from `knowledge-base/
 | [OC-AG-004](./generated/oc-ag-004.md) | Steps Not a Positive Integer | HIGH | OpenCode | No |
 | [OC-PM-001](./generated/oc-pm-001.md) | Invalid Permission Action | HIGH | OpenCode | No |
 | [OC-PM-002](./generated/oc-pm-002.md) | Unknown Permission Key | MEDIUM | OpenCode | No |
+| [OC-DEP-001](./generated/oc-dep-001.md) | Deprecated `mode` Field | MEDIUM | OpenCode | Yes (safe) |
+| [OC-DEP-002](./generated/oc-dep-002.md) | Deprecated `tools` Field | MEDIUM | OpenCode | Yes (safe) |
+| [OC-DEP-003](./generated/oc-dep-003.md) | Deprecated `autoshare` Field | MEDIUM | OpenCode | Yes (safe) |
+| [OC-DEP-004](./generated/oc-dep-004.md) | Deprecated CONTEXT.md Filename | MEDIUM | OpenCode | No |
+| [OC-CFG-008](./generated/oc-cfg-008.md) | Invalid Log Level | HIGH | OpenCode | Yes (unsafe) |
+| [OC-CFG-009](./generated/oc-cfg-009.md) | Invalid Compaction Reserved | HIGH | OpenCode | No |
+| [OC-CFG-010](./generated/oc-cfg-010.md) | Invalid Skills URL | HIGH | OpenCode | No |
+| [OC-CFG-011](./generated/oc-cfg-011.md) | Invalid MCP Timeout | HIGH | OpenCode | No |
+| [OC-CFG-012](./generated/oc-cfg-012.md) | Invalid MCP OAuth Config | HIGH | OpenCode | No |
+| [OC-AG-005](./generated/oc-ag-005.md) | top_p Out of Range | HIGH | OpenCode | No |
+| [OC-AG-006](./generated/oc-ag-006.md) | Invalid Named Color | MEDIUM | OpenCode | Yes (unsafe) |
+| [OC-AG-007](./generated/oc-ag-007.md) | Redundant steps and maxSteps | MEDIUM | OpenCode | No |
+| [OC-AG-008](./generated/oc-ag-008.md) | Invalid hidden Type | HIGH | OpenCode | No |
+| [OC-LSP-001](./generated/oc-lsp-001.md) | LSP Command Without Extensions | MEDIUM | OpenCode | No |
+| [OC-LSP-002](./generated/oc-lsp-002.md) | Invalid LSP Extensions | HIGH | OpenCode | No |
+| [OC-TUI-001](./generated/oc-tui-001.md) | Unknown TUI Key | MEDIUM | OpenCode | No |
+| [OC-TUI-002](./generated/oc-tui-002.md) | Invalid scroll_speed | HIGH | OpenCode | No |
+| [OC-TUI-003](./generated/oc-tui-003.md) | Invalid diff_style | HIGH | OpenCode | Yes (unsafe) |
 | [OC-AGM-001](./generated/oc-agm-001.md) | Empty AGENTS.md | HIGH | OpenCode | No |
 | [OC-AGM-002](./generated/oc-agm-002.md) | Secrets in AGENTS.md | HIGH | OpenCode | No |

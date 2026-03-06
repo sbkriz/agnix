@@ -57,7 +57,7 @@ editors/
 ├── vscode/         # VS Code extension
 ├── jetbrains/      # JetBrains IDE plugin
 └── zed/            # Zed extension
-knowledge-base/     # 286 rules, 75+ sources, rules.json
+knowledge-base/     # 304 rules, 75+ sources, rules.json
 
 tests/fixtures/     # Test cases by category
 ```
@@ -178,7 +178,7 @@ cargo run --bin agnix-mcp   # Run MCP server
 
 ## Rules Reference
 
-286 rules defined in `knowledge-base/rules.json` (source of truth)
+304 rules defined in `knowledge-base/rules.json` (source of truth)
 
 
 Human-readable docs: `knowledge-base/VALIDATION-RULES.md`
@@ -190,7 +190,7 @@ Format: `[CATEGORY]-[NUMBER]` (AS-004, CC-HK-001, etc.)
 ## Current State
 
 - v0.15.0 - Production-ready with full validation pipeline
-- 286 validation rules across 28 validators
+- 304 validation rules across 28 validators
 
 - 3400+ passing tests
 - LSP + MCP servers with VS Code extension

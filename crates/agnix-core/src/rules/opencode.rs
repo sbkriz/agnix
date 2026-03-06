@@ -645,88 +645,90 @@ impl Validator for OpenCodeValidator {
                                             );
                                         }
                                     } else if config.is_rule_enabled("OC-CFG-007") {
-                                        if srv_type == "local" && !srv.contains_key("command") {
-                                            diagnostics.push(
-                                                Diagnostic::error(
-                                                    path.to_path_buf(),
-                                                    find_key_line(content, srv_name).unwrap_or(1),
-                                                    0,
-                                                    "OC-CFG-007",
-                                                    t!("rules.oc_cfg_007.local_missing")
-                                                        .to_string(),
-                                                )
-                                                .with_suggestion(
-                                                    t!("rules.oc_cfg_007.suggestion_local")
-                                                        .to_string(),
-                                                ),
-                                            );
-                                        } else if srv_type == "local"
-                                            && let Some(command_val) = srv.get("command")
-                                        {
-                                            let valid_command =
-                                                command_val.as_array().is_some_and(|arr| {
-                                                    !arr.is_empty()
-                                                        && arr.iter().all(|v| {
-                                                            v.as_str().is_some_and(|s| {
-                                                                !s.trim().is_empty()
+                                        if srv_type == "local" {
+                                            if !srv.contains_key("command") {
+                                                diagnostics.push(
+                                                    Diagnostic::error(
+                                                        path.to_path_buf(),
+                                                        find_key_line(content, srv_name).unwrap_or(1),
+                                                        0,
+                                                        "OC-CFG-007",
+                                                        t!("rules.oc_cfg_007.local_missing")
+                                                            .to_string(),
+                                                    )
+                                                    .with_suggestion(
+                                                        t!("rules.oc_cfg_007.suggestion_local")
+                                                            .to_string(),
+                                                    ),
+                                                );
+                                            } else if let Some(command_val) = srv.get("command")
+                                            {
+                                                let valid_command =
+                                                    command_val.as_array().is_some_and(|arr| {
+                                                        !arr.is_empty()
+                                                            && arr.iter().all(|v| {
+                                                                v.as_str().is_some_and(|s| {
+                                                                    !s.trim().is_empty()
+                                                                })
                                                             })
-                                                        })
+                                                    });
+
+                                                if !valid_command {
+                                                    diagnostics.push(
+                                                        Diagnostic::error(
+                                                            path.to_path_buf(),
+                                                            find_key_line(content, srv_name).unwrap_or(1),
+                                                            0,
+                                                            "OC-CFG-007",
+                                                            "Local MCP server 'command' must be a non-empty array of non-empty strings".to_string(),
+                                                        )
+                                                        .with_suggestion(
+                                                            "Use command like [\"node\", \"server.js\"]"
+                                                                .to_string(),
+                                                        ),
+                                                    );
+                                                }
+                                            }
+                                        } else if srv_type == "remote" {
+                                            if !srv.contains_key("url") {
+                                                diagnostics.push(
+                                                    Diagnostic::error(
+                                                        path.to_path_buf(),
+                                                        find_key_line(content, srv_name).unwrap_or(1),
+                                                        0,
+                                                        "OC-CFG-007",
+                                                        t!("rules.oc_cfg_007.remote_missing")
+                                                            .to_string(),
+                                                    )
+                                                    .with_suggestion(
+                                                        t!("rules.oc_cfg_007.suggestion_remote")
+                                                            .to_string(),
+                                                    ),
+                                                );
+                                            } else if let Some(url_val) = srv.get("url")
+                                            {
+                                                let valid_url = url_val.as_str().is_some_and(|url| {
+                                                    let trimmed = url.trim();
+                                                    !trimmed.is_empty()
+                                                        && (trimmed.starts_with("http://")
+                                                            || trimmed.starts_with("https://"))
                                                 });
 
-                                            if !valid_command {
-                                                diagnostics.push(
-                                                    Diagnostic::error(
-                                                        path.to_path_buf(),
-                                                        find_key_line(content, srv_name).unwrap_or(1),
-                                                        0,
-                                                        "OC-CFG-007",
-                                                        "Local MCP server 'command' must be a non-empty array of non-empty strings".to_string(),
-                                                    )
-                                                    .with_suggestion(
-                                                        "Use command like [\"node\", \"server.js\"]"
-                                                            .to_string(),
-                                                    ),
-                                                );
-                                            }
-                                        } else if srv_type == "remote" && !srv.contains_key("url") {
-                                            diagnostics.push(
-                                                Diagnostic::error(
-                                                    path.to_path_buf(),
-                                                    find_key_line(content, srv_name).unwrap_or(1),
-                                                    0,
-                                                    "OC-CFG-007",
-                                                    t!("rules.oc_cfg_007.remote_missing")
-                                                        .to_string(),
-                                                )
-                                                .with_suggestion(
-                                                    t!("rules.oc_cfg_007.suggestion_remote")
-                                                        .to_string(),
-                                                ),
-                                            );
-                                        } else if srv_type == "remote"
-                                            && let Some(url_val) = srv.get("url")
-                                        {
-                                            let valid_url = url_val.as_str().is_some_and(|url| {
-                                                let trimmed = url.trim();
-                                                !trimmed.is_empty()
-                                                    && (trimmed.starts_with("http://")
-                                                        || trimmed.starts_with("https://"))
-                                            });
-
-                                            if !valid_url {
-                                                diagnostics.push(
-                                                    Diagnostic::error(
-                                                        path.to_path_buf(),
-                                                        find_key_line(content, srv_name).unwrap_or(1),
-                                                        0,
-                                                        "OC-CFG-007",
-                                                        "Remote MCP server 'url' must be a non-empty http:// or https:// URL".to_string(),
-                                                    )
-                                                    .with_suggestion(
-                                                        "Set a valid URL such as \"https://example.com/mcp\""
-                                                            .to_string(),
-                                                    ),
-                                                );
+                                                if !valid_url {
+                                                    diagnostics.push(
+                                                        Diagnostic::error(
+                                                            path.to_path_buf(),
+                                                            find_key_line(content, srv_name).unwrap_or(1),
+                                                            0,
+                                                            "OC-CFG-007",
+                                                            "Remote MCP server 'url' must be a non-empty http:// or https:// URL".to_string(),
+                                                        )
+                                                        .with_suggestion(
+                                                            "Set a valid URL such as \"https://example.com/mcp\""
+                                                                .to_string(),
+                                                        ),
+                                                    );
+                                                }
                                             }
                                         }
                                     }
@@ -926,11 +928,13 @@ impl Validator for OpenCodeValidator {
                             }
 
                             // OC-AG-006: Invalid color (extended validation with named colors)
+                            // Only fires for values that look like named colors (no '#' prefix)
+                            // but aren't in VALID_NAMED_COLORS. Hex validation is handled by OC-AG-002.
                             if config.is_rule_enabled("OC-AG-006") {
                                 if let Some(color_val) =
                                     ag.get("color").and_then(|c| c.as_str())
                                 {
-                                    if !is_valid_hex_color(color_val)
+                                    if !color_val.starts_with('#')
                                         && !VALID_NAMED_COLORS.contains(&color_val)
                                     {
                                         let line =
@@ -1212,22 +1216,35 @@ impl Validator for OpenCodeValidator {
                     }
                 }
 
-                // OC-DEP-004: CONTEXT.md deprecated filename
+                // OC-DEP-004: CONTEXT.md deprecated filename in instructions
                 if config.is_rule_enabled("OC-DEP-004") {
-                    if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
-                        if file_name == "CONTEXT.md" {
-                            diagnostics.push(
-                                Diagnostic::warning(
-                                    path.to_path_buf(),
-                                    1,
-                                    0,
-                                    "OC-DEP-004",
-                                    "CONTEXT.md is deprecated. Rename to AGENTS.md".to_string(),
-                                )
-                                .with_suggestion(
-                                    "Rename the file to AGENTS.md".to_string(),
-                                ),
-                            );
+                    if let Some(instructions) = obj.get("instructions").and_then(|v| v.as_array())
+                    {
+                        for instr in instructions {
+                            if let Some(instr_str) = instr.as_str() {
+                                let instr_path = Path::new(instr_str);
+                                if instr_path
+                                    .file_name()
+                                    .and_then(|n| n.to_str())
+                                    .is_some_and(|n| n == "CONTEXT.md")
+                                {
+                                    diagnostics.push(
+                                        Diagnostic::warning(
+                                            path.to_path_buf(),
+                                            find_key_line(content, "instructions").unwrap_or(1),
+                                            0,
+                                            "OC-DEP-004",
+                                            format!(
+                                                "CONTEXT.md is deprecated. Rename '{}' to use AGENTS.md instead",
+                                                instr_str
+                                            ),
+                                        )
+                                        .with_suggestion(
+                                            "Rename CONTEXT.md references to AGENTS.md".to_string(),
+                                        ),
+                                    );
+                                }
+                            }
                         }
                     }
                 }
@@ -1544,10 +1561,8 @@ impl Validator for OpenCodeValidator {
                 // OC-TUI-001: Unknown TUI keys
                 if config.is_rule_enabled("OC-TUI-001") {
                     if let Some(tui_obj) = obj.get("tui").and_then(|t| t.as_object()) {
-                        let known: std::collections::HashSet<&str> =
-                            KNOWN_TUI_KEYS.iter().copied().collect();
                         for key in tui_obj.keys() {
-                            if !known.contains(key.as_str()) {
+                            if !KNOWN_TUI_KEYS.contains(&key.as_str()) {
                                 diagnostics.push(
                                     Diagnostic::warning(
                                         path.to_path_buf(),
@@ -2855,17 +2870,24 @@ mod tests {
 
     #[test]
     fn test_oc_dep_004_context_md() {
-        let validator = OpenCodeValidator;
-        let diagnostics = validator.validate(
-            Path::new("CONTEXT.md"),
-            "{}",
-            &LintConfig::default(),
-        );
+        let diagnostics = validate(r#"{"instructions": ["CONTEXT.md"]}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-DEP-004"));
+    }
+
+    #[test]
+    fn test_oc_dep_004_context_md_nested_path() {
+        let diagnostics = validate(r#"{"instructions": ["docs/CONTEXT.md"]}"#);
         assert!(diagnostics.iter().any(|d| d.rule == "OC-DEP-004"));
     }
 
     #[test]
     fn test_oc_dep_004_not_context_md() {
+        let diagnostics = validate(r#"{"instructions": ["AGENTS.md"]}"#);
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-DEP-004"));
+    }
+
+    #[test]
+    fn test_oc_dep_004_no_instructions() {
         let diagnostics = validate(r#"{}"#);
         assert!(!diagnostics.iter().any(|d| d.rule == "OC-DEP-004"));
     }
@@ -2904,7 +2926,10 @@ mod tests {
         let cfg: Vec<_> = diagnostics.iter().filter(|d| d.rule == "OC-CFG-008").collect();
         assert_eq!(cfg.len(), 1);
         assert!(cfg[0].has_fixes(), "OC-CFG-008 should have auto-fix for close match");
-        assert_eq!(cfg[0].fixes[0].replacement, "debug");
+        let fix = &cfg[0].fixes[0];
+        let target = &content[fix.start_byte..fix.end_byte];
+        assert_eq!(target, "debu");
+        assert_eq!(fix.replacement, "debug");
     }
 
     // ===== OC-CFG-009: Invalid compaction.reserved =====
@@ -2967,6 +2992,12 @@ mod tests {
         assert!(diagnostics.iter().any(|d| d.rule == "OC-CFG-011"));
     }
 
+    #[test]
+    fn test_oc_cfg_011_zero_timeout() {
+        let diagnostics = validate(r#"{"mcp": {"srv": {"timeout": 0}}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-CFG-011"));
+    }
+
     // ===== OC-CFG-012: MCP OAuth =====
 
     #[test]
@@ -3015,6 +3046,18 @@ mod tests {
         assert!(diagnostics.iter().any(|d| d.rule == "OC-AG-005"));
     }
 
+    #[test]
+    fn test_oc_ag_005_boundary_zero() {
+        let diagnostics = validate(r#"{"agent": {"a": {"top_p": 0.0}}}"#);
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-AG-005"));
+    }
+
+    #[test]
+    fn test_oc_ag_005_negative() {
+        let diagnostics = validate(r#"{"agent": {"a": {"top_p": -0.1}}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-AG-005"));
+    }
+
     // ===== OC-AG-006: Invalid named color =====
 
     #[test]
@@ -3042,7 +3085,10 @@ mod tests {
         let ag: Vec<_> = diagnostics.iter().filter(|d| d.rule == "OC-AG-006").collect();
         assert_eq!(ag.len(), 1);
         assert!(ag[0].has_fixes(), "OC-AG-006 should have auto-fix for close match");
-        assert_eq!(ag[0].fixes[0].replacement, "error");
+        let fix = &ag[0].fixes[0];
+        let target = &content[fix.start_byte..fix.end_byte];
+        assert_eq!(target, "erro");
+        assert_eq!(fix.replacement, "error");
     }
 
     // ===== OC-AG-007: Both steps and maxSteps =====
@@ -3144,6 +3190,12 @@ mod tests {
         assert!(diagnostics.iter().any(|d| d.rule == "OC-TUI-002"));
     }
 
+    #[test]
+    fn test_oc_tui_002_boundary() {
+        let diagnostics = validate(r#"{"tui": {"scroll_speed": 0.001}}"#);
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-TUI-002"));
+    }
+
     // ===== OC-TUI-003: Invalid diff_style =====
 
     #[test]
@@ -3165,7 +3217,10 @@ mod tests {
         let tui: Vec<_> = diagnostics.iter().filter(|d| d.rule == "OC-TUI-003").collect();
         assert_eq!(tui.len(), 1);
         assert!(tui[0].has_fixes(), "OC-TUI-003 should have auto-fix for close match");
-        assert_eq!(tui[0].fixes[0].replacement, "stacked");
+        let fix = &tui[0].fixes[0];
+        let target = &content[fix.start_byte..fix.end_byte];
+        assert_eq!(target, "stack");
+        assert_eq!(fix.replacement, "stacked");
     }
 
     // ===== find_json_key_span =====

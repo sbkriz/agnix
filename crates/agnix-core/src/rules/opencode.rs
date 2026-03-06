@@ -1800,18 +1800,23 @@ fn validate_substitution_string(
 fn find_json_key_span(content: &str, key: &str) -> Option<(usize, usize)> {
     let pattern = format!("\"{}\"", key);
     let mut search_from = 0;
+    let mut found = None;
+    let mut count = 0;
     while let Some(pos) = content[search_from..].find(&pattern) {
         let abs_pos = search_from + pos;
         let after_quote = abs_pos + pattern.len();
-        // Check next non-whitespace char is ':'
         if let Some(next_char) = content[after_quote..].trim_start().chars().next() {
             if next_char == ':' {
-                return Some((abs_pos + 1, abs_pos + 1 + key.len()));
+                count += 1;
+                if found.is_none() {
+                    found = Some((abs_pos + 1, abs_pos + 1 + key.len()));
+                }
             }
         }
         search_from = abs_pos + pattern.len();
     }
-    None
+    // Only return span if key appears exactly once as a key (safe to autofix)
+    if count == 1 { found } else { None }
 }
 
 /// Find the 1-indexed line number where a string pattern appears in content.
@@ -1845,11 +1850,15 @@ fn find_key_line(content: &str, key: &str) -> Option<usize> {
 /// Truncate a string for display in diagnostic messages.
 /// Appends "..." if the string exceeds `max` bytes.
 fn truncate_for_display(s: &str, max: usize) -> String {
-    if s.len() > max {
-        format!("{}...", &s[..max])
-    } else {
-        s.to_string()
+    if s.len() <= max {
+        return s.to_string();
     }
+    // Find the last valid char boundary at or before max
+    let mut end = max;
+    while end > 0 && !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    format!("{}...", &s[..end])
 }
 
 fn is_valid_hex_color(value: &str) -> bool {

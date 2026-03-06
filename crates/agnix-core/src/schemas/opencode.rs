@@ -57,6 +57,44 @@ pub const KNOWN_TOP_LEVEL_KEYS: &[&str] = &[
 /// Valid permission mode values
 pub const VALID_PERMISSION_MODES: &[&str] = &["allow", "ask", "deny"];
 
+/// Valid log level values
+pub const VALID_LOG_LEVELS: &[&str] = &["fatal", "error", "warn", "info", "debug", "trace"];
+
+/// Valid diff style values for TUI
+pub const VALID_DIFF_STYLES: &[&str] = &["auto", "stacked"];
+
+/// Valid named color values for agent configuration
+pub const VALID_NAMED_COLORS: &[&str] = &[
+    "primary",
+    "secondary",
+    "accent",
+    "success",
+    "warning",
+    "error",
+    "info",
+];
+
+/// Known TUI configuration keys
+pub const KNOWN_TUI_KEYS: &[&str] = &[
+    "$schema",
+    "theme",
+    "keybinds",
+    "scroll_speed",
+    "scroll_acceleration",
+    "diff_style",
+];
+
+/// Deprecated top-level keys and their replacements.
+///
+/// Note: deprecated keys must also remain in `KNOWN_TOP_LEVEL_KEYS` above.
+/// If a deprecated key is removed from that list, it would trigger a false
+/// OC-004 "unknown key" diagnostic instead of the intended OC-DEP-* warning.
+pub const DEPRECATED_KEYS: &[(&str, &str)] = &[
+    ("mode", "agent"),
+    ("tools", "permission"),
+    ("autoshare", "share"),
+];
+
 /// An unknown key found in config
 #[derive(Debug, Clone)]
 pub struct UnknownKey {

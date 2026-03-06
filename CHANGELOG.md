@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **OpenCode expanded coverage (18 new rules)**: Added `OC-DEP-001` through `OC-DEP-004` (deprecation warnings for the `mode`, `tools`, `autoshare`, and `CONTEXT.md` fields), `OC-CFG-008` through `OC-CFG-012` (`logLevel` enum, `compaction.reserved` minimum, `skills` URL array, MCP server timeout, MCP OAuth config), `OC-AG-005` through `OC-AG-008` (`top_p` range, named color enum, redundant `steps`/`maxSteps` pair, `hidden` boolean type), `OC-LSP-001` through `OC-LSP-002` (LSP command requires `extensions` array, `extensions` must be non-empty), and `OC-TUI-001` through `OC-TUI-003` (unknown TUI keys, `scroll_speed` minimum value, `diff_style` enum). Brings total OpenCode rules to 43 and total rule count to 304 (#630).
+
 ## [0.15.0] - 2026-03-03
 
 ### Added

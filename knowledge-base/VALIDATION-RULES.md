@@ -1558,6 +1558,132 @@ Rules with an empty `applies_to` object (`{}`) apply universally.
 **Fix**: No auto-fix
 **Source**: opencode.ai/docs/config
 
+<a id="oc-dep-001"></a>
+### OC-DEP-001 [MEDIUM] Deprecated `mode` Field
+**Requirement**: The top-level `mode` field is deprecated - use `agent` instead
+**Detection**: Parse JSON, flag presence of `mode` key at top-level
+**Fix**: [AUTO-FIX] Rename `mode` key to `agent` (safe)
+**Source**: opencode.ai/docs/config
+
+<a id="oc-dep-002"></a>
+### OC-DEP-002 [MEDIUM] Deprecated `tools` Field
+**Requirement**: The top-level `tools` field is deprecated - use `permission` instead
+**Detection**: Parse JSON, flag presence of `tools` key at top-level
+**Fix**: [AUTO-FIX] Rename `tools` key to `permission` (safe)
+**Source**: opencode.ai/docs/config
+
+<a id="oc-dep-003"></a>
+### OC-DEP-003 [MEDIUM] Deprecated `autoshare` Field
+**Requirement**: The top-level `autoshare` field is deprecated - use `share` instead
+**Detection**: Parse JSON, flag presence of `autoshare` key at top-level
+**Fix**: [AUTO-FIX] Rename `autoshare` key to `share` (safe)
+**Source**: opencode.ai/docs/config
+
+<a id="oc-dep-004"></a>
+### OC-DEP-004 [MEDIUM] Deprecated CONTEXT.md Filename
+**Requirement**: CONTEXT.md is deprecated - rename to AGENTS.md
+**Detection**: Check if file path contains CONTEXT.md
+**Fix**: No auto-fix
+**Source**: opencode.ai/docs/config
+
+<a id="oc-cfg-008"></a>
+### OC-CFG-008 [HIGH] Invalid Log Level
+**Requirement**: The `logLevel` field MUST be one of: fatal, error, warn, info, debug, trace
+**Detection**: Parse JSON, validate `logLevel` value (case-insensitive)
+**Fix**: [AUTO-FIX] Replace with closest valid log level (unsafe)
+**Source**: opencode.ai/docs/config
+
+<a id="oc-cfg-009"></a>
+### OC-CFG-009 [HIGH] Invalid Compaction Reserved
+**Requirement**: The `compaction.reserved` field MUST be a non-negative integer
+**Detection**: Parse JSON, validate `compaction.reserved` is integer >= 0
+**Fix**: No auto-fix
+**Source**: opencode.ai/docs/config
+
+<a id="oc-cfg-010"></a>
+### OC-CFG-010 [HIGH] Invalid Skills URL
+**Requirement**: Each URL in `skills.urls` MUST start with http:// or https://
+**Detection**: Parse JSON, validate each URL in skills.urls array
+**Fix**: No auto-fix
+**Source**: opencode.ai/docs/config
+
+<a id="oc-cfg-011"></a>
+### OC-CFG-011 [HIGH] Invalid MCP Timeout
+**Requirement**: MCP server `timeout` MUST be a positive integer
+**Detection**: Parse JSON, validate timeout field in each MCP server entry
+**Fix**: No auto-fix
+**Source**: opencode.ai/docs/config
+
+<a id="oc-cfg-012"></a>
+### OC-CFG-012 [HIGH] Invalid MCP OAuth Config
+**Requirement**: MCP server `oauth` MUST include `client_id` and `authorization_url`
+**Detection**: Parse JSON, validate oauth object structure in MCP server entries
+**Fix**: No auto-fix
+**Source**: opencode.ai/docs/config
+
+<a id="oc-ag-005"></a>
+### OC-AG-005 [HIGH] top_p Out of Range
+**Requirement**: The agent `top_p` field MUST be between 0.0 and 1.0
+**Detection**: Parse JSON, validate agent `top_p` value range
+**Fix**: No auto-fix
+**Source**: opencode.ai/docs/config
+
+<a id="oc-ag-006"></a>
+### OC-AG-006 [MEDIUM] Invalid Named Color
+**Requirement**: The agent `color` field SHOULD be a hex color or one of: primary, secondary, accent, success, warning, error, info
+**Detection**: Parse JSON, validate agent `color` against named colors and hex format
+**Fix**: [AUTO-FIX] Replace with closest named color (unsafe)
+**Source**: opencode.ai/docs/config
+
+<a id="oc-ag-007"></a>
+### OC-AG-007 [MEDIUM] Redundant steps and maxSteps
+**Requirement**: Agents SHOULD use `steps` only - `maxSteps` is redundant when both are present
+**Detection**: Parse JSON, detect both `steps` and `maxSteps` in agent definition
+**Fix**: No auto-fix
+**Source**: opencode.ai/docs/config
+
+<a id="oc-ag-008"></a>
+### OC-AG-008 [HIGH] Invalid hidden Type
+**Requirement**: The agent `hidden` field MUST be a boolean
+**Detection**: Parse JSON, validate agent `hidden` is boolean
+**Fix**: No auto-fix
+**Source**: opencode.ai/docs/config
+
+<a id="oc-lsp-001"></a>
+### OC-LSP-001 [MEDIUM] LSP Command Without Extensions
+**Requirement**: LSP entries with `command` SHOULD also define `extensions`
+**Detection**: Parse JSON, flag LSP entries with command but no extensions
+**Fix**: No auto-fix
+**Source**: opencode.ai/docs/config
+
+<a id="oc-lsp-002"></a>
+### OC-LSP-002 [HIGH] Invalid LSP Extensions
+**Requirement**: LSP `extensions` MUST be a non-empty array of strings
+**Detection**: Parse JSON, validate extensions field in LSP entries
+**Fix**: No auto-fix
+**Source**: opencode.ai/docs/config
+
+<a id="oc-tui-001"></a>
+### OC-TUI-001 [MEDIUM] Unknown TUI Key
+**Requirement**: TUI configuration keys SHOULD be from the known set
+**Detection**: Parse JSON, compare TUI keys against known set
+**Fix**: No auto-fix
+**Source**: opencode.ai/docs/config
+
+<a id="oc-tui-002"></a>
+### OC-TUI-002 [HIGH] Invalid scroll_speed
+**Requirement**: The `tui.scroll_speed` field MUST be a number >= 0.001
+**Detection**: Parse JSON, validate scroll_speed value
+**Fix**: No auto-fix
+**Source**: opencode.ai/docs/config
+
+<a id="oc-tui-003"></a>
+### OC-TUI-003 [HIGH] Invalid diff_style
+**Requirement**: The `tui.diff_style` field MUST be `auto` or `stacked`
+**Detection**: Parse JSON, validate diff_style value
+**Fix**: [AUTO-FIX] Replace with closest valid diff style (unsafe)
+**Source**: opencode.ai/docs/config
+
 <a id="oc-agm-001"></a>
 ### OC-AGM-001 [HIGH] Empty AGENTS.md
 **Requirement**: `AGENTS.md` MUST NOT be empty
@@ -2370,6 +2496,12 @@ pub fn validate_skill(path: &Path, content: &str) -> Vec<Diagnostic> {
 | CUR-013 | Replace invalid cursor hook type with closest match | unsafe |
 | KIRO-001 | Replace invalid inclusion mode with closest match | unsafe |
 | OC-008 | Replace invalid permission mode with closest match | unsafe |
+| OC-DEP-001 | Rename `mode` key to `agent` | safe |
+| OC-DEP-002 | Rename `tools` key to `permission` | safe |
+| OC-DEP-003 | Rename `autoshare` key to `share` | safe |
+| OC-CFG-008 | Replace logLevel with closest valid value | unsafe |
+| OC-AG-006 | Replace color with closest named color | unsafe |
+| OC-TUI-003 | Replace diff_style with closest valid value | unsafe |
 | MCP-013 | Sanitize invalid tool name characters | unsafe |
 | MCP-017 | Replace http:// with https:// in non-localhost URL | unsafe |
 | MCP-021 | Replace 0.0.0.0 with localhost in URL | unsafe |
@@ -2400,7 +2532,7 @@ pub fn validate_skill(path: &Path, content: &str) -> Vec<Diagnostic> {
 | GitHub Copilot | 17 | 11 | 6 | 0 | 8 |
 | Cursor | 16 | 9 | 7 | 0 | 6 |
 | Cline | 4 | 3 | 1 | 0 | 2 |
-| OpenCode | 23 | 16 | 6 | 1 | 2 |
+| OpenCode | 41 | 26 | 14 | 1 | 8 |
 | Gemini CLI | 9 | 3 | 4 | 2 | 3 |
 | Codex CLI | 23 | 18 | 5 | 0 | 3 |
 | Windsurf | 4 | 1 | 2 | 1 | 0 |
@@ -2426,7 +2558,7 @@ pub fn validate_skill(path: &Path, content: &str) -> Vec<Diagnostic> {
 | Roo Code Skills | 1 | 0 | 1 | 0 | 1 |
 | Roo Code | 6 | 3 | 3 | 0 | 0 |
 | Version Awareness | 1 | 0 | 0 | 1 | 0 |
-| **TOTAL** | **286** | **170** | **107** | **9** | **96** |
+| **TOTAL** | **304** | **180** | **115** | **9** | **102** |
 
 
 ---
@@ -2456,8 +2588,8 @@ pub fn validate_skill(path: &Path, content: &str) -> Vec<Diagnostic> {
 
 ---
 
-**Total Coverage**: 286 validation rules across 36 categories
+**Total Coverage**: 304 validation rules across 36 categories
 
 **Knowledge Base**: 11,036 lines, 320KB, 75+ sources
-**Certainty**: 155 HIGH, 103 MEDIUM, 9 LOW
-**Auto-Fixable**: 96 rules (42%)
+**Certainty**: 180 HIGH, 115 MEDIUM, 9 LOW
+**Auto-Fixable**: 102 rules (34%)

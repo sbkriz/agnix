@@ -15,6 +15,7 @@ use crate::{
     diagnostics::{Diagnostic, Fix},
     rules::{Validator, ValidatorMetadata},
     schemas::opencode::{
+        DEPRECATED_KEYS, KNOWN_TUI_KEYS, VALID_DIFF_STYLES, VALID_LOG_LEVELS, VALID_NAMED_COLORS,
         VALID_PERMISSION_MODES, VALID_SHARE_MODES, is_glob_pattern, parse_opencode_json,
         validate_glob_pattern,
     },
@@ -40,12 +41,41 @@ const RULE_IDS: &[&str] = &[
     "OC-CFG-005",
     "OC-CFG-006",
     "OC-CFG-007",
+    "OC-CFG-008",
+    "OC-CFG-009",
+    "OC-CFG-010",
+    "OC-CFG-011",
+    "OC-CFG-012",
     "OC-AG-001",
     "OC-AG-002",
     "OC-AG-003",
     "OC-AG-004",
+    "OC-AG-005",
+    "OC-AG-006",
+    "OC-AG-007",
+    "OC-AG-008",
+    "OC-DEP-001",
+    "OC-DEP-002",
+    "OC-DEP-003",
+    "OC-DEP-004",
+    "OC-LSP-001",
+    "OC-LSP-002",
+    "OC-TUI-001",
+    "OC-TUI-002",
+    "OC-TUI-003",
     "OC-PM-001",
     "OC-PM-002",
+];
+
+/// Builtin agent names recognized by OpenCode.
+const BUILTIN_AGENTS: &[&str] = &[
+    "build",
+    "plan",
+    "general",
+    "explore",
+    "compaction",
+    "title",
+    "summary",
 ];
 
 pub struct OpenCodeValidator;
@@ -503,19 +533,13 @@ impl Validator for OpenCodeValidator {
                 if config.is_rule_enabled("OC-CFG-004") {
                     if let Some(agent_val) = obj.get("default_agent") {
                         if let Some(agent_str) = agent_val.as_str() {
-                            let mut known_agents = std::collections::HashSet::new();
-                            known_agents.insert("build");
-                            known_agents.insert("plan");
-                            known_agents.insert("general");
-                            known_agents.insert("explore");
+                            let is_known = BUILTIN_AGENTS.contains(&agent_str)
+                                || obj
+                                    .get("agent")
+                                    .and_then(|a| a.as_object())
+                                    .is_some_and(|agents| agents.contains_key(agent_str));
 
-                            if let Some(agents_obj) = obj.get("agent").and_then(|a| a.as_object()) {
-                                for k in agents_obj.keys() {
-                                    known_agents.insert(k.as_str());
-                                }
-                            }
-
-                            if !known_agents.contains(agent_str) {
+                            if !is_known {
                                 diagnostics.push(
                                     Diagnostic::warning(
                                         path.to_path_buf(),
@@ -626,88 +650,91 @@ impl Validator for OpenCodeValidator {
                                             );
                                         }
                                     } else if config.is_rule_enabled("OC-CFG-007") {
-                                        if srv_type == "local" && !srv.contains_key("command") {
-                                            diagnostics.push(
-                                                Diagnostic::error(
-                                                    path.to_path_buf(),
-                                                    find_key_line(content, srv_name).unwrap_or(1),
-                                                    0,
-                                                    "OC-CFG-007",
-                                                    t!("rules.oc_cfg_007.local_missing")
-                                                        .to_string(),
-                                                )
-                                                .with_suggestion(
-                                                    t!("rules.oc_cfg_007.suggestion_local")
-                                                        .to_string(),
-                                                ),
-                                            );
-                                        } else if srv_type == "local"
-                                            && let Some(command_val) = srv.get("command")
-                                        {
-                                            let valid_command =
-                                                command_val.as_array().is_some_and(|arr| {
-                                                    !arr.is_empty()
-                                                        && arr.iter().all(|v| {
-                                                            v.as_str().is_some_and(|s| {
-                                                                !s.trim().is_empty()
+                                        if srv_type == "local" {
+                                            if !srv.contains_key("command") {
+                                                diagnostics.push(
+                                                    Diagnostic::error(
+                                                        path.to_path_buf(),
+                                                        find_key_line(content, srv_name)
+                                                            .unwrap_or(1),
+                                                        0,
+                                                        "OC-CFG-007",
+                                                        t!("rules.oc_cfg_007.local_missing")
+                                                            .to_string(),
+                                                    )
+                                                    .with_suggestion(
+                                                        t!("rules.oc_cfg_007.suggestion_local")
+                                                            .to_string(),
+                                                    ),
+                                                );
+                                            } else if let Some(command_val) = srv.get("command") {
+                                                let valid_command =
+                                                    command_val.as_array().is_some_and(|arr| {
+                                                        !arr.is_empty()
+                                                            && arr.iter().all(|v| {
+                                                                v.as_str().is_some_and(|s| {
+                                                                    !s.trim().is_empty()
+                                                                })
                                                             })
-                                                        })
-                                                });
+                                                    });
 
-                                            if !valid_command {
-                                                diagnostics.push(
-                                                    Diagnostic::error(
-                                                        path.to_path_buf(),
-                                                        find_key_line(content, srv_name).unwrap_or(1),
-                                                        0,
-                                                        "OC-CFG-007",
-                                                        "Local MCP server 'command' must be a non-empty array of non-empty strings".to_string(),
-                                                    )
-                                                    .with_suggestion(
-                                                        "Use command like [\"node\", \"server.js\"]"
-                                                            .to_string(),
-                                                    ),
-                                                );
+                                                if !valid_command {
+                                                    diagnostics.push(
+                                                        Diagnostic::error(
+                                                            path.to_path_buf(),
+                                                            find_key_line(content, srv_name).unwrap_or(1),
+                                                            0,
+                                                            "OC-CFG-007",
+                                                            "Local MCP server 'command' must be a non-empty array of non-empty strings".to_string(),
+                                                        )
+                                                        .with_suggestion(
+                                                            "Use command like [\"node\", \"server.js\"]"
+                                                                .to_string(),
+                                                        ),
+                                                    );
+                                                }
                                             }
-                                        } else if srv_type == "remote" && !srv.contains_key("url") {
-                                            diagnostics.push(
-                                                Diagnostic::error(
-                                                    path.to_path_buf(),
-                                                    find_key_line(content, srv_name).unwrap_or(1),
-                                                    0,
-                                                    "OC-CFG-007",
-                                                    t!("rules.oc_cfg_007.remote_missing")
-                                                        .to_string(),
-                                                )
-                                                .with_suggestion(
-                                                    t!("rules.oc_cfg_007.suggestion_remote")
-                                                        .to_string(),
-                                                ),
-                                            );
-                                        } else if srv_type == "remote"
-                                            && let Some(url_val) = srv.get("url")
-                                        {
-                                            let valid_url = url_val.as_str().is_some_and(|url| {
-                                                let trimmed = url.trim();
-                                                !trimmed.is_empty()
-                                                    && (trimmed.starts_with("http://")
-                                                        || trimmed.starts_with("https://"))
-                                            });
-
-                                            if !valid_url {
+                                        } else if srv_type == "remote" {
+                                            if !srv.contains_key("url") {
                                                 diagnostics.push(
                                                     Diagnostic::error(
                                                         path.to_path_buf(),
-                                                        find_key_line(content, srv_name).unwrap_or(1),
+                                                        find_key_line(content, srv_name)
+                                                            .unwrap_or(1),
                                                         0,
                                                         "OC-CFG-007",
-                                                        "Remote MCP server 'url' must be a non-empty http:// or https:// URL".to_string(),
+                                                        t!("rules.oc_cfg_007.remote_missing")
+                                                            .to_string(),
                                                     )
                                                     .with_suggestion(
-                                                        "Set a valid URL such as \"https://example.com/mcp\""
+                                                        t!("rules.oc_cfg_007.suggestion_remote")
                                                             .to_string(),
                                                     ),
                                                 );
+                                            } else if let Some(url_val) = srv.get("url") {
+                                                let valid_url =
+                                                    url_val.as_str().is_some_and(|url| {
+                                                        let trimmed = url.trim();
+                                                        !trimmed.is_empty()
+                                                            && (trimmed.starts_with("http://")
+                                                                || trimmed.starts_with("https://"))
+                                                    });
+
+                                                if !valid_url {
+                                                    diagnostics.push(
+                                                        Diagnostic::error(
+                                                            path.to_path_buf(),
+                                                            find_key_line(content, srv_name).unwrap_or(1),
+                                                            0,
+                                                            "OC-CFG-007",
+                                                            "Remote MCP server 'url' must be a non-empty http:// or https:// URL".to_string(),
+                                                        )
+                                                        .with_suggestion(
+                                                            "Set a valid URL such as \"https://example.com/mcp\""
+                                                                .to_string(),
+                                                        ),
+                                                    );
+                                                }
                                             }
                                         }
                                     }
@@ -783,6 +810,7 @@ impl Validator for OpenCodeValidator {
                                     ];
                                     if !is_valid_hex_color(color_val)
                                         && !valid_theme_colors.contains(&color_val)
+                                        && !VALID_NAMED_COLORS.contains(&color_val)
                                     {
                                         diagnostics.push(
                                             Diagnostic::error(
@@ -859,6 +887,135 @@ impl Validator for OpenCodeValidator {
                                             .with_suggestion(
                                                 "Use an integer greater than zero, such as 20"
                                                     .to_string(),
+                                            ),
+                                        );
+                                    }
+                                }
+                            }
+
+                            // OC-AG-005: top_p out of range
+                            if config.is_rule_enabled("OC-AG-005") {
+                                if let Some(top_p_raw) = ag.get("top_p") {
+                                    if let Some(top_p_val) = top_p_raw.as_f64() {
+                                        if !(0.0..=1.0).contains(&top_p_val) {
+                                            diagnostics.push(
+                                                Diagnostic::error(
+                                                    path.to_path_buf(),
+                                                    find_key_line(content, "top_p").unwrap_or(1),
+                                                    0,
+                                                    "OC-AG-005",
+                                                    format!(
+                                                        "top_p must be between 0.0 and 1.0, got {}",
+                                                        top_p_val
+                                                    ),
+                                                )
+                                                .with_suggestion(
+                                                    "Set top_p to a value between 0.0 and 1.0"
+                                                        .to_string(),
+                                                ),
+                                            );
+                                        }
+                                    } else if !top_p_raw.is_null() {
+                                        diagnostics.push(
+                                            Diagnostic::error(
+                                                path.to_path_buf(),
+                                                find_key_line(content, "top_p").unwrap_or(1),
+                                                0,
+                                                "OC-AG-005",
+                                                "top_p must be a number between 0.0 and 1.0"
+                                                    .to_string(),
+                                            )
+                                            .with_suggestion(
+                                                "Set top_p to a numeric value such as 0.9"
+                                                    .to_string(),
+                                            ),
+                                        );
+                                    }
+                                }
+                            }
+
+                            // OC-AG-006: Invalid color (extended validation with named colors)
+                            // Only fires for values that look like named colors (no '#' prefix)
+                            // but aren't in VALID_NAMED_COLORS. Hex validation is handled by OC-AG-002.
+                            if config.is_rule_enabled("OC-AG-006") {
+                                if let Some(color_val) = ag.get("color").and_then(|c| c.as_str()) {
+                                    if !color_val.starts_with('#')
+                                        && !VALID_NAMED_COLORS.contains(&color_val)
+                                    {
+                                        let line = find_key_line(content, "color").unwrap_or(1);
+                                        let mut diagnostic = Diagnostic::warning(
+                                            path.to_path_buf(),
+                                            line,
+                                            0,
+                                            "OC-AG-006",
+                                            format!(
+                                                "Invalid named color '{}'. Use a hex color or one of: {}",
+                                                color_val,
+                                                VALID_NAMED_COLORS.join(", ")
+                                            ),
+                                        )
+                                        .with_suggestion(format!(
+                                            "Use a hex color like '#FF5733' or one of: {}",
+                                            VALID_NAMED_COLORS.join(", ")
+                                        ));
+
+                                        if let Some(suggested) =
+                                            find_closest_value(color_val, VALID_NAMED_COLORS)
+                                        {
+                                            if let Some((start, end)) =
+                                                find_unique_json_string_value_span(
+                                                    content, "color", color_val,
+                                                )
+                                            {
+                                                diagnostic = diagnostic.with_fix(Fix::replace(
+                                                    start,
+                                                    end,
+                                                    suggested,
+                                                    format!("Replace color with '{}'", suggested),
+                                                    false,
+                                                ));
+                                            }
+                                        }
+
+                                        diagnostics.push(diagnostic);
+                                    }
+                                }
+                            }
+
+                            // OC-AG-007: Both steps and maxSteps present
+                            if config.is_rule_enabled("OC-AG-007") {
+                                if ag.contains_key("steps") && ag.contains_key("maxSteps") {
+                                    diagnostics.push(
+                                        Diagnostic::warning(
+                                            path.to_path_buf(),
+                                            find_key_line(content, "maxSteps").unwrap_or(1),
+                                            0,
+                                            "OC-AG-007",
+                                            "Both 'steps' and 'maxSteps' are set. Use only 'steps'"
+                                                .to_string(),
+                                        )
+                                        .with_suggestion(
+                                            "Remove 'maxSteps' and use 'steps' only".to_string(),
+                                        ),
+                                    );
+                                }
+                            }
+
+                            // OC-AG-008: hidden must be boolean
+                            if config.is_rule_enabled("OC-AG-008") {
+                                if let Some(hidden) = ag.get("hidden") {
+                                    if !hidden.is_boolean() && !hidden.is_null() {
+                                        diagnostics.push(
+                                            Diagnostic::error(
+                                                path.to_path_buf(),
+                                                find_key_line(content, "hidden").unwrap_or(1),
+                                                0,
+                                                "OC-AG-008",
+                                                "Agent 'hidden' field must be a boolean"
+                                                    .to_string(),
+                                            )
+                                            .with_suggestion(
+                                                "Set hidden to true or false".to_string(),
                                             ),
                                         );
                                     }
@@ -1019,6 +1176,529 @@ impl Validator for OpenCodeValidator {
                         }
                     }
                 }
+
+                // OC-DEP-001/002/003: Deprecated top-level keys
+                for &(old_key, new_key) in DEPRECATED_KEYS {
+                    let rule_id = match old_key {
+                        "mode" => "OC-DEP-001",
+                        "tools" => "OC-DEP-002",
+                        "autoshare" => "OC-DEP-003",
+                        _ => continue,
+                    };
+                    if config.is_rule_enabled(rule_id) && obj.contains_key(old_key) {
+                        let line = find_key_line(content, old_key).unwrap_or(1);
+                        let mut diagnostic = Diagnostic::warning(
+                            path.to_path_buf(),
+                            line,
+                            0,
+                            rule_id,
+                            format!("Deprecated key '{}'. Use '{}' instead", old_key, new_key),
+                        )
+                        .with_suggestion(format!("Rename '{}' to '{}'", old_key, new_key));
+
+                        if let Some((start, end)) = find_json_key_span(content, old_key) {
+                            diagnostic = diagnostic.with_fix(Fix::replace(
+                                start,
+                                end,
+                                new_key,
+                                format!("Rename '{}' to '{}'", old_key, new_key),
+                                true,
+                            ));
+                        }
+
+                        diagnostics.push(diagnostic);
+                    }
+                }
+
+                // OC-DEP-004: CONTEXT.md deprecated filename in instructions
+                if config.is_rule_enabled("OC-DEP-004") {
+                    if let Some(instructions) = obj.get("instructions").and_then(|v| v.as_array()) {
+                        for instr in instructions {
+                            if let Some(instr_str) = instr.as_str() {
+                                let instr_path = Path::new(instr_str);
+                                if instr_path
+                                    .file_name()
+                                    .and_then(|n| n.to_str())
+                                    .is_some_and(|n| n.to_lowercase() == "context.md")
+                                {
+                                    diagnostics.push(
+                                        Diagnostic::warning(
+                                            path.to_path_buf(),
+                                            find_key_line(content, "instructions").unwrap_or(1),
+                                            0,
+                                            "OC-DEP-004",
+                                            format!(
+                                                "CONTEXT.md is deprecated. Rename '{}' to use AGENTS.md instead",
+                                                instr_str
+                                            ),
+                                        )
+                                        .with_suggestion(
+                                            "Rename CONTEXT.md references to AGENTS.md".to_string(),
+                                        ),
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // OC-CFG-008: Invalid logLevel
+                if config.is_rule_enabled("OC-CFG-008") {
+                    if let Some(log_val) = obj.get("logLevel") {
+                        if let Some(log_str) = log_val.as_str() {
+                            let lower = log_str.to_lowercase();
+                            if !VALID_LOG_LEVELS.contains(&lower.as_str()) {
+                                let line = find_key_line(content, "logLevel").unwrap_or(1);
+                                let mut diagnostic = Diagnostic::error(
+                                    path.to_path_buf(),
+                                    line,
+                                    0,
+                                    "OC-CFG-008",
+                                    format!(
+                                        "Invalid logLevel '{}'. Must be one of: {}",
+                                        log_str,
+                                        VALID_LOG_LEVELS.join(", ")
+                                    ),
+                                )
+                                .with_suggestion(format!(
+                                    "Set logLevel to one of: {}",
+                                    VALID_LOG_LEVELS.join(", ")
+                                ));
+
+                                if let Some(suggested) =
+                                    find_closest_value(&lower, VALID_LOG_LEVELS)
+                                {
+                                    if let Some((start, end)) = find_unique_json_string_value_span(
+                                        content, "logLevel", log_str,
+                                    ) {
+                                        diagnostic = diagnostic.with_fix(Fix::replace(
+                                            start,
+                                            end,
+                                            suggested,
+                                            format!("Replace logLevel with '{}'", suggested),
+                                            false,
+                                        ));
+                                    }
+                                }
+
+                                diagnostics.push(diagnostic);
+                            }
+                        } else if !log_val.is_null() {
+                            diagnostics.push(
+                                Diagnostic::error(
+                                    path.to_path_buf(),
+                                    find_key_line(content, "logLevel").unwrap_or(1),
+                                    0,
+                                    "OC-CFG-008",
+                                    "logLevel must be a string".to_string(),
+                                )
+                                .with_suggestion(format!(
+                                    "Set logLevel to one of: {}",
+                                    VALID_LOG_LEVELS.join(", ")
+                                )),
+                            );
+                        }
+                    }
+                }
+
+                // OC-CFG-009: Invalid compaction.reserved
+                if config.is_rule_enabled("OC-CFG-009") {
+                    if let Some(compaction) = obj.get("compaction").and_then(|c| c.as_object()) {
+                        if let Some(reserved) = compaction.get("reserved") {
+                            if let Some(val) = reserved.as_i64() {
+                                if val < 0 {
+                                    diagnostics.push(
+                                        Diagnostic::error(
+                                            path.to_path_buf(),
+                                            find_key_line(content, "reserved").unwrap_or(1),
+                                            0,
+                                            "OC-CFG-009",
+                                            format!(
+                                                "compaction.reserved must be >= 0, got {}",
+                                                val
+                                            ),
+                                        )
+                                        .with_suggestion(
+                                            "Set reserved to a non-negative integer".to_string(),
+                                        ),
+                                    );
+                                }
+                            } else if !reserved.is_null() {
+                                diagnostics.push(
+                                    Diagnostic::error(
+                                        path.to_path_buf(),
+                                        find_key_line(content, "reserved").unwrap_or(1),
+                                        0,
+                                        "OC-CFG-009",
+                                        "compaction.reserved must be an integer >= 0".to_string(),
+                                    )
+                                    .with_suggestion(
+                                        "Set reserved to a non-negative integer".to_string(),
+                                    ),
+                                );
+                            }
+                        }
+                    }
+                }
+
+                // OC-CFG-010: Invalid skills.urls
+                if config.is_rule_enabled("OC-CFG-010") {
+                    if let Some(skills) = obj.get("skills").and_then(|s| s.as_object()) {
+                        if let Some(urls_val) = skills.get("urls") {
+                            if let Some(urls) = urls_val.as_array() {
+                                for url_val in urls {
+                                    if let Some(url_str) = url_val.as_str() {
+                                        if !url_str.starts_with("http://")
+                                            && !url_str.starts_with("https://")
+                                        {
+                                            diagnostics.push(
+                                                Diagnostic::error(
+                                                    path.to_path_buf(),
+                                                    find_key_line(content, "urls").unwrap_or(1),
+                                                    0,
+                                                    "OC-CFG-010",
+                                                    format!(
+                                                        "Invalid skills URL '{}'. Must start with http:// or https://",
+                                                        truncate_for_display(url_str, 200)
+                                                    ),
+                                                )
+                                                .with_suggestion(
+                                                    "Use a full URL starting with http:// or https://"
+                                                        .to_string(),
+                                                ),
+                                            );
+                                        }
+                                    } else {
+                                        diagnostics.push(
+                                            Diagnostic::error(
+                                                path.to_path_buf(),
+                                                find_key_line(content, "urls").unwrap_or(1),
+                                                0,
+                                                "OC-CFG-010",
+                                                "skills.urls entries must be strings".to_string(),
+                                            )
+                                            .with_suggestion(
+                                                "Each entry in skills.urls must be a URL string"
+                                                    .to_string(),
+                                            ),
+                                        );
+                                    }
+                                }
+                            } else {
+                                diagnostics.push(
+                                    Diagnostic::error(
+                                        path.to_path_buf(),
+                                        find_key_line(content, "urls").unwrap_or(1),
+                                        0,
+                                        "OC-CFG-010",
+                                        "skills.urls must be an array".to_string(),
+                                    )
+                                    .with_suggestion(
+                                        "Set skills.urls to an array of URL strings".to_string(),
+                                    ),
+                                );
+                            }
+                        }
+                    }
+                }
+
+                // OC-CFG-011: MCP timeout must be positive integer
+                if config.is_rule_enabled("OC-CFG-011") {
+                    if let Some(mcp_obj) = obj.get("mcp").and_then(|m| m.as_object()) {
+                        for (srv_name, srv_val) in mcp_obj {
+                            if let Some(srv) = srv_val.as_object() {
+                                if let Some(timeout) = srv.get("timeout") {
+                                    if let Some(val) = timeout.as_i64() {
+                                        if val <= 0 {
+                                            diagnostics.push(
+                                                Diagnostic::error(
+                                                    path.to_path_buf(),
+                                                    find_key_line(content, srv_name)
+                                                        .unwrap_or(1),
+                                                    0,
+                                                    "OC-CFG-011",
+                                                    format!(
+                                                        "MCP server '{}' timeout must be a positive integer, got {}",
+                                                        srv_name, val
+                                                    ),
+                                                )
+                                                .with_suggestion(
+                                                    "Set timeout to a positive integer (milliseconds)"
+                                                        .to_string(),
+                                                ),
+                                            );
+                                        }
+                                    } else if !timeout.is_null() {
+                                        diagnostics.push(
+                                            Diagnostic::error(
+                                                path.to_path_buf(),
+                                                find_key_line(content, srv_name).unwrap_or(1),
+                                                0,
+                                                "OC-CFG-011",
+                                                format!(
+                                                    "MCP server '{}' timeout must be a positive integer",
+                                                    srv_name
+                                                ),
+                                            )
+                                            .with_suggestion(
+                                                "Set timeout to a positive integer (milliseconds)"
+                                                    .to_string(),
+                                            ),
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // OC-CFG-012: MCP OAuth validation
+                if config.is_rule_enabled("OC-CFG-012") {
+                    if let Some(mcp_obj) = obj.get("mcp").and_then(|m| m.as_object()) {
+                        for (srv_name, srv_val) in mcp_obj {
+                            if let Some(srv) = srv_val.as_object() {
+                                if let Some(oauth) = srv.get("oauth") {
+                                    if let Some(oauth_obj) = oauth.as_object() {
+                                        let has_client_id = oauth_obj.contains_key("client_id");
+                                        let has_auth_url =
+                                            oauth_obj.contains_key("authorization_url");
+                                        if !has_client_id || !has_auth_url {
+                                            let missing: Vec<&str> = [
+                                                (!has_client_id).then_some("client_id"),
+                                                (!has_auth_url).then_some("authorization_url"),
+                                            ]
+                                            .into_iter()
+                                            .flatten()
+                                            .collect();
+                                            diagnostics.push(
+                                                Diagnostic::error(
+                                                    path.to_path_buf(),
+                                                    find_key_line(content, srv_name)
+                                                        .unwrap_or(1),
+                                                    0,
+                                                    "OC-CFG-012",
+                                                    format!(
+                                                        "MCP server '{}' oauth missing required fields: {}",
+                                                        truncate_for_display(srv_name, 200),
+                                                        missing.join(", ")
+                                                    ),
+                                                )
+                                                .with_suggestion(
+                                                    "Add client_id and authorization_url to oauth config"
+                                                        .to_string(),
+                                                ),
+                                            );
+                                        }
+                                    } else if !oauth.is_null() {
+                                        diagnostics.push(
+                                            Diagnostic::error(
+                                                path.to_path_buf(),
+                                                find_key_line(content, srv_name).unwrap_or(1),
+                                                0,
+                                                "OC-CFG-012",
+                                                format!(
+                                                    "MCP server '{}' oauth must be an object",
+                                                    srv_name
+                                                ),
+                                            )
+                                            .with_suggestion(
+                                                "Set oauth to an object with client_id and authorization_url"
+                                                    .to_string(),
+                                            ),
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // OC-LSP-001: LSP entry with command but no extensions
+                if config.is_rule_enabled("OC-LSP-001") {
+                    if let Some(lsp_obj) = obj.get("lsp").and_then(|l| l.as_object()) {
+                        for (lsp_name, lsp_val) in lsp_obj {
+                            if let Some(lsp) = lsp_val.as_object() {
+                                if lsp.contains_key("command") && !lsp.contains_key("extensions") {
+                                    diagnostics.push(
+                                        Diagnostic::warning(
+                                            path.to_path_buf(),
+                                            find_key_line(content, lsp_name).unwrap_or(1),
+                                            0,
+                                            "OC-LSP-001",
+                                            format!(
+                                                "LSP server '{}' has 'command' but no 'extensions'",
+                                                lsp_name
+                                            ),
+                                        )
+                                        .with_suggestion(
+                                            "Add 'extensions' array to specify file extensions"
+                                                .to_string(),
+                                        ),
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // OC-LSP-002: LSP entry with empty or invalid extensions
+                if config.is_rule_enabled("OC-LSP-002") {
+                    if let Some(lsp_obj) = obj.get("lsp").and_then(|l| l.as_object()) {
+                        for (lsp_name, lsp_val) in lsp_obj {
+                            if let Some(lsp) = lsp_val.as_object() {
+                                if let Some(ext_val) = lsp.get("extensions") {
+                                    let is_invalid = if let Some(arr) = ext_val.as_array() {
+                                        arr.is_empty() || arr.iter().any(|v| !v.is_string())
+                                    } else {
+                                        true
+                                    };
+                                    if is_invalid {
+                                        diagnostics.push(
+                                            Diagnostic::error(
+                                                path.to_path_buf(),
+                                                find_key_line(content, lsp_name).unwrap_or(1),
+                                                0,
+                                                "OC-LSP-002",
+                                                format!(
+                                                    "LSP server '{}' extensions must be a non-empty array of strings",
+                                                    lsp_name
+                                                ),
+                                            )
+                                            .with_suggestion(
+                                                "Set extensions to an array like [\".ts\", \".js\"]"
+                                                    .to_string(),
+                                            ),
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // OC-TUI-001: Unknown TUI keys
+                if config.is_rule_enabled("OC-TUI-001") {
+                    if let Some(tui_obj) = obj.get("tui").and_then(|t| t.as_object()) {
+                        for key in tui_obj.keys() {
+                            if !KNOWN_TUI_KEYS.contains(&key.as_str()) {
+                                diagnostics.push(
+                                    Diagnostic::warning(
+                                        path.to_path_buf(),
+                                        find_key_line(content, key).unwrap_or(1),
+                                        0,
+                                        "OC-TUI-001",
+                                        format!("Unknown TUI key '{}'", key),
+                                    )
+                                    .with_suggestion(format!(
+                                        "Valid TUI keys: {}",
+                                        KNOWN_TUI_KEYS.join(", ")
+                                    )),
+                                );
+                            }
+                        }
+                    }
+                }
+
+                // OC-TUI-002: Invalid scroll_speed
+                if config.is_rule_enabled("OC-TUI-002") {
+                    if let Some(tui_obj) = obj.get("tui").and_then(|t| t.as_object()) {
+                        if let Some(speed) = tui_obj.get("scroll_speed") {
+                            if let Some(val) = speed.as_f64() {
+                                if val < 0.001 {
+                                    diagnostics.push(
+                                        Diagnostic::error(
+                                            path.to_path_buf(),
+                                            find_key_line(content, "scroll_speed").unwrap_or(1),
+                                            0,
+                                            "OC-TUI-002",
+                                            format!("scroll_speed must be >= 0.001, got {}", val),
+                                        )
+                                        .with_suggestion(
+                                            "Set scroll_speed to a number >= 0.001".to_string(),
+                                        ),
+                                    );
+                                }
+                            } else if !speed.is_null() {
+                                diagnostics.push(
+                                    Diagnostic::error(
+                                        path.to_path_buf(),
+                                        find_key_line(content, "scroll_speed").unwrap_or(1),
+                                        0,
+                                        "OC-TUI-002",
+                                        "scroll_speed must be a number >= 0.001".to_string(),
+                                    )
+                                    .with_suggestion(
+                                        "Set scroll_speed to a number >= 0.001".to_string(),
+                                    ),
+                                );
+                            }
+                        }
+                    }
+                }
+
+                // OC-TUI-003: Invalid diff_style
+                if config.is_rule_enabled("OC-TUI-003") {
+                    if let Some(tui_obj) = obj.get("tui").and_then(|t| t.as_object()) {
+                        if let Some(style_val) = tui_obj.get("diff_style") {
+                            if let Some(style_str) = style_val.as_str() {
+                                if !VALID_DIFF_STYLES.contains(&style_str) {
+                                    let line = find_key_line(content, "diff_style").unwrap_or(1);
+                                    let mut diagnostic = Diagnostic::error(
+                                        path.to_path_buf(),
+                                        line,
+                                        0,
+                                        "OC-TUI-003",
+                                        format!(
+                                            "Invalid diff_style '{}'. Must be one of: {}",
+                                            style_str,
+                                            VALID_DIFF_STYLES.join(", ")
+                                        ),
+                                    )
+                                    .with_suggestion(format!(
+                                        "Set diff_style to one of: {}",
+                                        VALID_DIFF_STYLES.join(", ")
+                                    ));
+
+                                    if let Some(suggested) =
+                                        find_closest_value(style_str, VALID_DIFF_STYLES)
+                                    {
+                                        if let Some((start, end)) =
+                                            find_unique_json_string_value_span(
+                                                content,
+                                                "diff_style",
+                                                style_str,
+                                            )
+                                        {
+                                            diagnostic = diagnostic.with_fix(Fix::replace(
+                                                start,
+                                                end,
+                                                suggested,
+                                                format!("Replace diff_style with '{}'", suggested),
+                                                false,
+                                            ));
+                                        }
+                                    }
+
+                                    diagnostics.push(diagnostic);
+                                }
+                            } else if !style_val.is_null() {
+                                diagnostics.push(
+                                    Diagnostic::error(
+                                        path.to_path_buf(),
+                                        find_key_line(content, "diff_style").unwrap_or(1),
+                                        0,
+                                        "OC-TUI-003",
+                                        "diff_style must be a string".to_string(),
+                                    )
+                                    .with_suggestion(format!(
+                                        "Set diff_style to one of: {}",
+                                        VALID_DIFF_STYLES.join(", ")
+                                    )),
+                                );
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -1138,6 +1818,37 @@ fn validate_substitution_string(
     }
 }
 
+/// Find the byte span of a JSON key string (the text between quotes).
+/// Returns (start, end) byte offsets of the key name (excluding quotes).
+///
+/// Uses a loop to skip false positives where the pattern appears inside
+/// string values rather than as an object key. A match is only accepted
+/// when the next non-whitespace character after the closing quote is `:`.
+///
+/// Limitation: when the same key appears in nested objects, this returns
+/// the first occurrence.
+fn find_json_key_span(content: &str, key: &str) -> Option<(usize, usize)> {
+    let pattern = format!("\"{}\"", key);
+    let mut search_from = 0;
+    let mut found = None;
+    let mut count = 0;
+    while let Some(pos) = content[search_from..].find(&pattern) {
+        let abs_pos = search_from + pos;
+        let after_quote = abs_pos + pattern.len();
+        if let Some(next_char) = content[after_quote..].trim_start().chars().next() {
+            if next_char == ':' {
+                count += 1;
+                if found.is_none() {
+                    found = Some((abs_pos + 1, abs_pos + 1 + key.len()));
+                }
+            }
+        }
+        search_from = abs_pos + pattern.len();
+    }
+    // Only return span if key appears exactly once as a key (safe to autofix)
+    if count == 1 { found } else { None }
+}
+
 /// Find the 1-indexed line number where a string pattern appears in content.
 fn find_string_line(content: &str, pattern: &str) -> Option<usize> {
     for (i, line) in content.lines().enumerate() {
@@ -1164,6 +1875,20 @@ fn find_key_line(content: &str, key: &str) -> Option<usize> {
         }
     }
     None
+}
+
+/// Truncate a string for display in diagnostic messages.
+/// Appends "..." if the string exceeds `max` bytes.
+fn truncate_for_display(s: &str, max: usize) -> String {
+    if s.len() <= max {
+        return s.to_string();
+    }
+    // Find the last valid char boundary at or before max
+    let mut end = max;
+    while end > 0 && !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    format!("{}...", &s[..end])
 }
 
 fn is_valid_hex_color(value: &str) -> bool {
@@ -2063,6 +2788,15 @@ mod tests {
     }
 
     #[test]
+    fn test_oc_ag_002_valid_named_color() {
+        // VALID_NAMED_COLORS like "primary", "secondary" must not trigger OC-AG-002
+        let diagnostics = validate(r#"{"agent": {"a": {"color": "primary"}}}"#);
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-AG-002"));
+        let diagnostics = validate(r#"{"agent": {"a": {"color": "secondary"}}}"#);
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-AG-002"));
+    }
+
+    #[test]
     fn test_oc_ag_003_invalid_temp() {
         let diagnostics = validate(r#"{"agent": {"a": {"temperature": 3.0}}}"#);
         assert!(diagnostics.iter().any(|d| d.rule == "OC-AG-003"));
@@ -2104,5 +2838,613 @@ mod tests {
     fn test_oc_pm_002_invalid_perm() {
         let diagnostics = validate(r#"{"permission": {"foo": "allow"}}"#);
         assert!(diagnostics.iter().any(|d| d.rule == "OC-PM-002"));
+    }
+
+    // ===== OC-DEP-001: Deprecated mode key =====
+
+    #[test]
+    fn test_oc_dep_001_deprecated_mode() {
+        let diagnostics = validate(r#"{"mode": "agent"}"#);
+        let dep: Vec<_> = diagnostics
+            .iter()
+            .filter(|d| d.rule == "OC-DEP-001")
+            .collect();
+        assert_eq!(dep.len(), 1);
+        assert_eq!(dep[0].level, DiagnosticLevel::Warning);
+        assert!(dep[0].message.contains("mode"));
+        assert!(dep[0].message.contains("agent"));
+    }
+
+    #[test]
+    fn test_oc_dep_001_autofix() {
+        let content = r#"{"mode": "agent"}"#;
+        let diagnostics = validate(content);
+        let dep: Vec<_> = diagnostics
+            .iter()
+            .filter(|d| d.rule == "OC-DEP-001")
+            .collect();
+        assert_eq!(dep.len(), 1);
+        assert!(dep[0].has_fixes(), "OC-DEP-001 should have auto-fix");
+        let fix = &dep[0].fixes[0];
+        assert!(fix.safe, "OC-DEP-001 fix should be safe");
+        let target = &content[fix.start_byte..fix.end_byte];
+        assert_eq!(target, "mode");
+        assert_eq!(fix.replacement, "agent");
+    }
+
+    #[test]
+    fn test_oc_dep_001_no_fire_when_absent() {
+        let diagnostics = validate(r#"{"agent": {}}"#);
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-DEP-001"));
+    }
+
+    // ===== OC-DEP-002: Deprecated tools key =====
+
+    #[test]
+    fn test_oc_dep_002_deprecated_tools() {
+        let diagnostics = validate(r#"{"tools": {}}"#);
+        let dep: Vec<_> = diagnostics
+            .iter()
+            .filter(|d| d.rule == "OC-DEP-002")
+            .collect();
+        assert_eq!(dep.len(), 1);
+        assert!(dep[0].message.contains("tools"));
+    }
+
+    #[test]
+    fn test_oc_dep_002_autofix() {
+        let content = r#"{"tools": {}}"#;
+        let diagnostics = validate(content);
+        let dep: Vec<_> = diagnostics
+            .iter()
+            .filter(|d| d.rule == "OC-DEP-002")
+            .collect();
+        assert!(dep[0].has_fixes());
+        let fix = &dep[0].fixes[0];
+        let target = &content[fix.start_byte..fix.end_byte];
+        assert_eq!(target, "tools");
+        assert_eq!(fix.replacement, "permission");
+    }
+
+    // ===== OC-DEP-003: Deprecated autoshare key =====
+
+    #[test]
+    fn test_oc_dep_003_deprecated_autoshare() {
+        let diagnostics = validate(r#"{"autoshare": "manual"}"#);
+        let dep: Vec<_> = diagnostics
+            .iter()
+            .filter(|d| d.rule == "OC-DEP-003")
+            .collect();
+        assert_eq!(dep.len(), 1);
+        assert!(dep[0].message.contains("autoshare"));
+    }
+
+    #[test]
+    fn test_oc_dep_003_autofix() {
+        let content = r#"{"autoshare": "manual"}"#;
+        let diagnostics = validate(content);
+        let dep: Vec<_> = diagnostics
+            .iter()
+            .filter(|d| d.rule == "OC-DEP-003")
+            .collect();
+        assert!(dep[0].has_fixes());
+        let fix = &dep[0].fixes[0];
+        let target = &content[fix.start_byte..fix.end_byte];
+        assert_eq!(target, "autoshare");
+        assert_eq!(fix.replacement, "share");
+    }
+
+    // ===== OC-DEP-004: CONTEXT.md deprecated =====
+
+    #[test]
+    fn test_oc_dep_004_context_md() {
+        let diagnostics = validate(r#"{"instructions": ["CONTEXT.md"]}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-DEP-004"));
+    }
+
+    #[test]
+    fn test_oc_dep_004_context_md_nested_path() {
+        let diagnostics = validate(r#"{"instructions": ["docs/CONTEXT.md"]}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-DEP-004"));
+    }
+
+    #[test]
+    fn test_oc_dep_004_not_context_md() {
+        let diagnostics = validate(r#"{"instructions": ["AGENTS.md"]}"#);
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-DEP-004"));
+    }
+
+    #[test]
+    fn test_oc_dep_004_no_instructions() {
+        let diagnostics = validate(r#"{}"#);
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-DEP-004"));
+    }
+
+    // ===== OC-CFG-008: Invalid logLevel =====
+
+    #[test]
+    fn test_oc_cfg_008_invalid_loglevel() {
+        let diagnostics = validate(r#"{"logLevel": "verbose"}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-CFG-008"));
+    }
+
+    #[test]
+    fn test_oc_cfg_008_valid_loglevel() {
+        let diagnostics = validate(r#"{"logLevel": "info"}"#);
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-CFG-008"));
+    }
+
+    #[test]
+    fn test_oc_cfg_008_case_insensitive() {
+        // "INFO" normalized to "info" should be valid
+        let diagnostics = validate(r#"{"logLevel": "INFO"}"#);
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-CFG-008"));
+    }
+
+    #[test]
+    fn test_oc_cfg_008_type_error() {
+        let diagnostics = validate(r#"{"logLevel": 42}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-CFG-008"));
+    }
+
+    #[test]
+    fn test_oc_cfg_008_autofix() {
+        let content = r#"{"logLevel": "debu"}"#;
+        let diagnostics = validate(content);
+        let cfg: Vec<_> = diagnostics
+            .iter()
+            .filter(|d| d.rule == "OC-CFG-008")
+            .collect();
+        assert_eq!(cfg.len(), 1);
+        assert!(
+            cfg[0].has_fixes(),
+            "OC-CFG-008 should have auto-fix for close match"
+        );
+        let fix = &cfg[0].fixes[0];
+        let target = &content[fix.start_byte..fix.end_byte];
+        assert_eq!(target, "debu");
+        assert_eq!(fix.replacement, "debug");
+    }
+
+    // ===== OC-CFG-009: Invalid compaction.reserved =====
+
+    #[test]
+    fn test_oc_cfg_009_negative_reserved() {
+        let diagnostics = validate(r#"{"compaction": {"reserved": -1}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-CFG-009"));
+    }
+
+    #[test]
+    fn test_oc_cfg_009_valid_reserved() {
+        let diagnostics = validate(r#"{"compaction": {"reserved": 5}}"#);
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-CFG-009"));
+    }
+
+    #[test]
+    fn test_oc_cfg_009_zero_reserved() {
+        let diagnostics = validate(r#"{"compaction": {"reserved": 0}}"#);
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-CFG-009"));
+    }
+
+    #[test]
+    fn test_oc_cfg_009_type_error() {
+        let diagnostics = validate(r#"{"compaction": {"reserved": "five"}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-CFG-009"));
+    }
+
+    // ===== OC-CFG-010: Invalid skills.urls =====
+
+    #[test]
+    fn test_oc_cfg_010_invalid_url() {
+        let diagnostics = validate(r#"{"skills": {"urls": ["not-a-url"]}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-CFG-010"));
+    }
+
+    #[test]
+    fn test_oc_cfg_010_valid_url() {
+        let diagnostics = validate(r#"{"skills": {"urls": ["https://example.com"]}}"#);
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-CFG-010"));
+    }
+
+    // ===== OC-CFG-011: MCP timeout =====
+
+    #[test]
+    fn test_oc_cfg_011_negative_timeout() {
+        let diagnostics = validate(r#"{"mcp": {"srv": {"timeout": -5}}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-CFG-011"));
+    }
+
+    #[test]
+    fn test_oc_cfg_011_valid_timeout() {
+        let diagnostics = validate(r#"{"mcp": {"srv": {"timeout": 5000}}}"#);
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-CFG-011"));
+    }
+
+    #[test]
+    fn test_oc_cfg_011_type_error() {
+        let diagnostics = validate(r#"{"mcp": {"srv": {"timeout": "slow"}}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-CFG-011"));
+    }
+
+    #[test]
+    fn test_oc_cfg_011_zero_timeout() {
+        let diagnostics = validate(r#"{"mcp": {"srv": {"timeout": 0}}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-CFG-011"));
+    }
+
+    // ===== OC-CFG-012: MCP OAuth =====
+
+    #[test]
+    fn test_oc_cfg_012_missing_fields() {
+        let diagnostics = validate(r#"{"mcp": {"srv": {"oauth": {"client_id": "abc"}}}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-CFG-012"));
+    }
+
+    #[test]
+    fn test_oc_cfg_012_valid_oauth() {
+        let diagnostics = validate(
+            r#"{"mcp": {"srv": {"oauth": {"client_id": "abc", "authorization_url": "https://auth.example.com"}}}}"#,
+        );
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-CFG-012"));
+    }
+
+    #[test]
+    fn test_oc_cfg_012_type_error() {
+        let diagnostics = validate(r#"{"mcp": {"srv": {"oauth": "invalid"}}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-CFG-012"));
+    }
+
+    // ===== OC-AG-005: top_p out of range =====
+
+    #[test]
+    fn test_oc_ag_005_invalid_top_p() {
+        let diagnostics = validate(r#"{"agent": {"a": {"top_p": 1.5}}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-AG-005"));
+    }
+
+    #[test]
+    fn test_oc_ag_005_valid_top_p() {
+        let diagnostics = validate(r#"{"agent": {"a": {"top_p": 0.9}}}"#);
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-AG-005"));
+    }
+
+    #[test]
+    fn test_oc_ag_005_boundary() {
+        let diagnostics = validate(r#"{"agent": {"a": {"top_p": 1.0}}}"#);
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-AG-005"));
+    }
+
+    #[test]
+    fn test_oc_ag_005_type_error() {
+        let diagnostics = validate(r#"{"agent": {"a": {"top_p": "high"}}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-AG-005"));
+    }
+
+    #[test]
+    fn test_oc_ag_005_boundary_zero() {
+        let diagnostics = validate(r#"{"agent": {"a": {"top_p": 0.0}}}"#);
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-AG-005"));
+    }
+
+    #[test]
+    fn test_oc_ag_005_negative() {
+        let diagnostics = validate(r#"{"agent": {"a": {"top_p": -0.1}}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-AG-005"));
+    }
+
+    // ===== OC-AG-006: Invalid named color =====
+
+    #[test]
+    fn test_oc_ag_006_invalid_named_color() {
+        let diagnostics = validate(r#"{"agent": {"a": {"color": "purple"}}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-AG-006"));
+    }
+
+    #[test]
+    fn test_oc_ag_006_valid_named_color() {
+        let diagnostics = validate(r#"{"agent": {"a": {"color": "primary"}}}"#);
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-AG-006"));
+    }
+
+    #[test]
+    fn test_oc_ag_006_valid_hex_color() {
+        let diagnostics = validate(r##"{"agent": {"a": {"color": "#FF5733"}}}"##);
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-AG-006"));
+    }
+
+    #[test]
+    fn test_oc_ag_006_autofix() {
+        let content = r#"{"agent": {"a": {"color": "erro"}}}"#;
+        let diagnostics = validate(content);
+        let ag: Vec<_> = diagnostics
+            .iter()
+            .filter(|d| d.rule == "OC-AG-006")
+            .collect();
+        assert_eq!(ag.len(), 1);
+        assert!(
+            ag[0].has_fixes(),
+            "OC-AG-006 should have auto-fix for close match"
+        );
+        let fix = &ag[0].fixes[0];
+        let target = &content[fix.start_byte..fix.end_byte];
+        assert_eq!(target, "erro");
+        assert_eq!(fix.replacement, "error");
+    }
+
+    // ===== OC-AG-007: Both steps and maxSteps =====
+
+    #[test]
+    fn test_oc_ag_007_redundant_steps() {
+        let diagnostics = validate(r#"{"agent": {"a": {"steps": 10, "maxSteps": 20}}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-AG-007"));
+    }
+
+    #[test]
+    fn test_oc_ag_007_only_steps() {
+        let diagnostics = validate(r#"{"agent": {"a": {"steps": 10}}}"#);
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-AG-007"));
+    }
+
+    // ===== OC-AG-008: hidden must be boolean =====
+
+    #[test]
+    fn test_oc_ag_008_invalid_hidden() {
+        let diagnostics = validate(r#"{"agent": {"a": {"hidden": "yes"}}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-AG-008"));
+    }
+
+    #[test]
+    fn test_oc_ag_008_valid_hidden() {
+        let diagnostics = validate(r#"{"agent": {"a": {"hidden": true}}}"#);
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-AG-008"));
+    }
+
+    // ===== OC-LSP-001: command without extensions =====
+
+    #[test]
+    fn test_oc_lsp_001_missing_extensions() {
+        let diagnostics = validate(r#"{"lsp": {"ts": {"command": "typescript-language-server"}}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-LSP-001"));
+    }
+
+    #[test]
+    fn test_oc_lsp_001_with_extensions() {
+        let diagnostics = validate(
+            r#"{"lsp": {"ts": {"command": "typescript-language-server", "extensions": [".ts"]}}}"#,
+        );
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-LSP-001"));
+    }
+
+    // ===== OC-LSP-002: invalid extensions =====
+
+    #[test]
+    fn test_oc_lsp_002_empty_extensions() {
+        let diagnostics = validate(r#"{"lsp": {"ts": {"extensions": []}}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-LSP-002"));
+    }
+
+    #[test]
+    fn test_oc_lsp_002_non_string_extensions() {
+        let diagnostics = validate(r#"{"lsp": {"ts": {"extensions": [1, 2]}}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-LSP-002"));
+    }
+
+    #[test]
+    fn test_oc_lsp_002_not_array() {
+        let diagnostics = validate(r#"{"lsp": {"ts": {"extensions": "ts"}}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-LSP-002"));
+    }
+
+    #[test]
+    fn test_oc_lsp_002_null_extensions() {
+        let diagnostics = validate(r#"{"lsp": {"ts": {"extensions": null}}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-LSP-002"));
+    }
+
+    // ===== OC-TUI-001: Unknown TUI keys =====
+
+    #[test]
+    fn test_oc_tui_001_unknown_key() {
+        let diagnostics = validate(r#"{"tui": {"unknown_opt": true}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-TUI-001"));
+    }
+
+    #[test]
+    fn test_oc_tui_001_known_keys() {
+        let diagnostics = validate(r#"{"tui": {"theme": "dark", "scroll_speed": 1.0}}"#);
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-TUI-001"));
+    }
+
+    // ===== OC-TUI-002: Invalid scroll_speed =====
+
+    #[test]
+    fn test_oc_tui_002_too_small() {
+        let diagnostics = validate(r#"{"tui": {"scroll_speed": 0.0001}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-TUI-002"));
+    }
+
+    #[test]
+    fn test_oc_tui_002_valid() {
+        let diagnostics = validate(r#"{"tui": {"scroll_speed": 1.0}}"#);
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-TUI-002"));
+    }
+
+    #[test]
+    fn test_oc_tui_002_type_error() {
+        let diagnostics = validate(r#"{"tui": {"scroll_speed": "fast"}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-TUI-002"));
+    }
+
+    #[test]
+    fn test_oc_tui_002_boundary() {
+        let diagnostics = validate(r#"{"tui": {"scroll_speed": 0.001}}"#);
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-TUI-002"));
+    }
+
+    // ===== OC-TUI-003: Invalid diff_style =====
+
+    #[test]
+    fn test_oc_tui_003_invalid() {
+        let diagnostics = validate(r#"{"tui": {"diff_style": "unified"}}"#);
+        assert!(diagnostics.iter().any(|d| d.rule == "OC-TUI-003"));
+    }
+
+    #[test]
+    fn test_oc_tui_003_valid() {
+        let diagnostics = validate(r#"{"tui": {"diff_style": "auto"}}"#);
+        assert!(!diagnostics.iter().any(|d| d.rule == "OC-TUI-003"));
+    }
+
+    #[test]
+    fn test_oc_tui_003_autofix() {
+        let content = r#"{"tui": {"diff_style": "stack"}}"#;
+        let diagnostics = validate(content);
+        let tui: Vec<_> = diagnostics
+            .iter()
+            .filter(|d| d.rule == "OC-TUI-003")
+            .collect();
+        assert_eq!(tui.len(), 1);
+        assert!(
+            tui[0].has_fixes(),
+            "OC-TUI-003 should have auto-fix for close match"
+        );
+        let fix = &tui[0].fixes[0];
+        let target = &content[fix.start_byte..fix.end_byte];
+        assert_eq!(target, "stack");
+        assert_eq!(fix.replacement, "stacked");
+    }
+
+    // ===== find_json_key_span =====
+
+    #[test]
+    fn test_find_json_key_span() {
+        let content = r#"{"mode": "agent"}"#;
+        let span = find_json_key_span(content, "mode");
+        assert!(span.is_some());
+        let (start, end) = span.unwrap();
+        assert_eq!(&content[start..end], "mode");
+    }
+
+    #[test]
+    fn test_find_json_key_span_not_found() {
+        let content = r#"{"share": "manual"}"#;
+        assert!(find_json_key_span(content, "mode").is_none());
+    }
+
+    #[test]
+    fn test_find_json_key_span_value_not_key() {
+        // "mode" appears only as a value, not as a key
+        let content = r#"{"comment": "mode"}"#;
+        assert!(find_json_key_span(content, "mode").is_none());
+    }
+
+    // ===== Fix #3: OC-CFG-010 http:// URL should NOT fire =====
+
+    #[test]
+    fn test_oc_cfg_010_http_url_valid() {
+        let diagnostics = validate(r#"{"skills": {"urls": ["http://example.com"]}}"#);
+        assert!(
+            !diagnostics.iter().any(|d| d.rule == "OC-CFG-010"),
+            "http:// URLs should be valid for skills.urls"
+        );
+    }
+
+    // ===== Fix #4: OC-CFG-012 empty oauth object =====
+
+    #[test]
+    fn test_oc_cfg_012_empty_oauth() {
+        let diagnostics =
+            validate(r#"{"mcp": {"srv": {"type": "remote", "url": "http://x", "oauth": {}}}}"#);
+        let cfg_012: Vec<_> = diagnostics
+            .iter()
+            .filter(|d| d.rule == "OC-CFG-012")
+            .collect();
+        assert_eq!(
+            cfg_012.len(),
+            1,
+            "Empty oauth object should fire OC-CFG-012 for missing required fields"
+        );
+    }
+
+    // ===== Fix #5: OC-AG-007 only maxSteps (no steps) =====
+
+    #[test]
+    fn test_oc_ag_007_only_max_steps() {
+        let diagnostics = validate(r#"{"agent": {"a": {"maxSteps": 20}}}"#);
+        assert!(
+            !diagnostics.iter().any(|d| d.rule == "OC-AG-007"),
+            "Only maxSteps without steps should NOT fire OC-AG-007"
+        );
+    }
+
+    // ===== Fix #6: DEP-002/DEP-003 negative tests =====
+
+    #[test]
+    fn test_oc_dep_002_no_fire_when_absent() {
+        let diagnostics = validate(r#"{"permission": "allow"}"#);
+        assert!(
+            !diagnostics.iter().any(|d| d.rule == "OC-DEP-002"),
+            "OC-DEP-002 should not fire when 'tools' key is absent"
+        );
+    }
+
+    #[test]
+    fn test_oc_dep_003_no_fire_when_absent() {
+        let diagnostics = validate(r#"{"share": "manual"}"#);
+        assert!(
+            !diagnostics.iter().any(|d| d.rule == "OC-DEP-003"),
+            "OC-DEP-003 should not fire when 'autoshare' key is absent"
+        );
+    }
+
+    // ===== Fix #7: OC-TUI-003 type error =====
+
+    #[test]
+    fn test_oc_tui_003_type_error() {
+        let diagnostics = validate(r#"{"tui": {"diff_style": 42}}"#);
+        assert!(
+            diagnostics.iter().any(|d| d.rule == "OC-TUI-003"),
+            "Non-string diff_style should fire OC-TUI-003"
+        );
+    }
+
+    // ===== Fix #8: find_json_key_span nested key =====
+
+    #[test]
+    fn test_find_json_key_span_nested_returns_none() {
+        // When the same key appears at multiple nesting levels,
+        // find_json_key_span returns None to prevent unsafe autofixes.
+        let content = r#"{"name": "outer", "nested": {"name": "inner"}}"#;
+        let span = find_json_key_span(content, "name");
+        assert!(
+            span.is_none(),
+            "Should return None when key appears multiple times"
+        );
+    }
+
+    // ===== Fix #11: truncate_for_display =====
+
+    #[test]
+    fn test_truncate_for_display_short() {
+        assert_eq!(truncate_for_display("hello", 200), "hello");
+    }
+
+    #[test]
+    fn test_truncate_for_display_long() {
+        let long = "x".repeat(300);
+        let result = truncate_for_display(&long, 200);
+        assert_eq!(result.len(), 203); // 200 + "..."
+        assert!(result.ends_with("..."));
+    }
+
+    // ===== Fix #12: DEP-004 case-insensitive =====
+
+    #[test]
+    fn test_oc_dep_004_case_insensitive() {
+        let diagnostics = validate(r#"{"instructions": ["context.md"]}"#);
+        assert!(
+            diagnostics.iter().any(|d| d.rule == "OC-DEP-004"),
+            "OC-DEP-004 should fire for case-insensitive match on context.md"
+        );
     }
 }

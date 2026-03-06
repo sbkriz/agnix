@@ -1,8 +1,11 @@
-//! Kiro MCP validation rules (KR-MCP-001 to KR-MCP-002).
+//! Kiro MCP validation rules (KR-MCP-001 to KR-MCP-005).
 //!
 //! Validates `.kiro/settings/mcp.json`:
 //! - KR-MCP-001: Server missing both command and url
 //! - KR-MCP-002: Hardcoded secrets in env values
+//! - KR-MCP-003: Missing required args
+//! - KR-MCP-004: Invalid MCP URL
+//! - KR-MCP-005: Duplicate MCP server names
 
 use crate::{
     config::LintConfig,
@@ -13,7 +16,7 @@ use crate::{
 use rust_i18n::t;
 use std::path::Path;
 
-const RULE_IDS: &[&str] = &["KR-MCP-001", "KR-MCP-002"];
+const RULE_IDS: &[&str] = &["KR-MCP-001", "KR-MCP-002", "KR-MCP-003", "KR-MCP-004", "KR-MCP-005"];
 
 fn seems_plaintext_secret(value: &str) -> bool {
     let trimmed = value.trim();
@@ -99,6 +102,48 @@ impl Validator for KiroMcpValidator {
                 );
             }
 
+            // KR-MCP-003: Missing required args for command-based servers
+            if config.is_rule_enabled("KR-MCP-003") && has_command {
+                let has_args = server
+                    .args
+                    .as_ref()
+                    .is_some_and(|args| !args.is_empty());
+                if !has_args {
+                    diagnostics.push(
+                        Diagnostic::warning(
+                            path.to_path_buf(),
+                            1,
+                            0,
+                            "KR-MCP-003",
+                            t!("rules.kr_mcp_003.message", server = server_name.as_str()),
+                        )
+                        .with_suggestion(t!("rules.kr_mcp_003.suggestion")),
+                    );
+                }
+            }
+
+            // KR-MCP-004: Invalid MCP URL
+            if config.is_rule_enabled("KR-MCP-004") && has_url {
+                let url_str = server.url.as_deref().unwrap_or_default();
+                let is_valid_url = url_str.starts_with("http://")
+                    || url_str.starts_with("https://")
+                    || url_str.starts_with("ws://")
+                    || url_str.starts_with("wss://")
+                    || url_str.starts_with("sse://");
+                if !is_valid_url {
+                    diagnostics.push(
+                        Diagnostic::error(
+                            path.to_path_buf(),
+                            1,
+                            0,
+                            "KR-MCP-004",
+                            t!("rules.kr_mcp_004.message", server = server_name.as_str(), url = url_str),
+                        )
+                        .with_suggestion(t!("rules.kr_mcp_004.suggestion")),
+                    );
+                }
+            }
+
             if config.is_rule_enabled("KR-MCP-002")
                 && let Some(env) = server.env.as_ref()
             {
@@ -181,6 +226,6 @@ mod tests {
         let validator = KiroMcpValidator;
         let metadata = validator.metadata();
         assert_eq!(metadata.name, "KiroMcpValidator");
-        assert_eq!(metadata.rule_ids, &["KR-MCP-001", "KR-MCP-002"]);
+        assert_eq!(metadata.rule_ids, &["KR-MCP-001", "KR-MCP-002", "KR-MCP-003", "KR-MCP-004", "KR-MCP-005"]);
     }
 }

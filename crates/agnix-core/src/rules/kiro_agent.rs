@@ -1,4 +1,4 @@
-//! Kiro agent validation rules (KR-AG-001 to KR-AG-007, KR-HK-005 to KR-HK-006).
+//! Kiro agent validation rules (KR-AG-001 to KR-AG-013, KR-HK-005 to KR-HK-006).
 //!
 //! Validates cross-agent invocation references in `.kiro/agents/*.json`:
 //! - KR-AG-001: Unknown top-level field in agent JSON.
@@ -8,6 +8,12 @@
 //! - KR-AG-005: includeMcpJson disabled with no inline mcpServers.
 //! - KR-AG-006: Prompt references a non-existent subagent.
 //! - KR-AG-007: Invoking agent has a broader tool scope than referenced subagent.
+//! - KR-AG-008: Agent missing name.
+//! - KR-AG-009: Agent missing prompt.
+//! - KR-AG-010: Duplicate tool entries.
+//! - KR-AG-011: Empty tools array.
+//! - KR-AG-012: toolAliases references unknown tool.
+//! - KR-AG-013: Secrets in agent prompt.
 //! - KR-HK-005: Invalid CLI hook event key.
 //! - KR-HK-006: CLI hook entry missing required command.
 
@@ -31,6 +37,12 @@ const RULE_IDS: &[&str] = &[
     "KR-AG-005",
     "KR-AG-006",
     "KR-AG-007",
+    "KR-AG-008",
+    "KR-AG-009",
+    "KR-AG-010",
+    "KR-AG-011",
+    "KR-AG-012",
+    "KR-AG-013",
     "KR-HK-005",
     "KR-HK-006",
 ];
@@ -291,12 +303,18 @@ fn validate_agent_schema_rules(
     let check_allowed_tools_subset = config.is_rule_enabled("KR-AG-003");
     let check_model = config.is_rule_enabled("KR-AG-004");
     let check_no_mcp_access = config.is_rule_enabled("KR-AG-005");
-    if !check_unknown_fields
-        && !check_resource_protocols
-        && !check_allowed_tools_subset
-        && !check_model
-        && !check_no_mcp_access
-    {
+    let any_schema_rule = check_unknown_fields
+        || check_resource_protocols
+        || check_allowed_tools_subset
+        || check_model
+        || check_no_mcp_access
+        || config.is_rule_enabled("KR-AG-008")
+        || config.is_rule_enabled("KR-AG-009")
+        || config.is_rule_enabled("KR-AG-010")
+        || config.is_rule_enabled("KR-AG-011")
+        || config.is_rule_enabled("KR-AG-012")
+        || config.is_rule_enabled("KR-AG-013");
+    if !any_schema_rule {
         return;
     }
 
@@ -408,6 +426,152 @@ fn validate_agent_schema_rules(
             .with_suggestion(t!("rules.kr_ag_005.suggestion")),
         );
     }
+
+    // KR-AG-008: Agent missing name
+    if config.is_rule_enabled("KR-AG-008") {
+        let name_present = obj
+            .get("name")
+            .and_then(Value::as_str)
+            .is_some_and(|n| !n.trim().is_empty());
+        if !name_present {
+            diagnostics.push(
+                Diagnostic::error(
+                    path.to_path_buf(),
+                    1,
+                    0,
+                    "KR-AG-008",
+                    t!("rules.kr_ag_008.message"),
+                )
+                .with_suggestion(t!("rules.kr_ag_008.suggestion")),
+            );
+        }
+    }
+
+    // KR-AG-009: Agent missing prompt
+    if config.is_rule_enabled("KR-AG-009") {
+        let prompt_present = obj
+            .get("prompt")
+            .and_then(Value::as_str)
+            .is_some_and(|p| !p.trim().is_empty());
+        if !prompt_present {
+            diagnostics.push(
+                Diagnostic::error(
+                    path.to_path_buf(),
+                    1,
+                    0,
+                    "KR-AG-009",
+                    t!("rules.kr_ag_009.message"),
+                )
+                .with_suggestion(t!("rules.kr_ag_009.suggestion")),
+            );
+        }
+    }
+
+    // KR-AG-010: Duplicate tool entries
+    if config.is_rule_enabled("KR-AG-010")
+        && let Some(tools) = current_agent.get("tools").and_then(Value::as_array)
+    {
+        let mut seen = HashSet::new();
+        for tool in tools {
+            if let Some(tool_str) = tool.as_str() {
+                if !seen.insert(tool_str.to_ascii_lowercase()) {
+                    diagnostics.push(
+                        Diagnostic::warning(
+                            path.to_path_buf(),
+                            1,
+                            0,
+                            "KR-AG-010",
+                            t!("rules.kr_ag_010.message", tool = tool_str),
+                        )
+                        .with_suggestion(t!("rules.kr_ag_010.suggestion")),
+                    );
+                }
+            }
+        }
+    }
+
+    // KR-AG-011: Empty tools array
+    if config.is_rule_enabled("KR-AG-011")
+        && let Some(tools) = current_agent.get("tools").and_then(Value::as_array)
+        && tools.is_empty()
+    {
+        diagnostics.push(
+            Diagnostic::info(
+                path.to_path_buf(),
+                1,
+                0,
+                "KR-AG-011",
+                t!("rules.kr_ag_011.message"),
+            )
+            .with_suggestion(t!("rules.kr_ag_011.suggestion")),
+        );
+    }
+
+    // KR-AG-012: toolAliases references unknown tool
+    if config.is_rule_enabled("KR-AG-012")
+        && let Some(aliases) = current_agent.get("toolAliases").and_then(Value::as_object)
+    {
+        let tools_set: HashSet<String> = current_agent
+            .get("tools")
+            .and_then(Value::as_array)
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(Value::as_str)
+                    .map(|s| s.to_ascii_lowercase())
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        for (alias, target) in aliases {
+            if let Some(target_str) = target.as_str() {
+                if !tools_set.contains(&target_str.to_ascii_lowercase()) {
+                    diagnostics.push(
+                        Diagnostic::warning(
+                            path.to_path_buf(),
+                            1,
+                            0,
+                            "KR-AG-012",
+                            t!(
+                                "rules.kr_ag_012.message",
+                                alias = alias.as_str(),
+                                tool = target_str
+                            ),
+                        )
+                        .with_suggestion(t!("rules.kr_ag_012.suggestion")),
+                    );
+                }
+            }
+        }
+    }
+
+    // KR-AG-013: Secrets in agent prompt
+    if config.is_rule_enabled("KR-AG-013")
+        && let Some(prompt) = obj.get("prompt").and_then(Value::as_str)
+    {
+        let secret_re = agent_secret_pattern();
+        if secret_re.is_match(prompt) {
+            diagnostics.push(
+                Diagnostic::error(
+                    path.to_path_buf(),
+                    1,
+                    0,
+                    "KR-AG-013",
+                    t!("rules.kr_ag_013.message"),
+                )
+                .with_suggestion(t!("rules.kr_ag_013.suggestion")),
+            );
+        }
+    }
+}
+
+fn agent_secret_pattern() -> &'static regex::Regex {
+    static RE: OnceLock<regex::Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        regex::Regex::new(
+            r"(?i)\b(?:api[_-]?key|token|password|secret)\b\s*[:=]\s*(?:sk-|[A-Za-z0-9+/]{20,})"
+        )
+        .expect("agent secret pattern must compile")
+    })
 }
 
 fn is_reserved_kiro_agent_filename(filename: &str) -> bool {
@@ -575,26 +739,13 @@ impl Validator for KiroAgentValidator {
     fn validate(&self, path: &Path, content: &str, config: &LintConfig) -> Vec<Diagnostic> {
         let mut diagnostics = Vec::new();
 
-        let check_unknown_fields = config.is_rule_enabled("KR-AG-001");
-        let check_resource_protocols = config.is_rule_enabled("KR-AG-002");
-        let check_allowed_tools_subset = config.is_rule_enabled("KR-AG-003");
-        let check_model = config.is_rule_enabled("KR-AG-004");
-        let check_no_mcp_access = config.is_rule_enabled("KR-AG-005");
         let check_missing_reference = config.is_rule_enabled("KR-AG-006");
         let check_tool_scope = config.is_rule_enabled("KR-AG-007");
-        let check_cli_hook_event = config.is_rule_enabled("KR-HK-005");
-        let check_cli_hook_command = config.is_rule_enabled("KR-HK-006");
 
-        if !check_unknown_fields
-            && !check_resource_protocols
-            && !check_allowed_tools_subset
-            && !check_model
-            && !check_no_mcp_access
-            && !check_missing_reference
-            && !check_tool_scope
-            && !check_cli_hook_event
-            && !check_cli_hook_command
-        {
+        let any_enabled = RULE_IDS
+            .iter()
+            .any(|id| config.is_rule_enabled(id));
+        if !any_enabled {
             return diagnostics;
         }
 
@@ -1348,6 +1499,12 @@ mod tests {
                 "KR-AG-005",
                 "KR-AG-006",
                 "KR-AG-007",
+                "KR-AG-008",
+                "KR-AG-009",
+                "KR-AG-010",
+                "KR-AG-011",
+                "KR-AG-012",
+                "KR-AG-013",
                 "KR-HK-005",
                 "KR-HK-006",
             ]

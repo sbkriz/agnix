@@ -1,6 +1,6 @@
 ---
 id: oc-cfg-009
-title: "OC-CFG-009: Invalid Compaction Reserved - Opencode"
+title: "OC-CFG-009: Invalid Compaction Reserved - OpenCode"
 sidebar_label: "OC-CFG-009"
 description: "agnix rule OC-CFG-009 checks for invalid compaction reserved in opencode files. Severity: HIGH. See examples and fix guidance."
 keywords: ["OC-CFG-009", "invalid compaction reserved", "opencode", "validation", "agnix", "linter"]
@@ -10,7 +10,7 @@ keywords: ["OC-CFG-009", "invalid compaction reserved", "opencode", "validation"
 
 - **Rule ID**: `OC-CFG-009`
 - **Severity**: `HIGH`
-- **Category**: `Opencode`
+- **Category**: `OpenCode`
 - **Normative Level**: `MUST`
 - **Auto-Fix**: `No`
 - **Verified On**: `2026-03-06`

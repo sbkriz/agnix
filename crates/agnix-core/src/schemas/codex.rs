@@ -18,6 +18,18 @@ pub const VALID_APPROVAL_MODES: &[&str] = &["suggest", "auto-edit", "full-auto"]
 /// Valid values for the `fullAutoErrorMode` field
 pub const VALID_FULL_AUTO_ERROR_MODES: &[&str] = &["ask-user", "ignore-and-continue"];
 
+/// Valid values for `sandbox_workspace_write.mode`
+pub const VALID_SANDBOX_WORKSPACE_WRITE_MODES: &[&str] = &["allowlist", "denylist", "all"];
+
+/// Valid values for `model_reasoning_summary`
+pub const VALID_MODEL_REASONING_SUMMARIES: &[&str] = &["auto", "always", "none", "concise", "detailed"];
+
+/// Valid values for `mcp_oauth_credentials_store`
+pub const VALID_MCP_OAUTH_STORES: &[&str] = &["file", "keyring", "auto", "ephemeral"];
+
+/// Maximum allowed size (bytes) for AGENTS.md in Codex projects
+pub const AGENTS_MD_MAX_SIZE: usize = 100_000;
+
 /// Known valid top-level keys for .codex/config.toml
 /// Sourced from <https://developers.openai.com/codex/> sample config
 pub const KNOWN_TOP_LEVEL_KEYS: &[&str] = &[

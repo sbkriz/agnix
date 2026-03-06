@@ -1,6 +1,6 @@
 ---
 id: oc-dep-004
-title: "OC-DEP-004: Deprecated CONTEXT.md Filename - Opencode"
+title: "OC-DEP-004: Deprecated CONTEXT.md Filename - OpenCode"
 sidebar_label: "OC-DEP-004"
 description: "agnix rule OC-DEP-004 checks for deprecated context.md filename in opencode files. Severity: MEDIUM. See examples and fix guidance."
 keywords: ["OC-DEP-004", "deprecated context.md filename", "opencode", "validation", "agnix", "linter"]
@@ -10,7 +10,7 @@ keywords: ["OC-DEP-004", "deprecated context.md filename", "opencode", "validati
 
 - **Rule ID**: `OC-DEP-004`
 - **Severity**: `MEDIUM`
-- **Category**: `Opencode`
+- **Category**: `OpenCode`
 - **Normative Level**: `SHOULD`
 - **Auto-Fix**: `No`
 - **Verified On**: `2026-03-06`

@@ -21,9 +21,9 @@
 | GitHub Copilot | .github/copilot-instructions.md, .github/instructions/*.instructions.md, .github/agents/*.agent.md, .github/prompts/*.prompt.md, .github/hooks/hooks.json, .github/workflows/copilot-setup-steps.yml | 17 |
 | Cursor Project Rules | .cursor/rules/*.mdc, .cursorrules, .cursor/hooks.json, .cursor/agents/**/*.md, .cursor/environment.json | 16 |
 | Cline | .clinerules, .clinerules/*.md, .clinerules/*.txt | 4 |
-| OpenCode | opencode.json | 23 |
+| OpenCode | opencode.json | 41 |
 | Gemini CLI | GEMINI.md, GEMINI.local.md, .gemini/settings.json (hooks), gemini-extension.json (extensions), .geminiignore | 9 |
-| Codex CLI | .codex/config.toml/.json/.yaml | 23 |
+| Codex CLI | .codex/config.toml/.json/.yaml | 39 |
 | Version Awareness | .agnix.toml | 1 |
 | Cursor Skills | .cursor/skills/*/SKILL.md | 1 |
 | Cline Skills | .cline/skills/*/SKILL.md | 1 |
@@ -32,12 +32,12 @@
 | OpenCode Skills | .opencode/skills/*/SKILL.md | 1 |
 | Windsurf | .windsurf/rules/*.md, .windsurf/workflows/*.md, .windsurfrules | 4 |
 | Windsurf Skills | .windsurf/skills/*/SKILL.md | 1 |
-| Kiro Steering | .kiro/steering/*.md | 9 |
+| Kiro Steering | .kiro/steering/*.md | 14 |
 | Kiro Skills | .kiro/skills/*/SKILL.md | 1 |
-| Kiro Agents | .kiro/agents/*.json | 7 |
-| Kiro Hooks | .kiro/hooks/*.kiro.hook | 6 |
-| Kiro MCP | .kiro/settings/mcp.json | 2 |
-| Kiro Powers | .kiro/powers/*/POWER.md | 4 |
+| Kiro Agents | .kiro/agents/*.json | 13 |
+| Kiro Hooks | .kiro/hooks/*.kiro.hook | 10 |
+| Kiro MCP | .kiro/settings/mcp.json | 5 |
+| Kiro Powers | .kiro/powers/*/POWER.md | 8 |
 | Amp Skills | .agents/skills/*/SKILL.md | 1 |
 | Amp Checks | .agents/checks/*.md, .amp/settings*.json | 4 |
 | Roo Code Skills | .roo/skills/*/SKILL.md | 1 |

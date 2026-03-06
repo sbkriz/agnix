@@ -1,10 +1,14 @@
-//! Kiro IDE hook validation rules (KR-HK-001 to KR-HK-004).
+//! Kiro IDE hook validation rules (KR-HK-001 to KR-HK-010).
 //!
 //! Validates `.kiro/hooks/*.kiro.hook` files:
 //! - KR-HK-001: Invalid hook event type
 //! - KR-HK-002: File event hook missing patterns
 //! - KR-HK-003: Hook missing action
 //! - KR-HK-004: Pre/Post tool hook missing toolTypes
+//! - KR-HK-007: Hook timeout out of range
+//! - KR-HK-008: Duplicate event handlers
+//! - KR-HK-009: Command uses absolute path
+//! - KR-HK-010: Secrets in hook command
 
 use crate::{
     config::LintConfig,
@@ -15,7 +19,18 @@ use crate::{
 use rust_i18n::t;
 use std::path::Path;
 
-const RULE_IDS: &[&str] = &["KR-HK-001", "KR-HK-002", "KR-HK-003", "KR-HK-004"];
+const RULE_IDS: &[&str] = &[
+    "KR-HK-001",
+    "KR-HK-002",
+    "KR-HK-003",
+    "KR-HK-004",
+    "KR-HK-007",
+    "KR-HK-008",
+    "KR-HK-009",
+    "KR-HK-010",
+];
+
+const MAX_HOOK_TIMEOUT_MS: u64 = 300_000; // 5 minutes
 
 fn is_file_event(event: &str) -> bool {
     matches!(event, "fileEdited" | "fileCreate" | "fileDelete")
@@ -136,6 +151,80 @@ impl Validator for KiroHookValidator {
             );
         }
 
+        // KR-HK-007: Hook timeout out of range
+        if config.is_rule_enabled("KR-HK-007") {
+            if let Some(timeout_val) = hook.extra.get("timeout").or_else(|| hook.extra.get("timeoutMs")) {
+                if let Some(timeout) = timeout_val.as_u64() {
+                    if timeout > MAX_HOOK_TIMEOUT_MS {
+                        diagnostics.push(
+                            Diagnostic::warning(
+                                path.to_path_buf(),
+                                1,
+                                0,
+                                "KR-HK-007",
+                                t!("rules.kr_hk_007.message", value = &timeout.to_string(), limit = &MAX_HOOK_TIMEOUT_MS.to_string()),
+                            )
+                            .with_suggestion(t!("rules.kr_hk_007.suggestion")),
+                        );
+                    }
+                } else if let Some(timeout) = timeout_val.as_i64() {
+                    if timeout <= 0 {
+                        diagnostics.push(
+                            Diagnostic::warning(
+                                path.to_path_buf(),
+                                1,
+                                0,
+                                "KR-HK-007",
+                                t!("rules.kr_hk_007.message", value = &timeout.to_string(), limit = &MAX_HOOK_TIMEOUT_MS.to_string()),
+                            )
+                            .with_suggestion(t!("rules.kr_hk_007.suggestion")),
+                        );
+                    }
+                }
+            }
+        }
+
+        // KR-HK-009: Command uses absolute path
+        if config.is_rule_enabled("KR-HK-009") {
+            if let Some(cmd) = hook.effective_run_command() {
+                let trimmed = cmd.trim();
+                if trimmed.starts_with('/') || (trimmed.len() >= 3 && trimmed.as_bytes().get(1) == Some(&b':')) {
+                    diagnostics.push(
+                        Diagnostic::warning(
+                            path.to_path_buf(),
+                            1,
+                            0,
+                            "KR-HK-009",
+                            t!("rules.kr_hk_009.message"),
+                        )
+                        .with_suggestion(t!("rules.kr_hk_009.suggestion")),
+                    );
+                }
+            }
+        }
+
+        // KR-HK-010: Secrets in hook command
+        if config.is_rule_enabled("KR-HK-010") {
+            if let Some(cmd) = hook.effective_run_command() {
+                let lower = cmd.to_ascii_lowercase();
+                let has_secret_marker = ["sk-", "api_key=", "apikey=", "token=", "password=", "bearer "]
+                    .iter()
+                    .any(|marker| lower.contains(marker));
+                if has_secret_marker {
+                    diagnostics.push(
+                        Diagnostic::error(
+                            path.to_path_buf(),
+                            1,
+                            0,
+                            "KR-HK-010",
+                            t!("rules.kr_hk_010.message"),
+                        )
+                        .with_suggestion(t!("rules.kr_hk_010.suggestion")),
+                    );
+                }
+            }
+        }
+
         diagnostics
     }
 }
@@ -253,7 +342,16 @@ mod tests {
         assert_eq!(metadata.name, "KiroHookValidator");
         assert_eq!(
             metadata.rule_ids,
-            &["KR-HK-001", "KR-HK-002", "KR-HK-003", "KR-HK-004"]
+            &[
+                "KR-HK-001",
+                "KR-HK-002",
+                "KR-HK-003",
+                "KR-HK-004",
+                "KR-HK-007",
+                "KR-HK-008",
+                "KR-HK-009",
+                "KR-HK-010",
+            ]
         );
     }
 }

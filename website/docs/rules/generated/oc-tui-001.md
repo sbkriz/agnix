@@ -1,6 +1,6 @@
 ---
 id: oc-tui-001
-title: "OC-TUI-001: Unknown TUI Key - Opencode"
+title: "OC-TUI-001: Unknown TUI Key - OpenCode"
 sidebar_label: "OC-TUI-001"
 description: "agnix rule OC-TUI-001 checks for unknown tui key in opencode files. Severity: MEDIUM. See examples and fix guidance."
 keywords: ["OC-TUI-001", "unknown tui key", "opencode", "validation", "agnix", "linter"]
@@ -10,7 +10,7 @@ keywords: ["OC-TUI-001", "unknown tui key", "opencode", "validation", "agnix", "
 
 - **Rule ID**: `OC-TUI-001`
 - **Severity**: `MEDIUM`
-- **Category**: `Opencode`
+- **Category**: `OpenCode`
 - **Normative Level**: `SHOULD`
 - **Auto-Fix**: `No`
 - **Verified On**: `2026-03-06`

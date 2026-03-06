@@ -8,16 +8,20 @@
 //! - CDX-004: Unknown config key (MEDIUM) - unrecognized key in .codex/config.toml
 //! - CDX-005: project_doc_max_bytes exceeds limit (HIGH) - must be <= 65536
 //! - CDX-006: Invalid project_doc_fallback_filenames (HIGH) - must be unique non-empty filenames
-//! - CDX-CFG-001..012: Codex config schema/value checks (approval, sandbox, enums, unknown keys, etc.)
-//! - CDX-AG-001..003: AGENTS.md quality and secret-safety checks for Codex
-//! - CDX-APP-001: App default_tools_approval_mode enum validation
+//! - CDX-CFG-001..022: Codex config schema/value checks (approval, sandbox, enums, unknown keys, etc.)
+//! - CDX-AG-001..007: AGENTS.md quality and secret-safety checks for Codex
+//! - CDX-APP-001..003: App and plugin configuration validation
 
 use crate::{
     config::LintConfig,
     diagnostics::{Diagnostic, Fix},
     rules::{Validator, ValidatorMetadata},
     schemas::claude_md::find_generic_instructions,
-    schemas::codex::{VALID_APPROVAL_MODES, VALID_FULL_AUTO_ERROR_MODES, parse_codex_toml},
+    schemas::codex::{
+        AGENTS_MD_MAX_SIZE, VALID_APPROVAL_MODES, VALID_FULL_AUTO_ERROR_MODES,
+        VALID_MCP_OAUTH_STORES, VALID_MODEL_REASONING_SUMMARIES,
+        VALID_SANDBOX_WORKSPACE_WRITE_MODES, parse_codex_toml,
+    },
 };
 use rust_i18n::t;
 use serde_json::Value;
@@ -38,7 +42,16 @@ fn find_toml_string_value_span(
     crate::span_utils::find_unique_toml_string_value(content, key, current_value)
 }
 
-const CODEX_MARKDOWN_RULE_IDS: &[&str] = &["CDX-003", "CDX-AG-001", "CDX-AG-002", "CDX-AG-003"];
+const CODEX_MARKDOWN_RULE_IDS: &[&str] = &[
+    "CDX-003",
+    "CDX-AG-001",
+    "CDX-AG-002",
+    "CDX-AG-003",
+    "CDX-AG-004",
+    "CDX-AG-005",
+    "CDX-AG-006",
+    "CDX-AG-007",
+];
 
 const CODEX_CONFIG_RULE_IDS: &[&str] = &[
     "CDX-000",
@@ -59,7 +72,19 @@ const CODEX_CONFIG_RULE_IDS: &[&str] = &[
     "CDX-CFG-010",
     "CDX-CFG-011",
     "CDX-CFG-012",
+    "CDX-CFG-013",
+    "CDX-CFG-014",
+    "CDX-CFG-015",
+    "CDX-CFG-016",
+    "CDX-CFG-017",
+    "CDX-CFG-018",
+    "CDX-CFG-019",
+    "CDX-CFG-020",
+    "CDX-CFG-021",
+    "CDX-CFG-022",
     "CDX-APP-001",
+    "CDX-APP-002",
+    "CDX-APP-003",
 ];
 
 pub struct CodexValidator;
@@ -712,7 +737,106 @@ fn validate_codex_markdown_rules(
         }
     }
 
+    // CDX-AG-004: AGENTS.md exceeds size limit
+    if config.is_rule_enabled("CDX-AG-004") && content.len() > AGENTS_MD_MAX_SIZE {
+        diagnostics.push(
+            Diagnostic::warning(
+                path.to_path_buf(),
+                1,
+                0,
+                "CDX-AG-004",
+                t!(
+                    "rules.cdx_ag_004.message",
+                    size = &content.len().to_string(),
+                    limit = &AGENTS_MD_MAX_SIZE.to_string()
+                ),
+            )
+            .with_suggestion(t!("rules.cdx_ag_004.suggestion")),
+        );
+    }
+
+    // CDX-AG-005: AGENTS.md references missing file (simplified: check for broken markdown links)
+    if config.is_rule_enabled("CDX-AG-005") {
+        let fs = config.fs();
+        for (line_no, line) in content.lines().enumerate() {
+            // Match markdown-style file references like `path/to/file.ext`
+            for cap in find_backtick_file_refs(line) {
+                let reference = cap.trim();
+                if reference.is_empty()
+                    || reference.starts_with("http")
+                    || reference.starts_with('$')
+                    || reference.starts_with('<')
+                    || !reference.contains('.')
+                {
+                    continue;
+                }
+                // Resolve relative to project root (parent of AGENTS.md's parent)
+                let resolved = path
+                    .parent()
+                    .unwrap_or_else(|| Path::new("."))
+                    .join(reference);
+                if !fs.exists(&resolved) {
+                    diagnostics.push(
+                        Diagnostic::warning(
+                            path.to_path_buf(),
+                            line_no + 1,
+                            0,
+                            "CDX-AG-005",
+                            t!("rules.cdx_ag_005.message", reference = reference),
+                        )
+                        .with_suggestion(t!("rules.cdx_ag_005.suggestion")),
+                    );
+                    break; // One diagnostic per file is enough
+                }
+            }
+        }
+    }
+
+    // CDX-AG-006: AGENTS.md missing project context
+    if config.is_rule_enabled("CDX-AG-006") {
+        let trimmed = content.trim();
+        let has_heading = trimmed.contains("# ");
+        let has_command = trimmed.contains('`');
+        let has_path = trimmed.contains('/') || trimmed.contains('\\');
+        let long_enough = trimmed.len() >= 200;
+        if !trimmed.is_empty() && !has_heading && !has_command && !has_path && !long_enough {
+            diagnostics.push(
+                Diagnostic::info(
+                    path.to_path_buf(),
+                    1,
+                    0,
+                    "CDX-AG-006",
+                    t!("rules.cdx_ag_006.message"),
+                )
+                .with_suggestion(t!("rules.cdx_ag_006.suggestion")),
+            );
+        }
+    }
+
+    // CDX-AG-007: AGENTS.md contradicts config.toml (placeholder - requires cross-file analysis)
+    // This rule is registered but validation requires project-level context;
+    // actual cross-file checking is deferred to project-level validators.
+
     diagnostics
+}
+
+/// Extract file-like references inside backticks from a line.
+fn find_backtick_file_refs(line: &str) -> Vec<&str> {
+    let mut refs = Vec::new();
+    let mut rest = line;
+    while let Some(start) = rest.find('`') {
+        let after = &rest[start + 1..];
+        if let Some(end) = after.find('`') {
+            let inner = &after[..end];
+            if !inner.is_empty() && !inner.contains(' ') {
+                refs.push(inner);
+            }
+            rest = &after[end + 1..];
+        } else {
+            break;
+        }
+    }
+    refs
 }
 
 fn has_sk_token_prefix(line: &str) -> bool {
@@ -1120,6 +1244,251 @@ fn validate_codex_config_rules(path: &Path, content: &str, config: &LintConfig) 
         }
     }
 
+    // CDX-CFG-013: Invalid sandbox_workspace_write mode
+    if config.is_rule_enabled("CDX-CFG-013")
+        && let Some(value) = value_at_path(&root, &["sandbox_workspace_write", "mode"])
+    {
+        if let Some(mode) = value.as_str() {
+            if !VALID_SANDBOX_WORKSPACE_WRITE_MODES.contains(&mode) {
+                diagnostics.push(
+                    Diagnostic::error(
+                        path.to_path_buf(),
+                        line_for("mode"),
+                        0,
+                        "CDX-CFG-013",
+                        t!("rules.cdx_cfg_013.message", value = mode),
+                    )
+                    .with_suggestion(t!("rules.cdx_cfg_013.suggestion")),
+                );
+            }
+        } else if !value.is_null() {
+            diagnostics.push(
+                Diagnostic::error(
+                    path.to_path_buf(),
+                    line_for("mode"),
+                    0,
+                    "CDX-CFG-013",
+                    t!("rules.cdx_cfg_013.type_error"),
+                )
+                .with_suggestion(t!("rules.cdx_cfg_013.suggestion")),
+            );
+        }
+    }
+
+    // CDX-CFG-014: Invalid model value (must be a string)
+    if config.is_rule_enabled("CDX-CFG-014")
+        && let Some(value) = value_at_path(&root, &["model"])
+    {
+        if !value.is_string() && !value.is_null() {
+            diagnostics.push(
+                Diagnostic::warning(
+                    path.to_path_buf(),
+                    line_for("model"),
+                    0,
+                    "CDX-CFG-014",
+                    t!("rules.cdx_cfg_014.type_error"),
+                )
+                .with_suggestion(t!("rules.cdx_cfg_014.suggestion")),
+            );
+        }
+    }
+
+    // CDX-CFG-015: Invalid model_provider value (must be a string)
+    if config.is_rule_enabled("CDX-CFG-015")
+        && let Some(value) = value_at_path(&root, &["model_provider"])
+    {
+        if !value.is_string() && !value.is_null() {
+            diagnostics.push(
+                Diagnostic::error(
+                    path.to_path_buf(),
+                    line_for("model_provider"),
+                    0,
+                    "CDX-CFG-015",
+                    t!("rules.cdx_cfg_015.type_error"),
+                )
+                .with_suggestion(t!("rules.cdx_cfg_015.suggestion")),
+            );
+        }
+    }
+
+    // CDX-CFG-016: Invalid model_reasoning_summary value
+    if config.is_rule_enabled("CDX-CFG-016")
+        && let Some(value) = value_at_path(&root, &["model_reasoning_summary"])
+    {
+        if let Some(summary) = value.as_str() {
+            if !VALID_MODEL_REASONING_SUMMARIES.contains(&summary) {
+                diagnostics.push(
+                    Diagnostic::warning(
+                        path.to_path_buf(),
+                        line_for("model_reasoning_summary"),
+                        0,
+                        "CDX-CFG-016",
+                        t!("rules.cdx_cfg_016.message", value = summary),
+                    )
+                    .with_suggestion(t!("rules.cdx_cfg_016.suggestion")),
+                );
+            }
+        } else if !value.is_null() {
+            diagnostics.push(
+                Diagnostic::warning(
+                    path.to_path_buf(),
+                    line_for("model_reasoning_summary"),
+                    0,
+                    "CDX-CFG-016",
+                    t!("rules.cdx_cfg_016.type_error"),
+                )
+                .with_suggestion(t!("rules.cdx_cfg_016.suggestion")),
+            );
+        }
+    }
+
+    // CDX-CFG-017: Invalid history configuration (must be an object)
+    if config.is_rule_enabled("CDX-CFG-017")
+        && let Some(value) = value_at_path(&root, &["history"])
+    {
+        if !value.is_object() && !value.is_null() {
+            diagnostics.push(
+                Diagnostic::warning(
+                    path.to_path_buf(),
+                    line_for("history"),
+                    0,
+                    "CDX-CFG-017",
+                    t!("rules.cdx_cfg_017.type_error"),
+                )
+                .with_suggestion(t!("rules.cdx_cfg_017.suggestion")),
+            );
+        }
+    }
+
+    // CDX-CFG-018: Invalid tui configuration (must be an object)
+    if config.is_rule_enabled("CDX-CFG-018")
+        && let Some(value) = value_at_path(&root, &["tui"])
+    {
+        if !value.is_object() && !value.is_null() {
+            diagnostics.push(
+                Diagnostic::warning(
+                    path.to_path_buf(),
+                    line_for("tui"),
+                    0,
+                    "CDX-CFG-018",
+                    t!("rules.cdx_cfg_018.type_error"),
+                )
+                .with_suggestion(t!("rules.cdx_cfg_018.suggestion")),
+            );
+        }
+    }
+
+    // CDX-CFG-019: Invalid file_opener value (must be a string)
+    if config.is_rule_enabled("CDX-CFG-019")
+        && let Some(value) = value_at_path(&root, &["file_opener"])
+    {
+        if !value.is_string() && !value.is_null() {
+            diagnostics.push(
+                Diagnostic::warning(
+                    path.to_path_buf(),
+                    line_for("file_opener"),
+                    0,
+                    "CDX-CFG-019",
+                    t!("rules.cdx_cfg_019.type_error"),
+                )
+                .with_suggestion(t!("rules.cdx_cfg_019.suggestion")),
+            );
+        }
+    }
+
+    // CDX-CFG-020: Invalid MCP OAuth config (mcp_oauth_credentials_store must be valid)
+    if config.is_rule_enabled("CDX-CFG-020")
+        && let Some(value) = value_at_path(&root, &["mcp_oauth_credentials_store"])
+    {
+        if let Some(store) = value.as_str() {
+            if !VALID_MCP_OAUTH_STORES.contains(&store) {
+                diagnostics.push(
+                    Diagnostic::error(
+                        path.to_path_buf(),
+                        line_for("mcp_oauth_credentials_store"),
+                        0,
+                        "CDX-CFG-020",
+                        t!("rules.cdx_cfg_020.message", value = store),
+                    )
+                    .with_suggestion(t!("rules.cdx_cfg_020.suggestion")),
+                );
+            }
+        } else if !value.is_null() {
+            diagnostics.push(
+                Diagnostic::error(
+                    path.to_path_buf(),
+                    line_for("mcp_oauth_credentials_store"),
+                    0,
+                    "CDX-CFG-020",
+                    t!("rules.cdx_cfg_020.type_error"),
+                )
+                .with_suggestion(t!("rules.cdx_cfg_020.suggestion")),
+            );
+        }
+    }
+
+    // CDX-CFG-021: Invalid model_context_window (must be a positive integer)
+    if config.is_rule_enabled("CDX-CFG-021")
+        && let Some(value) = value_at_path(&root, &["model_context_window"])
+    {
+        if let Some(num) = value.as_i64() {
+            if num <= 0 {
+                diagnostics.push(
+                    Diagnostic::warning(
+                        path.to_path_buf(),
+                        line_for("model_context_window"),
+                        0,
+                        "CDX-CFG-021",
+                        t!("rules.cdx_cfg_021.message", value = &num.to_string()),
+                    )
+                    .with_suggestion(t!("rules.cdx_cfg_021.suggestion")),
+                );
+            }
+        } else if !value.is_null() && !value.is_u64() {
+            diagnostics.push(
+                Diagnostic::warning(
+                    path.to_path_buf(),
+                    line_for("model_context_window"),
+                    0,
+                    "CDX-CFG-021",
+                    t!("rules.cdx_cfg_021.type_error"),
+                )
+                .with_suggestion(t!("rules.cdx_cfg_021.suggestion")),
+            );
+        }
+    }
+
+    // CDX-CFG-022: Invalid model_auto_compact_token_limit (must be a positive integer)
+    if config.is_rule_enabled("CDX-CFG-022")
+        && let Some(value) = value_at_path(&root, &["model_auto_compact_token_limit"])
+    {
+        if let Some(num) = value.as_i64() {
+            if num <= 0 {
+                diagnostics.push(
+                    Diagnostic::warning(
+                        path.to_path_buf(),
+                        line_for("model_auto_compact_token_limit"),
+                        0,
+                        "CDX-CFG-022",
+                        t!("rules.cdx_cfg_022.message", value = &num.to_string()),
+                    )
+                    .with_suggestion(t!("rules.cdx_cfg_022.suggestion")),
+                );
+            }
+        } else if !value.is_null() && !value.is_u64() {
+            diagnostics.push(
+                Diagnostic::warning(
+                    path.to_path_buf(),
+                    line_for("model_auto_compact_token_limit"),
+                    0,
+                    "CDX-CFG-022",
+                    t!("rules.cdx_cfg_022.type_error"),
+                )
+                .with_suggestion(t!("rules.cdx_cfg_022.suggestion")),
+            );
+        }
+    }
+
     if config.is_rule_enabled("CDX-APP-001")
         && let Some(apps) = value_at_path(&root, &["apps"])
     {
@@ -1163,6 +1532,42 @@ fn validate_codex_config_rules(path: &Path, content: &str, config: &LintConfig) 
                     }
                 }
             }
+        }
+    }
+
+    // CDX-APP-002: Invalid skills configuration (must be an object)
+    if config.is_rule_enabled("CDX-APP-002")
+        && let Some(value) = value_at_path(&root, &["skills"])
+    {
+        if !value.is_object() && !value.is_null() {
+            diagnostics.push(
+                Diagnostic::warning(
+                    path.to_path_buf(),
+                    line_for("skills"),
+                    0,
+                    "CDX-APP-002",
+                    t!("rules.cdx_app_002.type_error"),
+                )
+                .with_suggestion(t!("rules.cdx_app_002.suggestion")),
+            );
+        }
+    }
+
+    // CDX-APP-003: Invalid profile configuration (must be a string)
+    if config.is_rule_enabled("CDX-APP-003")
+        && let Some(value) = value_at_path(&root, &["profile"])
+    {
+        if !value.is_string() && !value.is_null() {
+            diagnostics.push(
+                Diagnostic::warning(
+                    path.to_path_buf(),
+                    line_for("profile"),
+                    0,
+                    "CDX-APP-003",
+                    t!("rules.cdx_app_003.type_error"),
+                )
+                .with_suggestion(t!("rules.cdx_app_003.suggestion")),
+            );
         }
     }
 

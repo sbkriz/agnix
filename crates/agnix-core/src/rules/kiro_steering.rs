@@ -24,8 +24,10 @@ use std::sync::OnceLock;
 
 const RULE_IDS: &[&str] = &[
     "KIRO-001", "KIRO-002", "KIRO-003", "KIRO-004", "KIRO-005", "KIRO-006", "KIRO-007", "KIRO-008",
-    "KIRO-009",
+    "KIRO-009", "KIRO-010", "KIRO-011", "KIRO-012", "KIRO-013", "KIRO-014",
 ];
+
+const MAX_STEERING_DOC_LENGTH: usize = 50_000;
 const VALID_INCLUSION_MODES: &[&str] = &["always", "fileMatch", "manual", "auto"];
 const VALID_FRONTMATTER_FIELDS: &[&str] = &["inclusion", "name", "description", "fileMatchPattern"];
 
@@ -452,6 +454,84 @@ impl Validator for KiroSteeringValidator {
                 );
             }
         }
+
+        // KIRO-010: Missing inclusion mode
+        if config.is_rule_enabled("KIRO-010") && inclusion_val.is_none() {
+            diagnostics.push(
+                Diagnostic::warning(
+                    path.to_path_buf(),
+                    1,
+                    0,
+                    "KIRO-010",
+                    t!("rules.kiro_010.message"),
+                )
+                .with_suggestion(t!("rules.kiro_010.suggestion")),
+            );
+        }
+
+        // KIRO-011: Steering doc excessively long
+        if config.is_rule_enabled("KIRO-011") && content.len() > MAX_STEERING_DOC_LENGTH {
+            diagnostics.push(
+                Diagnostic::info(
+                    path.to_path_buf(),
+                    1,
+                    0,
+                    "KIRO-011",
+                    t!(
+                        "rules.kiro_011.message",
+                        size = &content.len().to_string(),
+                        limit = &MAX_STEERING_DOC_LENGTH.to_string()
+                    ),
+                )
+                .with_suggestion(t!("rules.kiro_011.suggestion")),
+            );
+        }
+
+        // KIRO-013: Conflicting inclusion modes (duplicate key in YAML)
+        if config.is_rule_enabled("KIRO-013") {
+            let inclusion_count = parts
+                .frontmatter
+                .lines()
+                .filter(|line| {
+                    let trimmed = line.trim_start();
+                    trimmed.starts_with("inclusion:")
+                        || trimmed.starts_with("inclusion :")
+                })
+                .count();
+            if inclusion_count > 1 {
+                diagnostics.push(
+                    Diagnostic::warning(
+                        path.to_path_buf(),
+                        1,
+                        0,
+                        "KIRO-013",
+                        t!("rules.kiro_013.message"),
+                    )
+                    .with_suggestion(t!("rules.kiro_013.suggestion")),
+                );
+            }
+        }
+
+        // KIRO-014: Markdown structure issues (no heading in body)
+        if config.is_rule_enabled("KIRO-014") {
+            let body = parts.body.trim();
+            if !body.is_empty() && !body.starts_with('#') && !body.contains("\n#") {
+                diagnostics.push(
+                    Diagnostic::info(
+                        path.to_path_buf(),
+                        1,
+                        0,
+                        "KIRO-014",
+                        t!("rules.kiro_014.message"),
+                    )
+                    .with_suggestion(t!("rules.kiro_014.suggestion")),
+                );
+            }
+        }
+
+        // Note: KIRO-012 (duplicate steering name) is a project-level check
+        // requiring cross-file analysis; registered in RULE_IDS but checked
+        // at the project validator layer.
 
         diagnostics
     }
@@ -1005,7 +1085,7 @@ mod tests {
             meta.rule_ids,
             &[
                 "KIRO-001", "KIRO-002", "KIRO-003", "KIRO-004", "KIRO-005", "KIRO-006", "KIRO-007",
-                "KIRO-008", "KIRO-009",
+                "KIRO-008", "KIRO-009", "KIRO-010", "KIRO-011", "KIRO-012", "KIRO-013", "KIRO-014",
             ]
         );
     }

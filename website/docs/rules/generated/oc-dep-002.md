@@ -1,6 +1,6 @@
 ---
 id: oc-dep-002
-title: "OC-DEP-002: Deprecated tools Field - Opencode"
+title: "OC-DEP-002: Deprecated tools Field - OpenCode"
 sidebar_label: "OC-DEP-002"
 description: "agnix rule OC-DEP-002 checks for deprecated tools field in opencode files. Severity: MEDIUM. See examples and fix guidance."
 keywords: ["OC-DEP-002", "deprecated tools field", "opencode", "validation", "agnix", "linter"]
@@ -10,7 +10,7 @@ keywords: ["OC-DEP-002", "deprecated tools field", "opencode", "validation", "ag
 
 - **Rule ID**: `OC-DEP-002`
 - **Severity**: `MEDIUM`
-- **Category**: `Opencode`
+- **Category**: `OpenCode`
 - **Normative Level**: `SHOULD`
 - **Auto-Fix**: `Yes (safe)`
 - **Verified On**: `2026-03-06`

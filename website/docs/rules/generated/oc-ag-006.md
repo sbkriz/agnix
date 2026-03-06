@@ -1,6 +1,6 @@
 ---
 id: oc-ag-006
-title: "OC-AG-006: Invalid Named Color - Opencode"
+title: "OC-AG-006: Invalid Named Color - OpenCode"
 sidebar_label: "OC-AG-006"
 description: "agnix rule OC-AG-006 checks for invalid named color in opencode files. Severity: MEDIUM. See examples and fix guidance."
 keywords: ["OC-AG-006", "invalid named color", "opencode", "validation", "agnix", "linter"]
@@ -10,7 +10,7 @@ keywords: ["OC-AG-006", "invalid named color", "opencode", "validation", "agnix"
 
 - **Rule ID**: `OC-AG-006`
 - **Severity**: `MEDIUM`
-- **Category**: `Opencode`
+- **Category**: `OpenCode`
 - **Normative Level**: `SHOULD`
 - **Auto-Fix**: `Yes (unsafe)`
 - **Verified On**: `2026-03-06`

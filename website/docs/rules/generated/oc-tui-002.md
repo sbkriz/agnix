@@ -1,6 +1,6 @@
 ---
 id: oc-tui-002
-title: "OC-TUI-002: Invalid scroll_speed - Opencode"
+title: "OC-TUI-002: Invalid scroll_speed - OpenCode"
 sidebar_label: "OC-TUI-002"
 description: "agnix rule OC-TUI-002 checks for invalid scroll_speed in opencode files. Severity: HIGH. See examples and fix guidance."
 keywords: ["OC-TUI-002", "invalid scroll_speed", "opencode", "validation", "agnix", "linter"]
@@ -10,7 +10,7 @@ keywords: ["OC-TUI-002", "invalid scroll_speed", "opencode", "validation", "agni
 
 - **Rule ID**: `OC-TUI-002`
 - **Severity**: `HIGH`
-- **Category**: `Opencode`
+- **Category**: `OpenCode`
 - **Normative Level**: `MUST`
 - **Auto-Fix**: `No`
 - **Verified On**: `2026-03-06`

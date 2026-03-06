@@ -1,6 +1,6 @@
 ---
 id: oc-ag-007
-title: "OC-AG-007: Redundant steps and maxSteps - Opencode"
+title: "OC-AG-007: Redundant steps and maxSteps - OpenCode"
 sidebar_label: "OC-AG-007"
 description: "agnix rule OC-AG-007 checks for redundant steps and maxsteps in opencode files. Severity: MEDIUM. See examples and fix guidance."
 keywords: ["OC-AG-007", "redundant steps and maxsteps", "opencode", "validation", "agnix", "linter"]
@@ -10,7 +10,7 @@ keywords: ["OC-AG-007", "redundant steps and maxsteps", "opencode", "validation"
 
 - **Rule ID**: `OC-AG-007`
 - **Severity**: `MEDIUM`
-- **Category**: `Opencode`
+- **Category**: `OpenCode`
 - **Normative Level**: `SHOULD`
 - **Auto-Fix**: `No`
 - **Verified On**: `2026-03-06`

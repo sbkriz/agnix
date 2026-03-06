@@ -1,6 +1,6 @@
 # Rules Reference
 
-This section contains all `304` validation rules generated from `knowledge-base/rules.json`.
+This section contains all `342` validation rules generated from `knowledge-base/rules.json`.
 `102` rules have automatic fixes.
 
 | Rule | Name | Severity | Category | Auto-Fix |
@@ -125,10 +125,26 @@ This section contains all `304` validation rules generated from `knowledge-base/
 | [CDX-CFG-010](./generated/cdx-cfg-010.md) | Hardcoded Secret in Codex Config | HIGH | Codex CLI | No |
 | [CDX-CFG-011](./generated/cdx-cfg-011.md) | Invalid Feature Flag Name | MEDIUM | Codex CLI | No |
 | [CDX-CFG-012](./generated/cdx-cfg-012.md) | Invalid cli_auth_credentials_store Value | HIGH | Codex CLI | No |
+| [CDX-CFG-013](./generated/cdx-cfg-013.md) | Invalid sandbox_workspace_write Mode | HIGH | Codex CLI | No |
+| [CDX-CFG-014](./generated/cdx-cfg-014.md) | Invalid model Value | MEDIUM | Codex CLI | No |
+| [CDX-CFG-015](./generated/cdx-cfg-015.md) | Invalid model_provider Value | HIGH | Codex CLI | No |
+| [CDX-CFG-016](./generated/cdx-cfg-016.md) | Invalid model_reasoning_summary Value | MEDIUM | Codex CLI | No |
+| [CDX-CFG-017](./generated/cdx-cfg-017.md) | Invalid history Configuration | MEDIUM | Codex CLI | No |
+| [CDX-CFG-018](./generated/cdx-cfg-018.md) | Invalid tui Configuration | MEDIUM | Codex CLI | No |
+| [CDX-CFG-019](./generated/cdx-cfg-019.md) | Invalid file_opener Value | MEDIUM | Codex CLI | No |
+| [CDX-CFG-020](./generated/cdx-cfg-020.md) | Invalid MCP OAuth Config | HIGH | Codex CLI | No |
+| [CDX-CFG-021](./generated/cdx-cfg-021.md) | Invalid model_context_window Value | MEDIUM | Codex CLI | No |
+| [CDX-CFG-022](./generated/cdx-cfg-022.md) | Invalid model_auto_compact_token_limit Value | MEDIUM | Codex CLI | No |
 | [CDX-AG-001](./generated/cdx-ag-001.md) | Empty AGENTS.md for Codex | HIGH | Codex CLI | No |
 | [CDX-AG-002](./generated/cdx-ag-002.md) | Secrets in AGENTS.md for Codex | HIGH | Codex CLI | No |
 | [CDX-AG-003](./generated/cdx-ag-003.md) | Generic AGENTS.md Guidance for Codex | MEDIUM | Codex CLI | No |
+| [CDX-AG-004](./generated/cdx-ag-004.md) | AGENTS.md Exceeds Size Limit | MEDIUM | Codex CLI | No |
+| [CDX-AG-005](./generated/cdx-ag-005.md) | AGENTS.md References Missing File | MEDIUM | Codex CLI | No |
+| [CDX-AG-006](./generated/cdx-ag-006.md) | AGENTS.md Missing Project Context | LOW | Codex CLI | No |
+| [CDX-AG-007](./generated/cdx-ag-007.md) | AGENTS.md Contradicts config.toml | MEDIUM | Codex CLI | No |
 | [CDX-APP-001](./generated/cdx-app-001.md) | Invalid default_tools_approval_mode Value | HIGH | Codex CLI | No |
+| [CDX-APP-002](./generated/cdx-app-002.md) | Invalid skills Configuration | MEDIUM | Codex CLI | No |
+| [CDX-APP-003](./generated/cdx-app-003.md) | Invalid profile Configuration | MEDIUM | Codex CLI | No |
 | [CL-SK-001](./generated/cl-sk-001.md) | Cline Skill Uses Unsupported Field | MEDIUM | Cline Skills | Yes (safe/unsafe) |
 | [CLN-001](./generated/cln-001.md) | Empty Cline Rules File | HIGH | Cline | No |
 | [CLN-002](./generated/cln-002.md) | Invalid Paths Glob in Cline Rules | HIGH | Cline | No |
@@ -188,6 +204,11 @@ This section contains all `304` validation rules generated from `knowledge-base/
 | [KIRO-007](./generated/kiro-007.md) | fileMatchPattern Without fileMatch Inclusion | MEDIUM | Kiro Steering | No |
 | [KIRO-008](./generated/kiro-008.md) | Unknown Kiro Steering Frontmatter Field | MEDIUM | Kiro Steering | No |
 | [KIRO-009](./generated/kiro-009.md) | Broken Inline File Reference in Steering | MEDIUM | Kiro Steering | No |
+| [KIRO-010](./generated/kiro-010.md) | Missing Inclusion Mode | MEDIUM | Kiro Steering | No |
+| [KIRO-011](./generated/kiro-011.md) | Steering Doc Excessively Long | LOW | Kiro Steering | No |
+| [KIRO-012](./generated/kiro-012.md) | Duplicate Steering Name | MEDIUM | Kiro Steering | No |
+| [KIRO-013](./generated/kiro-013.md) | Conflicting Inclusion Modes | MEDIUM | Kiro Steering | No |
+| [KIRO-014](./generated/kiro-014.md) | Markdown Structure Issues | LOW | Kiro Steering | No |
 | [KR-SK-001](./generated/kr-sk-001.md) | Kiro Skill Uses Unsupported Field | MEDIUM | Kiro Skills | Yes (safe/unsafe) |
 | [KR-AG-001](./generated/kr-ag-001.md) | Unknown Field in Kiro Agent JSON | MEDIUM | Kiro Agents | No |
 | [KR-AG-002](./generated/kr-ag-002.md) | Invalid Kiro Agent Resource Protocol | HIGH | Kiro Agents | No |
@@ -196,18 +217,35 @@ This section contains all `304` validation rules generated from `knowledge-base/
 | [KR-AG-005](./generated/kr-ag-005.md) | Kiro Agent Has No MCP Access | LOW | Kiro Agents | No |
 | [KR-AG-006](./generated/kr-ag-006.md) | Kiro Agent References Unknown Subagent | MEDIUM | Kiro Agents | No |
 | [KR-AG-007](./generated/kr-ag-007.md) | Kiro Agent Tool Scope Broader Than Referenced Subagent | MEDIUM | Kiro Agents | No |
+| [KR-AG-008](./generated/kr-ag-008.md) | Agent Missing Name | HIGH | Kiro Agents | No |
+| [KR-AG-009](./generated/kr-ag-009.md) | Agent Missing Prompt | HIGH | Kiro Agents | No |
+| [KR-AG-010](./generated/kr-ag-010.md) | Duplicate Tool Entries | MEDIUM | Kiro Agents | No |
+| [KR-AG-011](./generated/kr-ag-011.md) | Empty Tools Array | LOW | Kiro Agents | No |
+| [KR-AG-012](./generated/kr-ag-012.md) | toolAliases References Unknown Tool | MEDIUM | Kiro Agents | No |
+| [KR-AG-013](./generated/kr-ag-013.md) | Secrets in Agent Prompt | HIGH | Kiro Agents | No |
 | [KR-HK-001](./generated/kr-hk-001.md) | Invalid Kiro IDE Hook Event Type | HIGH | Kiro Hooks | No |
 | [KR-HK-002](./generated/kr-hk-002.md) | Kiro File Hook Missing Patterns | HIGH | Kiro Hooks | No |
 | [KR-HK-003](./generated/kr-hk-003.md) | Kiro IDE Hook Missing Action | HIGH | Kiro Hooks | No |
 | [KR-HK-004](./generated/kr-hk-004.md) | Kiro Tool Hook Missing toolTypes Filter | MEDIUM | Kiro Hooks | No |
 | [KR-HK-005](./generated/kr-hk-005.md) | Invalid Kiro CLI Hook Event Key | HIGH | Kiro Hooks | No |
 | [KR-HK-006](./generated/kr-hk-006.md) | Kiro CLI Hook Missing Command | HIGH | Kiro Hooks | No |
+| [KR-HK-007](./generated/kr-hk-007.md) | Hook Timeout Out of Range | MEDIUM | Kiro Hooks | No |
+| [KR-HK-008](./generated/kr-hk-008.md) | Duplicate Event Handlers | MEDIUM | Kiro Hooks | No |
+| [KR-HK-009](./generated/kr-hk-009.md) | Command Uses Absolute Path | MEDIUM | Kiro Hooks | No |
+| [KR-HK-010](./generated/kr-hk-010.md) | Secrets in Hook Command | HIGH | Kiro Hooks | No |
 | [KR-MCP-001](./generated/kr-mcp-001.md) | Kiro MCP Server Missing command and url | HIGH | Kiro MCP | No |
 | [KR-MCP-002](./generated/kr-mcp-002.md) | Hardcoded Secrets in Kiro MCP env | MEDIUM | Kiro MCP | No |
+| [KR-MCP-003](./generated/kr-mcp-003.md) | Missing Required Args | MEDIUM | Kiro MCP | No |
+| [KR-MCP-004](./generated/kr-mcp-004.md) | Invalid MCP URL | HIGH | Kiro MCP | No |
+| [KR-MCP-005](./generated/kr-mcp-005.md) | Duplicate MCP Server Names | MEDIUM | Kiro MCP | No |
 | [KR-PW-001](./generated/kr-pw-001.md) | Missing Required POWER.md Frontmatter Fields | HIGH | Kiro Powers | No |
 | [KR-PW-002](./generated/kr-pw-002.md) | Empty POWER.md Keywords Array | MEDIUM | Kiro Powers | No |
 | [KR-PW-003](./generated/kr-pw-003.md) | Empty POWER.md Body | MEDIUM | Kiro Powers | No |
 | [KR-PW-004](./generated/kr-pw-004.md) | Invalid Adjacent Power mcp.json Structure | MEDIUM | Kiro Powers | No |
+| [KR-PW-005](./generated/kr-pw-005.md) | Step Missing Description | HIGH | Kiro Powers | No |
+| [KR-PW-006](./generated/kr-pw-006.md) | Duplicate Keywords | LOW | Kiro Powers | No |
+| [KR-PW-007](./generated/kr-pw-007.md) | Name Invalid Characters | MEDIUM | Kiro Powers | No |
+| [KR-PW-008](./generated/kr-pw-008.md) | Secrets in Power Body | HIGH | Kiro Powers | No |
 | [MCP-001](./generated/mcp-001.md) | Invalid JSON-RPC Version | HIGH | MCP | Yes (safe) |
 | [MCP-002](./generated/mcp-002.md) | Missing Required Tool Field | HIGH | MCP | No |
 | [MCP-003](./generated/mcp-003.md) | Invalid JSON Schema | HIGH | MCP | No |
@@ -289,9 +327,11 @@ This section contains all `304` validation rules generated from `knowledge-base/
 | [OC-AG-004](./generated/oc-ag-004.md) | Steps Not a Positive Integer | HIGH | OpenCode | No |
 | [OC-PM-001](./generated/oc-pm-001.md) | Invalid Permission Action | HIGH | OpenCode | No |
 | [OC-PM-002](./generated/oc-pm-002.md) | Unknown Permission Key | MEDIUM | OpenCode | No |
-| [OC-DEP-001](./generated/oc-dep-001.md) | Deprecated `mode` Field | MEDIUM | OpenCode | Yes (safe) |
-| [OC-DEP-002](./generated/oc-dep-002.md) | Deprecated `tools` Field | MEDIUM | OpenCode | Yes (safe) |
-| [OC-DEP-003](./generated/oc-dep-003.md) | Deprecated `autoshare` Field | MEDIUM | OpenCode | Yes (safe) |
+| [OC-AGM-001](./generated/oc-agm-001.md) | Empty AGENTS.md | HIGH | OpenCode | No |
+| [OC-AGM-002](./generated/oc-agm-002.md) | Secrets in AGENTS.md | HIGH | OpenCode | No |
+| [OC-DEP-001](./generated/oc-dep-001.md) | Deprecated mode Field | MEDIUM | OpenCode | Yes (safe) |
+| [OC-DEP-002](./generated/oc-dep-002.md) | Deprecated tools Field | MEDIUM | OpenCode | Yes (safe) |
+| [OC-DEP-003](./generated/oc-dep-003.md) | Deprecated autoshare Field | MEDIUM | OpenCode | Yes (safe) |
 | [OC-DEP-004](./generated/oc-dep-004.md) | Deprecated CONTEXT.md Filename | MEDIUM | OpenCode | No |
 | [OC-CFG-008](./generated/oc-cfg-008.md) | Invalid Log Level | HIGH | OpenCode | Yes (unsafe) |
 | [OC-CFG-009](./generated/oc-cfg-009.md) | Invalid Compaction Reserved | HIGH | OpenCode | No |
@@ -307,5 +347,3 @@ This section contains all `304` validation rules generated from `knowledge-base/
 | [OC-TUI-001](./generated/oc-tui-001.md) | Unknown TUI Key | MEDIUM | OpenCode | No |
 | [OC-TUI-002](./generated/oc-tui-002.md) | Invalid scroll_speed | HIGH | OpenCode | No |
 | [OC-TUI-003](./generated/oc-tui-003.md) | Invalid diff_style | HIGH | OpenCode | Yes (unsafe) |
-| [OC-AGM-001](./generated/oc-agm-001.md) | Empty AGENTS.md | HIGH | OpenCode | No |
-| [OC-AGM-002](./generated/oc-agm-002.md) | Secrets in AGENTS.md | HIGH | OpenCode | No |

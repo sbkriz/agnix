@@ -11,12 +11,9 @@
     "read": "allow",
     "edit": "ask"
   },
-  "autoshare": "manual",
   "enterprise": {},
   "layout": "stretch",
-  "logLevel": "INFO",
-  "lsp": false,
-  "mode": "agent",
+  "logLevel": "info",
   "skills": [],
   "snapshot": false,
   "username": "dev"

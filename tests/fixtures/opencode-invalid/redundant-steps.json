@@ -1,0 +1,8 @@
+{
+  "agent": {
+    "my-agent": {
+      "steps": 10,
+      "maxSteps": 20
+    }
+  }
+}

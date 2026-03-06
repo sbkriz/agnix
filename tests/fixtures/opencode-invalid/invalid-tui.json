@@ -1,0 +1,7 @@
+{
+  "tui": {
+    "unknown_option": true,
+    "scroll_speed": 0.0001,
+    "diff_style": "unified"
+  }
+}

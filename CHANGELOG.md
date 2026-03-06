@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **OpenCode expanded coverage (18 new rules)**: Added `OC-CFG-008` through `OC-CFG-012` (TUI/compaction/log-level/hidden/top-p config validation), `OC-AG-005` through `OC-AG-008` (agent name/color/skills-url/redundant-steps validation), `OC-LSP-001` through `OC-LSP-002` (LSP timeout/MCP timeout validation), `OC-TUI-001` through `OC-TUI-003` (TUI key-binding/theme/status-bar validation), and `OC-DEP-001` through `OC-DEP-004` (deprecated autoshare/mode/tools/agent fields). Brings total OpenCode rules to 42 and total rule count to 304 (#630).
+
 ## [0.15.0] - 2026-03-03
 
 ### Added

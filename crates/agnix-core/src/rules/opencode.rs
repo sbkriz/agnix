@@ -1344,30 +1344,59 @@ impl Validator for OpenCodeValidator {
                 // OC-CFG-010: Invalid skills.urls
                 if config.is_rule_enabled("OC-CFG-010") {
                     if let Some(skills) = obj.get("skills").and_then(|s| s.as_object()) {
-                        if let Some(urls) = skills.get("urls").and_then(|u| u.as_array()) {
-                            for url_val in urls {
-                                if let Some(url_str) = url_val.as_str() {
-                                    if !url_str.starts_with("http://")
-                                        && !url_str.starts_with("https://")
-                                    {
+                        if let Some(urls_val) = skills.get("urls") {
+                            if let Some(urls) = urls_val.as_array() {
+                                for url_val in urls {
+                                    if let Some(url_str) = url_val.as_str() {
+                                        if !url_str.starts_with("http://")
+                                            && !url_str.starts_with("https://")
+                                        {
+                                            diagnostics.push(
+                                                Diagnostic::error(
+                                                    path.to_path_buf(),
+                                                    find_key_line(content, "urls").unwrap_or(1),
+                                                    0,
+                                                    "OC-CFG-010",
+                                                    format!(
+                                                        "Invalid skills URL '{}'. Must start with http:// or https://",
+                                                        truncate_for_display(url_str, 200)
+                                                    ),
+                                                )
+                                                .with_suggestion(
+                                                    "Use a full URL starting with http:// or https://"
+                                                        .to_string(),
+                                                ),
+                                            );
+                                        }
+                                    } else {
                                         diagnostics.push(
                                             Diagnostic::error(
                                                 path.to_path_buf(),
                                                 find_key_line(content, "urls").unwrap_or(1),
                                                 0,
                                                 "OC-CFG-010",
-                                                format!(
-                                                    "Invalid skills URL '{}'. Must start with http:// or https://",
-                                                    truncate_for_display(url_str, 200)
-                                                ),
+                                                "skills.urls entries must be strings".to_string(),
                                             )
                                             .with_suggestion(
-                                                "Use a full URL starting with http:// or https://"
+                                                "Each entry in skills.urls must be a URL string"
                                                     .to_string(),
                                             ),
                                         );
                                     }
                                 }
+                            } else {
+                                diagnostics.push(
+                                    Diagnostic::error(
+                                        path.to_path_buf(),
+                                        find_key_line(content, "urls").unwrap_or(1),
+                                        0,
+                                        "OC-CFG-010",
+                                        "skills.urls must be an array".to_string(),
+                                    )
+                                    .with_suggestion(
+                                        "Set skills.urls to an array of URL strings".to_string(),
+                                    ),
+                                );
                             }
                         }
                     }

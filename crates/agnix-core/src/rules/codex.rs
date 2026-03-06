@@ -311,14 +311,23 @@ impl Validator for CodexValidator {
             return diagnostics;
         }
 
-        let is_toml = path
+        let ext = path
             .extension()
             .and_then(OsStr::to_str)
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("toml"));
+            .unwrap_or_default();
+        let is_toml = ext.eq_ignore_ascii_case("toml");
+        let is_config_file = is_toml
+            || ext.eq_ignore_ascii_case("json")
+            || ext.eq_ignore_ascii_case("yaml")
+            || ext.eq_ignore_ascii_case("yml");
 
-        if is_toml {
+        if is_config_file {
+            // Build key-to-line mappings once for all config-based rules (CDX-000..006 + CDX-CFG-*)
+            let key_lines = build_key_line_map(content);
+
             // For Codex TOML config files, run legacy CDX-000..006 checks.
             // Skip TOML parsing entirely when all TOML-dependent rules are disabled.
+            if is_toml {
             let cdx_001_enabled = config.is_rule_enabled("CDX-001");
             let cdx_002_enabled = config.is_rule_enabled("CDX-002");
             let cdx_004_enabled = config.is_rule_enabled("CDX-004");
@@ -383,9 +392,6 @@ impl Validator for CodexValidator {
                     Some(s) => s,
                     None => return diagnostics,
                 };
-
-                // Build key-to-line mappings in a single pass for O(1) lookups
-                let key_lines = build_key_line_map(content);
 
                 // CDX-001: Invalid approvalMode (ERROR)
                 if cdx_001_enabled {
@@ -627,9 +633,10 @@ impl Validator for CodexValidator {
                     }
                 }
             }
-        }
+            } // is_toml (legacy CDX-000..006)
 
-        diagnostics.extend(validate_codex_config_rules(path, content, config));
+            diagnostics.extend(validate_codex_config_rules(path, content, config, &key_lines));
+        }
 
         diagnostics
     }
@@ -854,7 +861,12 @@ fn has_sk_token_prefix(line: &str) -> bool {
     })
 }
 
-fn validate_codex_config_rules(path: &Path, content: &str, config: &LintConfig) -> Vec<Diagnostic> {
+fn validate_codex_config_rules(
+    path: &Path,
+    content: &str,
+    config: &LintConfig,
+    key_lines: &HashMap<String, usize>,
+) -> Vec<Diagnostic> {
     let mut diagnostics = Vec::new();
     let root = match parse_codex_config_value(path, content) {
         Ok(root) => root,
@@ -875,7 +887,6 @@ fn validate_codex_config_rules(path: &Path, content: &str, config: &LintConfig) 
         }
     };
 
-    let key_lines = build_key_line_map(content);
     let line_for = |key: &str| key_lines.get(key).copied().unwrap_or(1);
 
     if config.is_rule_enabled("CDX-CFG-001")

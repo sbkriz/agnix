@@ -184,11 +184,15 @@ impl Validator for KiroHookValidator {
             }
         }
 
+        // Note: KR-HK-008 (duplicate event handlers) is a project-level check
+        // requiring cross-file analysis; registered in RULE_IDS but checked
+        // at the project validator layer.
+
         // KR-HK-009: Command uses absolute path
         if config.is_rule_enabled("KR-HK-009") {
             if let Some(cmd) = hook.effective_run_command() {
                 let trimmed = cmd.trim();
-                if trimmed.starts_with('/') || (trimmed.len() >= 3 && trimmed.as_bytes().get(1) == Some(&b':')) {
+                if trimmed.starts_with('/') || (trimmed.len() >= 3 && trimmed.as_bytes()[0].is_ascii_alphabetic() && trimmed.as_bytes().get(1) == Some(&b':')) {
                     diagnostics.push(
                         Diagnostic::warning(
                             path.to_path_buf(),
@@ -413,6 +417,84 @@ mod tests {
 }"#,
         );
         assert!(diagnostics.iter().all(|d| d.rule != "KR-HK-010"));
+    }
+
+    #[test]
+    fn test_kr_hk_008_is_registered_in_metadata() {
+        // KR-HK-008 (duplicate event handlers) requires project-level context;
+        // verify it is registered in metadata.
+        let validator = KiroHookValidator;
+        let metadata = validator.metadata();
+        assert!(metadata.rule_ids.contains(&"KR-HK-008"));
+    }
+
+    #[test]
+    fn test_kr_hk_007_timeout_ms_key_variant() {
+        let diagnostics = validate(
+            r#"{
+  "event": "promptSubmit",
+  "runCommand": "echo test",
+  "timeoutMs": 600000
+}"#,
+        );
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-HK-007"));
+    }
+
+    #[test]
+    fn test_kr_hk_007_boundary_at_limit_no_diagnostic() {
+        let diagnostics = validate(
+            r#"{
+  "event": "promptSubmit",
+  "runCommand": "echo test",
+  "timeout": 300000
+}"#,
+        );
+        assert!(diagnostics.iter().all(|d| d.rule != "KR-HK-007"));
+    }
+
+    #[test]
+    fn test_kr_hk_007_boundary_above_limit() {
+        let diagnostics = validate(
+            r#"{
+  "event": "promptSubmit",
+  "runCommand": "echo test",
+  "timeout": 300001
+}"#,
+        );
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-HK-007"));
+    }
+
+    #[test]
+    fn test_kr_hk_009_windows_absolute_path() {
+        let diagnostics = validate(
+            r#"{
+  "event": "promptSubmit",
+  "runCommand": "C:\\lint.exe"
+}"#,
+        );
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-HK-009"));
+    }
+
+    #[test]
+    fn test_kr_hk_010_api_key_secret() {
+        let diagnostics = validate(
+            r#"{
+  "event": "promptSubmit",
+  "runCommand": "curl -d api_key=mysecretkey123"
+}"#,
+        );
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-HK-010"));
+    }
+
+    #[test]
+    fn test_kr_hk_010_password_secret() {
+        let diagnostics = validate(
+            r#"{
+  "event": "promptSubmit",
+  "runCommand": "mysql -p password=hunter2secret"
+}"#,
+        );
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-HK-010"));
     }
 
     #[test]

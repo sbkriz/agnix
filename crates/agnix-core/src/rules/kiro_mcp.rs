@@ -173,6 +173,10 @@ impl Validator for KiroMcpValidator {
             }
         }
 
+        // Note: KR-MCP-005 (duplicate MCP server names) is a project-level check
+        // requiring cross-file analysis; registered in RULE_IDS but checked
+        // at the project validator layer.
+
         diagnostics
     }
 }
@@ -271,6 +275,20 @@ mod tests {
   "mcpServers": {
     "remote": {
       "url": "https://example.com/mcp"
+    }
+  }
+}"#,
+        );
+        assert!(diagnostics.iter().all(|d| d.rule != "KR-MCP-004"));
+    }
+
+    #[test]
+    fn test_kr_mcp_004_sse_url_accepted() {
+        let diagnostics = validate(
+            r#"{
+  "mcpServers": {
+    "remote": {
+      "url": "sse://example.com/mcp"
     }
   }
 }"#,

@@ -584,6 +584,37 @@ Normal instructions here.
     }
 
     #[test]
+    fn test_kr_pw_006_case_insensitive_duplicate_keywords() {
+        let diagnostics = validate(
+            r#"---
+name: case-dupes
+description: test
+keywords:
+  - foo
+  - Foo
+---
+# Body
+"#,
+        );
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-PW-006"));
+    }
+
+    #[test]
+    fn test_kr_pw_008_template_values_not_flagged() {
+        let diagnostics = validate(
+            r#"---
+name: template
+description: test
+keywords:
+  - one
+---
+Configure with api_key= ${API_KEY}
+"#,
+        );
+        assert!(diagnostics.iter().all(|d| d.rule != "KR-PW-008"));
+    }
+
+    #[test]
     fn test_metadata() {
         let validator = KiroPowerValidator;
         let metadata = validator.metadata();

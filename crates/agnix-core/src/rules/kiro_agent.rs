@@ -1702,6 +1702,64 @@ mod tests {
     }
 
     #[test]
+    fn test_kr_ag_008_blank_name() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let agents_dir = temp.path().join(".kiro").join("agents");
+        fs::create_dir_all(&agents_dir).unwrap();
+
+        let agent = agents_dir.join("blank-name.json");
+        write_agent(
+            &agent,
+            r#"{
+  "name": "   ",
+  "prompt": "Do something"
+}"#,
+        );
+
+        let diagnostics = validate(&agent);
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-AG-008"));
+    }
+
+    #[test]
+    fn test_kr_ag_009_blank_prompt() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let agents_dir = temp.path().join(".kiro").join("agents");
+        fs::create_dir_all(&agents_dir).unwrap();
+
+        let agent = agents_dir.join("blank-prompt.json");
+        write_agent(
+            &agent,
+            r#"{
+  "name": "blank-prompt",
+  "prompt": "   "
+}"#,
+        );
+
+        let diagnostics = validate(&agent);
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-AG-009"));
+    }
+
+    #[test]
+    fn test_kr_ag_010_case_insensitive_duplicate_tools() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let agents_dir = temp.path().join(".kiro").join("agents");
+        fs::create_dir_all(&agents_dir).unwrap();
+
+        let agent = agents_dir.join("case-dup-tools.json");
+        write_agent(
+            &agent,
+            r#"{
+  "name": "case-dup-tools",
+  "prompt": "Work",
+  "tools": ["readFiles", "READFILES"]
+}"#,
+        );
+
+        let diagnostics = validate(&agent);
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-AG-010"));
+    }
+
+    #[test]
     fn test_metadata_lists_kr_ag_rules() {
         let validator = KiroAgentValidator;
         let metadata = validator.metadata();

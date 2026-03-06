@@ -227,37 +227,38 @@ impl Validator for KiroHookValidator {
         // KR-HK-010: Secrets in hook command
         if config.is_rule_enabled("KR-HK-010") {
             if let Some(cmd) = hook.effective_run_command() {
-                // Quick pre-check: only lowercase if cmd might contain a marker.
-                // All markers contain at least one of these chars (case-insensitive).
-                let might_have_marker = cmd.bytes().any(|b| {
-                    matches!(
-                        b.to_ascii_lowercase(),
-                        b's' | b'a' | b't' | b'p' | b'b' | b'g' | b'x'
-                    )
-                });
-                let has_secret_marker = might_have_marker && {
-                    let lower = cmd.to_ascii_lowercase();
-                    [
-                        "sk-",
-                        "sk-ant-",
-                        "sk-proj-",
-                        "api_key=",
-                        "apikey=",
-                        "token=",
-                        "password=",
-                        "bearer ",
-                        "ghp_",
-                        "gho_",
-                        "xoxb-",
-                        "xoxp-",
-                        "akia",
-                        "aiza",
-                        "glpat-",
-                    ]
+                let lower = cmd.to_ascii_lowercase();
+                // Known secret token prefixes (always suspicious in commands)
+                let has_token_prefix = ["sk-", "ghp_", "gho_", "xoxb-", "xoxp-", "glpat-"]
                     .iter()
-                    .any(|marker| lower.contains(marker))
+                    .any(|pfx| lower.contains(pfx));
+                // AWS key prefix (4+ uppercase after AKIA)
+                let has_aws_prefix =
+                    lower.contains("akia") && cmd.contains("AKIA");
+                // Key=value assignments with sensitive key names
+                let has_secret_assignment = [
+                    "api_key=",
+                    "apikey=",
+                    "token=",
+                    "password=",
+                    "secret=",
+                    "--token=",
+                    "--password=",
+                    "--api-key=",
+                ]
+                .iter()
+                .any(|kv| lower.contains(kv));
+                // Bearer token pattern
+                let has_bearer = lower.contains("bearer ") && {
+                    // Only flag if followed by a value that looks like a secret
+                    if let Some(idx) = lower.find("bearer ") {
+                        let after = cmd[idx + 7..].trim();
+                        super::seems_plaintext_secret(after)
+                    } else {
+                        false
+                    }
                 };
-                if has_secret_marker {
+                if has_token_prefix || has_aws_prefix || has_secret_assignment || has_bearer {
                     diagnostics.push(
                         Diagnostic::error(
                             path.to_path_buf(),

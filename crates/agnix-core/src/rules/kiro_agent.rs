@@ -547,6 +547,8 @@ fn validate_agent_schema_rules(
     }
 
     // KR-AG-013: Secrets in agent prompt
+    // The regex already excludes env var patterns because ${...} doesn't match
+    // the required value prefixes (sk-, ghp_, AKIA, etc.) or base64 patterns.
     if config.is_rule_enabled("KR-AG-013")
         && let Some(prompt) = obj.get("prompt").and_then(Value::as_str)
     {
@@ -1701,6 +1703,28 @@ mod tests {
 
         let diagnostics = validate(&agent);
         assert!(diagnostics.iter().all(|d| d.rule != "KR-AG-013"));
+    }
+
+    #[test]
+    fn test_kr_ag_013_env_var_not_flagged() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let agents_dir = temp.path().join(".kiro").join("agents");
+        fs::create_dir_all(&agents_dir).unwrap();
+
+        let agent = agents_dir.join("env-prompt.json");
+        write_agent(
+            &agent,
+            r#"{
+  "name": "env-prompt",
+  "prompt": "Use api_key=${MY_SECRET} and token=$(get_token)"
+}"#,
+        );
+
+        let diagnostics = validate(&agent);
+        assert!(
+            diagnostics.iter().all(|d| d.rule != "KR-AG-013"),
+            "Env var references should not trigger KR-AG-013"
+        );
     }
 
     #[test]

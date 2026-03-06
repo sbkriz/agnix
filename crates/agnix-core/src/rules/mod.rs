@@ -49,6 +49,7 @@ pub(crate) fn seems_plaintext_secret(value: &str) -> bool {
         && !trimmed.starts_with("$(")
         && !trimmed.starts_with("{{")
         && !trimmed.starts_with('<')
+        && !trimmed.starts_with("env:")
         && trimmed.len() >= 8
 }
 

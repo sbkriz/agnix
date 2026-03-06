@@ -2860,6 +2860,146 @@ name = "test"
     }
 
     #[test]
+    fn test_cdx_cfg_013_invalid_sandbox_workspace_write_mode() {
+        let diagnostics = validate_config("[sandbox_workspace_write]\nmode = \"everything\"");
+        assert!(diagnostics.iter().any(|d| d.rule == "CDX-CFG-013"));
+    }
+
+    #[test]
+    fn test_cdx_cfg_014_invalid_model_type() {
+        let diagnostics = validate_config("model = 123");
+        assert!(diagnostics.iter().any(|d| d.rule == "CDX-CFG-014"));
+    }
+
+    #[test]
+    fn test_cdx_cfg_014_valid_model_string_no_diagnostic() {
+        let diagnostics = validate_config("model = \"o4-mini\"");
+        assert!(diagnostics.iter().all(|d| d.rule != "CDX-CFG-014"));
+    }
+
+    #[test]
+    fn test_cdx_cfg_015_invalid_model_provider_type() {
+        let diagnostics = validate_config("model_provider = 42");
+        assert!(diagnostics.iter().any(|d| d.rule == "CDX-CFG-015"));
+    }
+
+    #[test]
+    fn test_cdx_cfg_016_invalid_model_reasoning_summary() {
+        let diagnostics = validate_config("model_reasoning_summary = \"verbose\"");
+        assert!(diagnostics.iter().any(|d| d.rule == "CDX-CFG-016"));
+    }
+
+    #[test]
+    fn test_cdx_cfg_017_invalid_history_type() {
+        let diagnostics = validate_config("history = \"not an object\"");
+        assert!(diagnostics.iter().any(|d| d.rule == "CDX-CFG-017"));
+    }
+
+    #[test]
+    fn test_cdx_cfg_018_invalid_tui_type() {
+        let diagnostics = validate_config("tui = \"not an object\"");
+        assert!(diagnostics.iter().any(|d| d.rule == "CDX-CFG-018"));
+    }
+
+    #[test]
+    fn test_cdx_cfg_019_invalid_file_opener_type() {
+        let diagnostics = validate_config("file_opener = 123");
+        assert!(diagnostics.iter().any(|d| d.rule == "CDX-CFG-019"));
+    }
+
+    #[test]
+    fn test_cdx_cfg_020_invalid_mcp_oauth_store() {
+        let diagnostics = validate_config("mcp_oauth_credentials_store = \"vault\"");
+        assert!(diagnostics.iter().any(|d| d.rule == "CDX-CFG-020"));
+    }
+
+    #[test]
+    fn test_cdx_cfg_021_invalid_model_context_window() {
+        let diagnostics = validate_config("model_context_window = -1");
+        assert!(diagnostics.iter().any(|d| d.rule == "CDX-CFG-021"));
+    }
+
+    #[test]
+    fn test_cdx_cfg_021_valid_model_context_window_no_diagnostic() {
+        let diagnostics = validate_config("model_context_window = 128000");
+        assert!(diagnostics.iter().all(|d| d.rule != "CDX-CFG-021"));
+    }
+
+    #[test]
+    fn test_cdx_cfg_022_invalid_model_auto_compact_token_limit() {
+        let diagnostics = validate_config("model_auto_compact_token_limit = -100");
+        assert!(diagnostics.iter().any(|d| d.rule == "CDX-CFG-022"));
+    }
+
+    #[test]
+    fn test_cdx_cfg_022_valid_limit_no_diagnostic() {
+        let diagnostics = validate_config("model_auto_compact_token_limit = 4096");
+        assert!(diagnostics.iter().all(|d| d.rule != "CDX-CFG-022"));
+    }
+
+    #[test]
+    fn test_cdx_ag_004_agents_md_exceeds_size_limit() {
+        let content = "# Project\n".to_string() + &"x".repeat(200_000);
+        let diagnostics = validate_claude_md("AGENTS.md", &content);
+        assert!(diagnostics.iter().any(|d| d.rule == "CDX-AG-004"));
+    }
+
+    #[test]
+    fn test_cdx_ag_005_missing_file_reference() {
+        let diagnostics = validate_claude_md("AGENTS.md", "Check `nonexistent-file.ts` for details.");
+        assert!(diagnostics.iter().any(|d| d.rule == "CDX-AG-005"));
+    }
+
+    #[test]
+    fn test_cdx_ag_006_missing_project_context() {
+        let diagnostics = validate_claude_md("AGENTS.md", "Be helpful and write good code.");
+        assert!(diagnostics.iter().any(|d| d.rule == "CDX-AG-006"));
+    }
+
+    #[test]
+    fn test_cdx_ag_006_has_context_no_diagnostic() {
+        let diagnostics = validate_claude_md(
+            "AGENTS.md",
+            "# Project\nRun `npm test` to verify. Check src/ for source code.",
+        );
+        assert!(diagnostics.iter().all(|d| d.rule != "CDX-AG-006"));
+    }
+
+    #[test]
+    fn test_cdx_ag_007_placeholder_no_diagnostics() {
+        // CDX-AG-007 is a placeholder for cross-file analysis; it should not produce diagnostics
+        let diagnostics = validate_claude_md(
+            "AGENTS.md",
+            "# Project\nRun `npm test` to verify. Check src/ for source code.",
+        );
+        assert!(diagnostics.iter().all(|d| d.rule != "CDX-AG-007"));
+    }
+
+    #[test]
+    fn test_cdx_app_002_invalid_skills_type() {
+        let diagnostics = validate_config("skills = \"not an object\"");
+        assert!(diagnostics.iter().any(|d| d.rule == "CDX-APP-002"));
+    }
+
+    #[test]
+    fn test_cdx_app_002_valid_skills_no_diagnostic() {
+        let diagnostics = validate_config("[skills]");
+        assert!(diagnostics.iter().all(|d| d.rule != "CDX-APP-002"));
+    }
+
+    #[test]
+    fn test_cdx_app_003_invalid_profile_type() {
+        let diagnostics = validate_config("profile = 123");
+        assert!(diagnostics.iter().any(|d| d.rule == "CDX-APP-003"));
+    }
+
+    #[test]
+    fn test_cdx_app_003_valid_profile_no_diagnostic() {
+        let diagnostics = validate_config("profile = \"default\"");
+        assert!(diagnostics.iter().all(|d| d.rule != "CDX-APP-003"));
+    }
+
+    #[test]
     fn test_cdx_cfg_rules_parse_json_and_yaml_configs() {
         let json = r#"{"approval_policy":"always"}"#;
         let json_diags = validate_config_at_path(".codex/config.json", json);

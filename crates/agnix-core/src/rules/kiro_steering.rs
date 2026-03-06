@@ -1074,6 +1074,75 @@ mod tests {
         assert!(diagnostics.iter().all(|d| d.rule != "KIRO-009"));
     }
 
+    // ===== KIRO-010: Missing inclusion mode =====
+
+    #[test]
+    fn test_kiro_010_missing_inclusion() {
+        let content = "---\nname: test\n---\n# Steering\n";
+        let diagnostics = validate_steering(content);
+        assert!(diagnostics.iter().any(|d| d.rule == "KIRO-010"));
+    }
+
+    #[test]
+    fn test_kiro_010_inclusion_present_no_diagnostic() {
+        let content = "---\ninclusion: always\n---\n# Steering\n";
+        let diagnostics = validate_steering(content);
+        assert!(diagnostics.iter().all(|d| d.rule != "KIRO-010"));
+    }
+
+    // ===== KIRO-011: Steering doc excessively long =====
+
+    #[test]
+    fn test_kiro_011_excessively_long_doc() {
+        let body = "x".repeat(51_000);
+        let content = format!("---\ninclusion: always\n---\n{}\n", body);
+        let diagnostics = validate_steering(&content);
+        assert!(diagnostics.iter().any(|d| d.rule == "KIRO-011"));
+    }
+
+    #[test]
+    fn test_kiro_011_normal_length_no_diagnostic() {
+        let content = "---\ninclusion: always\n---\n# Short doc\n";
+        let diagnostics = validate_steering(content);
+        assert!(diagnostics.iter().all(|d| d.rule != "KIRO-011"));
+    }
+
+    // ===== KIRO-013: Conflicting inclusion modes =====
+    // Note: serde_yaml 0.9 rejects duplicate mapping keys, so the YAML parse
+    // fails before KIRO-013 can fire. The raw-line counting approach in
+    // KIRO-013 would work if the YAML parser accepted duplicates. We test
+    // the negative case (single key) and verify metadata registration.
+
+    #[test]
+    fn test_kiro_013_single_inclusion_no_diagnostic() {
+        let content = "---\ninclusion: always\n---\n# Steering\n";
+        let diagnostics = validate_steering(content);
+        assert!(diagnostics.iter().all(|d| d.rule != "KIRO-013"));
+    }
+
+    #[test]
+    fn test_kiro_013_registered_in_metadata() {
+        let v = KiroSteeringValidator;
+        let meta = v.metadata();
+        assert!(meta.rule_ids.contains(&"KIRO-013"));
+    }
+
+    // ===== KIRO-014: Markdown structure issues =====
+
+    #[test]
+    fn test_kiro_014_no_heading_in_body() {
+        let content = "---\ninclusion: always\n---\nJust plain text without any heading.\n";
+        let diagnostics = validate_steering(content);
+        assert!(diagnostics.iter().any(|d| d.rule == "KIRO-014"));
+    }
+
+    #[test]
+    fn test_kiro_014_has_heading_no_diagnostic() {
+        let content = "---\ninclusion: always\n---\n# Heading\nSome content.\n";
+        let diagnostics = validate_steering(content);
+        assert!(diagnostics.iter().all(|d| d.rule != "KIRO-014"));
+    }
+
     // ===== Metadata =====
 
     #[test]

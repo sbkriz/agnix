@@ -336,6 +336,86 @@ mod tests {
     }
 
     #[test]
+    fn test_kr_hk_007_timeout_exceeds_limit() {
+        let diagnostics = validate(
+            r#"{
+  "event": "promptSubmit",
+  "runCommand": "echo test",
+  "timeout": 600000
+}"#,
+        );
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-HK-007"));
+    }
+
+    #[test]
+    fn test_kr_hk_007_negative_timeout() {
+        let diagnostics = validate(
+            r#"{
+  "event": "promptSubmit",
+  "runCommand": "echo test",
+  "timeout": -1
+}"#,
+        );
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-HK-007"));
+    }
+
+    #[test]
+    fn test_kr_hk_007_valid_timeout_no_diagnostic() {
+        let diagnostics = validate(
+            r#"{
+  "event": "promptSubmit",
+  "runCommand": "echo test",
+  "timeout": 30000
+}"#,
+        );
+        assert!(diagnostics.iter().all(|d| d.rule != "KR-HK-007"));
+    }
+
+    #[test]
+    fn test_kr_hk_009_absolute_path_in_command() {
+        let diagnostics = validate(
+            r#"{
+  "event": "promptSubmit",
+  "runCommand": "/usr/local/bin/lint"
+}"#,
+        );
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-HK-009"));
+    }
+
+    #[test]
+    fn test_kr_hk_009_relative_path_no_diagnostic() {
+        let diagnostics = validate(
+            r#"{
+  "event": "promptSubmit",
+  "runCommand": "npm run lint"
+}"#,
+        );
+        assert!(diagnostics.iter().all(|d| d.rule != "KR-HK-009"));
+    }
+
+    #[test]
+    fn test_kr_hk_010_secrets_in_command() {
+        let diagnostics = validate(
+            r#"{
+  "event": "promptSubmit",
+  "runCommand": "curl -H 'Bearer sk-secret123'"
+}"#,
+        );
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-HK-010"));
+    }
+
+    #[test]
+    fn test_kr_hk_010_no_secret_no_diagnostic() {
+        let diagnostics = validate(
+            r#"{
+  "event": "promptSubmit",
+  "runCommand": "echo hello"
+}"#,
+        );
+        assert!(diagnostics.iter().all(|d| d.rule != "KR-HK-010"));
+    }
+
+    #[test]
     fn test_metadata() {
         let validator = KiroHookValidator;
         let metadata = validator.metadata();

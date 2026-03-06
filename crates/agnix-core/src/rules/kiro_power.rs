@@ -455,6 +455,135 @@ Valid content.
     }
 
     #[test]
+    fn test_kr_pw_005_step_missing_description() {
+        let diagnostics = validate(
+            r#"---
+name: empty-step
+description: test
+keywords:
+  - one
+---
+## Step 1
+## Step 2
+Some content here.
+"#,
+        );
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-PW-005"));
+    }
+
+    #[test]
+    fn test_kr_pw_005_step_with_description_no_diagnostic() {
+        let diagnostics = validate(
+            r#"---
+name: good-steps
+description: test
+keywords:
+  - one
+---
+## Step 1
+This step does something.
+## Step 2
+This step does another thing.
+"#,
+        );
+        assert!(diagnostics.iter().all(|d| d.rule != "KR-PW-005"));
+    }
+
+    #[test]
+    fn test_kr_pw_006_duplicate_keywords() {
+        let diagnostics = validate(
+            r#"---
+name: dupes
+description: test
+keywords:
+  - foo
+  - bar
+  - foo
+---
+# Body
+"#,
+        );
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-PW-006"));
+    }
+
+    #[test]
+    fn test_kr_pw_006_unique_keywords_no_diagnostic() {
+        let diagnostics = validate(
+            r#"---
+name: unique
+description: test
+keywords:
+  - foo
+  - bar
+---
+# Body
+"#,
+        );
+        assert!(diagnostics.iter().all(|d| d.rule != "KR-PW-006"));
+    }
+
+    #[test]
+    fn test_kr_pw_007_invalid_name_characters() {
+        let diagnostics = validate(
+            r#"---
+name: My Power!
+description: test
+keywords:
+  - one
+---
+# Body
+"#,
+        );
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-PW-007"));
+    }
+
+    #[test]
+    fn test_kr_pw_007_valid_name_no_diagnostic() {
+        let diagnostics = validate(
+            r#"---
+name: my-power-1
+description: test
+keywords:
+  - one
+---
+# Body
+"#,
+        );
+        assert!(diagnostics.iter().all(|d| d.rule != "KR-PW-007"));
+    }
+
+    #[test]
+    fn test_kr_pw_008_secrets_in_body() {
+        let diagnostics = validate(
+            r#"---
+name: secrets
+description: test
+keywords:
+  - one
+---
+Configure with api_key= hardcodedsecret123value
+"#,
+        );
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-PW-008"));
+    }
+
+    #[test]
+    fn test_kr_pw_008_no_secrets_no_diagnostic() {
+        let diagnostics = validate(
+            r#"---
+name: clean
+description: test
+keywords:
+  - one
+---
+# Body
+Normal instructions here.
+"#,
+        );
+        assert!(diagnostics.iter().all(|d| d.rule != "KR-PW-008"));
+    }
+
+    #[test]
     fn test_metadata() {
         let validator = KiroPowerValidator;
         let metadata = validator.metadata();

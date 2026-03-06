@@ -222,6 +222,72 @@ mod tests {
     }
 
     #[test]
+    fn test_kr_mcp_003_missing_args_for_command_server() {
+        let diagnostics = validate(
+            r#"{
+  "mcpServers": {
+    "local": {
+      "command": "node"
+    }
+  }
+}"#,
+        );
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-MCP-003"));
+    }
+
+    #[test]
+    fn test_kr_mcp_003_has_args_no_diagnostic() {
+        let diagnostics = validate(
+            r#"{
+  "mcpServers": {
+    "local": {
+      "command": "node",
+      "args": ["server.js"]
+    }
+  }
+}"#,
+        );
+        assert!(diagnostics.iter().all(|d| d.rule != "KR-MCP-003"));
+    }
+
+    #[test]
+    fn test_kr_mcp_004_invalid_url() {
+        let diagnostics = validate(
+            r#"{
+  "mcpServers": {
+    "remote": {
+      "url": "ftp://example.com/mcp"
+    }
+  }
+}"#,
+        );
+        assert!(diagnostics.iter().any(|d| d.rule == "KR-MCP-004"));
+    }
+
+    #[test]
+    fn test_kr_mcp_004_valid_url_no_diagnostic() {
+        let diagnostics = validate(
+            r#"{
+  "mcpServers": {
+    "remote": {
+      "url": "https://example.com/mcp"
+    }
+  }
+}"#,
+        );
+        assert!(diagnostics.iter().all(|d| d.rule != "KR-MCP-004"));
+    }
+
+    #[test]
+    fn test_kr_mcp_005_is_registered_in_metadata() {
+        // KR-MCP-005 (duplicate server names) requires project-level context;
+        // verify it is registered in metadata.
+        let validator = KiroMcpValidator;
+        let metadata = validator.metadata();
+        assert!(metadata.rule_ids.contains(&"KR-MCP-005"));
+    }
+
+    #[test]
     fn test_metadata() {
         let validator = KiroMcpValidator;
         let metadata = validator.metadata();

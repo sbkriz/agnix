@@ -186,7 +186,7 @@ function HeroBanner() {
             {siteConfig.tagline}
           </Heading>
           <p className={styles.heroSubtitle}>
-            {`${siteData.totalRules} validation rules for Claude Code, Cursor, Copilot, Cline, MCP, and many more. CLI, LSP, and IDE plugins.`}
+            {`${siteData.totalRules} rules. Validates agent configs across Claude Code, Codex, OpenCode, Kiro, Cursor, Copilot, and more. CLI, LSP, and IDE plugins.`}
           </p>
           <div className={clsx(styles.installBlock, styles.heroInstall)}>
             <span className={styles.prompt}>$</span>
@@ -445,7 +445,7 @@ export default function Home() {
   return (
     <Layout
       title="Lint AI Agent Configurations | Validate CLAUDE.md, Skills, Hooks, MCP"
-      description={`Catch broken agent configs before your AI tools silently ignore them. ${siteData.totalRules} validation rules for Claude Code, Cursor, Copilot, Cline, MCP, and more.`}
+      description={`Catch broken agent configs before your AI tools silently ignore them. ${siteData.totalRules} rules across Claude Code, Codex, OpenCode, Kiro, Cursor, Copilot, and more.`}
     >
       <HeroBanner />
       <main>

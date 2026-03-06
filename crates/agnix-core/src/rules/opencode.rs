@@ -67,6 +67,17 @@ const RULE_IDS: &[&str] = &[
     "OC-PM-002",
 ];
 
+/// Builtin agent names recognized by OpenCode.
+const BUILTIN_AGENTS: &[&str] = &[
+    "build",
+    "plan",
+    "general",
+    "explore",
+    "compaction",
+    "title",
+    "summary",
+];
+
 pub struct OpenCodeValidator;
 
 impl Validator for OpenCodeValidator {
@@ -522,19 +533,13 @@ impl Validator for OpenCodeValidator {
                 if config.is_rule_enabled("OC-CFG-004") {
                     if let Some(agent_val) = obj.get("default_agent") {
                         if let Some(agent_str) = agent_val.as_str() {
-                            let mut known_agents = std::collections::HashSet::new();
-                            known_agents.insert("build");
-                            known_agents.insert("plan");
-                            known_agents.insert("general");
-                            known_agents.insert("explore");
+                            let is_known = BUILTIN_AGENTS.contains(&agent_str)
+                                || obj
+                                    .get("agent")
+                                    .and_then(|a| a.as_object())
+                                    .is_some_and(|agents| agents.contains_key(agent_str));
 
-                            if let Some(agents_obj) = obj.get("agent").and_then(|a| a.as_object()) {
-                                for k in agents_obj.keys() {
-                                    known_agents.insert(k.as_str());
-                                }
-                            }
-
-                            if !known_agents.contains(agent_str) {
+                            if !is_known {
                                 diagnostics.push(
                                     Diagnostic::warning(
                                         path.to_path_buf(),
@@ -1226,7 +1231,7 @@ impl Validator for OpenCodeValidator {
                                 if instr_path
                                     .file_name()
                                     .and_then(|n| n.to_str())
-                                    .is_some_and(|n| n == "CONTEXT.md")
+                                    .is_some_and(|n| n.to_lowercase() == "context.md")
                                 {
                                     diagnostics.push(
                                         Diagnostic::warning(
@@ -1365,7 +1370,7 @@ impl Validator for OpenCodeValidator {
                                                 "OC-CFG-010",
                                                 format!(
                                                     "Invalid skills URL '{}'. Must start with http:// or https://",
-                                                    url_str
+                                                    truncate_for_display(url_str, 200)
                                                 ),
                                             )
                                             .with_suggestion(
@@ -1459,7 +1464,7 @@ impl Validator for OpenCodeValidator {
                                                     "OC-CFG-012",
                                                     format!(
                                                         "MCP server '{}' oauth missing required fields: {}",
-                                                        srv_name,
+                                                        truncate_for_display(srv_name, 200),
                                                         missing.join(", ")
                                                     ),
                                                 )
@@ -1809,15 +1814,26 @@ fn validate_substitution_string(
 
 /// Find the byte span of a JSON key string (the text between quotes).
 /// Returns (start, end) byte offsets of the key name (excluding quotes).
+///
+/// Uses a loop to skip false positives where the pattern appears inside
+/// string values rather than as an object key. A match is only accepted
+/// when the next non-whitespace character after the closing quote is `:`.
+///
+/// Limitation: when the same key appears in nested objects, this returns
+/// the first occurrence.
 fn find_json_key_span(content: &str, key: &str) -> Option<(usize, usize)> {
     let pattern = format!("\"{}\"", key);
-    if let Some(pos) = content.find(&pattern) {
-        let after = &content[pos + pattern.len()..];
-        if after.trim_start().starts_with(':') {
-            let start = pos + 1; // skip opening quote
-            let end = start + key.len();
-            return Some((start, end));
+    let mut search_from = 0;
+    while let Some(pos) = content[search_from..].find(&pattern) {
+        let abs_pos = search_from + pos;
+        let after_quote = abs_pos + pattern.len();
+        // Check next non-whitespace char is ':'
+        if let Some(next_char) = content[after_quote..].trim_start().chars().next() {
+            if next_char == ':' {
+                return Some((abs_pos + 1, abs_pos + 1 + key.len()));
+            }
         }
+        search_from = abs_pos + pattern.len();
     }
     None
 }
@@ -1848,6 +1864,16 @@ fn find_key_line(content: &str, key: &str) -> Option<usize> {
         }
     }
     None
+}
+
+/// Truncate a string for display in diagnostic messages.
+/// Appends "..." if the string exceeds `max` bytes.
+fn truncate_for_display(s: &str, max: usize) -> String {
+    if s.len() > max {
+        format!("{}...", &s[..max])
+    } else {
+        s.to_string()
+    }
 }
 
 fn is_valid_hex_color(value: &str) -> bool {
@@ -3245,5 +3271,113 @@ mod tests {
         // "mode" appears only as a value, not as a key
         let content = r#"{"comment": "mode"}"#;
         assert!(find_json_key_span(content, "mode").is_none());
+    }
+
+    // ===== Fix #3: OC-CFG-010 http:// URL should NOT fire =====
+
+    #[test]
+    fn test_oc_cfg_010_http_url_valid() {
+        let diagnostics = validate(r#"{"skills": {"urls": ["http://example.com"]}}"#);
+        assert!(
+            !diagnostics.iter().any(|d| d.rule == "OC-CFG-010"),
+            "http:// URLs should be valid for skills.urls"
+        );
+    }
+
+    // ===== Fix #4: OC-CFG-012 empty oauth object =====
+
+    #[test]
+    fn test_oc_cfg_012_empty_oauth() {
+        let diagnostics =
+            validate(r#"{"mcp": {"srv": {"type": "remote", "url": "http://x", "oauth": {}}}}"#);
+        let cfg_012: Vec<_> = diagnostics.iter().filter(|d| d.rule == "OC-CFG-012").collect();
+        assert_eq!(
+            cfg_012.len(),
+            1,
+            "Empty oauth object should fire OC-CFG-012 for missing required fields"
+        );
+    }
+
+    // ===== Fix #5: OC-AG-007 only maxSteps (no steps) =====
+
+    #[test]
+    fn test_oc_ag_007_only_max_steps() {
+        let diagnostics = validate(r#"{"agent": {"a": {"maxSteps": 20}}}"#);
+        assert!(
+            !diagnostics.iter().any(|d| d.rule == "OC-AG-007"),
+            "Only maxSteps without steps should NOT fire OC-AG-007"
+        );
+    }
+
+    // ===== Fix #6: DEP-002/DEP-003 negative tests =====
+
+    #[test]
+    fn test_oc_dep_002_no_fire_when_absent() {
+        let diagnostics = validate(r#"{"permission": "allow"}"#);
+        assert!(
+            !diagnostics.iter().any(|d| d.rule == "OC-DEP-002"),
+            "OC-DEP-002 should not fire when 'tools' key is absent"
+        );
+    }
+
+    #[test]
+    fn test_oc_dep_003_no_fire_when_absent() {
+        let diagnostics = validate(r#"{"share": "manual"}"#);
+        assert!(
+            !diagnostics.iter().any(|d| d.rule == "OC-DEP-003"),
+            "OC-DEP-003 should not fire when 'autoshare' key is absent"
+        );
+    }
+
+    // ===== Fix #7: OC-TUI-003 type error =====
+
+    #[test]
+    fn test_oc_tui_003_type_error() {
+        let diagnostics = validate(r#"{"tui": {"diff_style": 42}}"#);
+        assert!(
+            diagnostics.iter().any(|d| d.rule == "OC-TUI-003"),
+            "Non-string diff_style should fire OC-TUI-003"
+        );
+    }
+
+    // ===== Fix #8: find_json_key_span nested key =====
+
+    #[test]
+    fn test_find_json_key_span_nested_returns_first() {
+        // When the same key appears at multiple nesting levels,
+        // find_json_key_span returns the first occurrence.
+        // This is a known limitation - it does not distinguish nesting depth.
+        let content = r#"{"name": "outer", "nested": {"name": "inner"}}"#;
+        let span = find_json_key_span(content, "name");
+        assert!(span.is_some());
+        let (start, _end) = span.unwrap();
+        // Should match the first "name" key
+        assert!(start < content.find("nested").unwrap());
+    }
+
+    // ===== Fix #11: truncate_for_display =====
+
+    #[test]
+    fn test_truncate_for_display_short() {
+        assert_eq!(truncate_for_display("hello", 200), "hello");
+    }
+
+    #[test]
+    fn test_truncate_for_display_long() {
+        let long = "x".repeat(300);
+        let result = truncate_for_display(&long, 200);
+        assert_eq!(result.len(), 203); // 200 + "..."
+        assert!(result.ends_with("..."));
+    }
+
+    // ===== Fix #12: DEP-004 case-insensitive =====
+
+    #[test]
+    fn test_oc_dep_004_case_insensitive() {
+        let diagnostics = validate(r#"{"instructions": ["context.md"]}"#);
+        assert!(
+            diagnostics.iter().any(|d| d.rule == "OC-DEP-004"),
+            "OC-DEP-004 should fire for case-insensitive match on context.md"
+        );
     }
 }

@@ -78,7 +78,11 @@ pub const KNOWN_TUI_KEYS: &[&str] = &[
     "diff_style",
 ];
 
-/// Deprecated top-level keys and their replacements
+/// Deprecated top-level keys and their replacements.
+///
+/// Note: deprecated keys must also remain in `KNOWN_TOP_LEVEL_KEYS` above.
+/// If a deprecated key is removed from that list, it would trigger a false
+/// OC-004 "unknown key" diagnostic instead of the intended OC-DEP-* warning.
 pub const DEPRECATED_KEYS: &[(&str, &str)] = &[
     ("mode", "agent"),
     ("tools", "permission"),

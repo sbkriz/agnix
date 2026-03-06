@@ -1,7 +1,7 @@
 {
   "description": "Machine-readable source of truth for all validation rules. When adding a new rule, add it here AND in VALIDATION-RULES.md. CI parity tests enforce sync.",
   "version": "1.1.0",
-  "total_rules": 286,
+  "total_rules": 304,
   "last_updated": "2026-03-03",
   "schema": {
     "evidence": {
@@ -7858,6 +7858,312 @@
       },
       "good_example": "# AGENTS\n\nUse environment variables.",
       "bad_example": "# AGENTS\n\nAPI_KEY=sk-123456"
+    },
+    {
+      "id": "OC-DEP-001",
+      "name": "Deprecated mode Field",
+      "severity": "MEDIUM",
+      "category": "opencode",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": ["https://opencode.ai/docs/config"],
+        "verified_on": "2026-03-06",
+        "applies_to": { "tool": "opencode" },
+        "normative_level": "SHOULD",
+        "tests": { "unit": true, "fixtures": true, "e2e": false }
+      },
+      "fix": { "autofix": true, "fix_safety": "safe" },
+      "good_example": "{\n  \"agent\": { \"my-agent\": {} }\n}",
+      "bad_example": "{\n  \"mode\": \"agent\"\n}"
+    },
+    {
+      "id": "OC-DEP-002",
+      "name": "Deprecated tools Field",
+      "severity": "MEDIUM",
+      "category": "opencode",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": ["https://opencode.ai/docs/config"],
+        "verified_on": "2026-03-06",
+        "applies_to": { "tool": "opencode" },
+        "normative_level": "SHOULD",
+        "tests": { "unit": true, "fixtures": true, "e2e": false }
+      },
+      "fix": { "autofix": true, "fix_safety": "safe" },
+      "good_example": "{\n  \"permission\": { \"read\": \"allow\" }\n}",
+      "bad_example": "{\n  \"tools\": {}\n}"
+    },
+    {
+      "id": "OC-DEP-003",
+      "name": "Deprecated autoshare Field",
+      "severity": "MEDIUM",
+      "category": "opencode",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": ["https://opencode.ai/docs/config"],
+        "verified_on": "2026-03-06",
+        "applies_to": { "tool": "opencode" },
+        "normative_level": "SHOULD",
+        "tests": { "unit": true, "fixtures": true, "e2e": false }
+      },
+      "fix": { "autofix": true, "fix_safety": "safe" },
+      "good_example": "{\n  \"share\": \"manual\"\n}",
+      "bad_example": "{\n  \"autoshare\": \"manual\"\n}"
+    },
+    {
+      "id": "OC-DEP-004",
+      "name": "Deprecated CONTEXT.md Filename",
+      "severity": "MEDIUM",
+      "category": "opencode",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": ["https://opencode.ai/docs/config"],
+        "verified_on": "2026-03-06",
+        "applies_to": { "tool": "opencode" },
+        "normative_level": "SHOULD",
+        "tests": { "unit": true, "fixtures": false, "e2e": false }
+      },
+      "fix": { "autofix": false },
+      "good_example": "AGENTS.md",
+      "bad_example": "CONTEXT.md"
+    },
+    {
+      "id": "OC-CFG-008",
+      "name": "Invalid Log Level",
+      "severity": "HIGH",
+      "category": "opencode",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": ["https://opencode.ai/docs/config"],
+        "verified_on": "2026-03-06",
+        "applies_to": { "tool": "opencode" },
+        "normative_level": "MUST",
+        "tests": { "unit": true, "fixtures": true, "e2e": false }
+      },
+      "fix": { "autofix": true, "fix_safety": "unsafe" },
+      "good_example": "{\n  \"logLevel\": \"info\"\n}",
+      "bad_example": "{\n  \"logLevel\": \"verbose\"\n}"
+    },
+    {
+      "id": "OC-CFG-009",
+      "name": "Invalid Compaction Reserved",
+      "severity": "HIGH",
+      "category": "opencode",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": ["https://opencode.ai/docs/config"],
+        "verified_on": "2026-03-06",
+        "applies_to": { "tool": "opencode" },
+        "normative_level": "MUST",
+        "tests": { "unit": true, "fixtures": true, "e2e": false }
+      },
+      "fix": { "autofix": false },
+      "good_example": "{\n  \"compaction\": { \"reserved\": 5 }\n}",
+      "bad_example": "{\n  \"compaction\": { \"reserved\": -1 }\n}"
+    },
+    {
+      "id": "OC-CFG-010",
+      "name": "Invalid Skills URL",
+      "severity": "HIGH",
+      "category": "opencode",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": ["https://opencode.ai/docs/config"],
+        "verified_on": "2026-03-06",
+        "applies_to": { "tool": "opencode" },
+        "normative_level": "MUST",
+        "tests": { "unit": true, "fixtures": true, "e2e": false }
+      },
+      "fix": { "autofix": false },
+      "good_example": "{\n  \"skills\": { \"urls\": [\"https://example.com\"] }\n}",
+      "bad_example": "{\n  \"skills\": { \"urls\": [\"not-a-url\"] }\n}"
+    },
+    {
+      "id": "OC-CFG-011",
+      "name": "Invalid MCP Timeout",
+      "severity": "HIGH",
+      "category": "opencode",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": ["https://opencode.ai/docs/config"],
+        "verified_on": "2026-03-06",
+        "applies_to": { "tool": "opencode" },
+        "normative_level": "MUST",
+        "tests": { "unit": true, "fixtures": true, "e2e": false }
+      },
+      "fix": { "autofix": false },
+      "good_example": "{\n  \"mcp\": { \"srv\": { \"timeout\": 5000 } }\n}",
+      "bad_example": "{\n  \"mcp\": { \"srv\": { \"timeout\": -5 } }\n}"
+    },
+    {
+      "id": "OC-CFG-012",
+      "name": "Invalid MCP OAuth Config",
+      "severity": "HIGH",
+      "category": "opencode",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": ["https://opencode.ai/docs/config"],
+        "verified_on": "2026-03-06",
+        "applies_to": { "tool": "opencode" },
+        "normative_level": "MUST",
+        "tests": { "unit": true, "fixtures": true, "e2e": false }
+      },
+      "fix": { "autofix": false },
+      "good_example": "{\n  \"mcp\": { \"srv\": { \"oauth\": { \"client_id\": \"abc\", \"authorization_url\": \"https://auth.example.com\" } } }\n}",
+      "bad_example": "{\n  \"mcp\": { \"srv\": { \"oauth\": { \"client_id\": \"abc\" } } }\n}"
+    },
+    {
+      "id": "OC-AG-005",
+      "name": "top_p Out of Range",
+      "severity": "HIGH",
+      "category": "opencode",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": ["https://opencode.ai/docs/config"],
+        "verified_on": "2026-03-06",
+        "applies_to": { "tool": "opencode" },
+        "normative_level": "MUST",
+        "tests": { "unit": true, "fixtures": true, "e2e": false }
+      },
+      "fix": { "autofix": false },
+      "good_example": "{\n  \"agent\": { \"a\": { \"top_p\": 0.9 } }\n}",
+      "bad_example": "{\n  \"agent\": { \"a\": { \"top_p\": 1.5 } }\n}"
+    },
+    {
+      "id": "OC-AG-006",
+      "name": "Invalid Named Color",
+      "severity": "MEDIUM",
+      "category": "opencode",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": ["https://opencode.ai/docs/config"],
+        "verified_on": "2026-03-06",
+        "applies_to": { "tool": "opencode" },
+        "normative_level": "SHOULD",
+        "tests": { "unit": true, "fixtures": true, "e2e": false }
+      },
+      "fix": { "autofix": true, "fix_safety": "unsafe" },
+      "good_example": "{\n  \"agent\": { \"a\": { \"color\": \"primary\" } }\n}",
+      "bad_example": "{\n  \"agent\": { \"a\": { \"color\": \"purple\" } }\n}"
+    },
+    {
+      "id": "OC-AG-007",
+      "name": "Redundant steps and maxSteps",
+      "severity": "MEDIUM",
+      "category": "opencode",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": ["https://opencode.ai/docs/config"],
+        "verified_on": "2026-03-06",
+        "applies_to": { "tool": "opencode" },
+        "normative_level": "SHOULD",
+        "tests": { "unit": true, "fixtures": true, "e2e": false }
+      },
+      "fix": { "autofix": false },
+      "good_example": "{\n  \"agent\": { \"a\": { \"steps\": 20 } }\n}",
+      "bad_example": "{\n  \"agent\": { \"a\": { \"steps\": 10, \"maxSteps\": 20 } }\n}"
+    },
+    {
+      "id": "OC-AG-008",
+      "name": "Invalid hidden Type",
+      "severity": "HIGH",
+      "category": "opencode",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": ["https://opencode.ai/docs/config"],
+        "verified_on": "2026-03-06",
+        "applies_to": { "tool": "opencode" },
+        "normative_level": "MUST",
+        "tests": { "unit": true, "fixtures": true, "e2e": false }
+      },
+      "fix": { "autofix": false },
+      "good_example": "{\n  \"agent\": { \"a\": { \"hidden\": true } }\n}",
+      "bad_example": "{\n  \"agent\": { \"a\": { \"hidden\": \"yes\" } }\n}"
+    },
+    {
+      "id": "OC-LSP-001",
+      "name": "LSP Command Without Extensions",
+      "severity": "MEDIUM",
+      "category": "opencode",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": ["https://opencode.ai/docs/config"],
+        "verified_on": "2026-03-06",
+        "applies_to": { "tool": "opencode" },
+        "normative_level": "SHOULD",
+        "tests": { "unit": true, "fixtures": true, "e2e": false }
+      },
+      "fix": { "autofix": false },
+      "good_example": "{\n  \"lsp\": { \"ts\": { \"command\": \"tsc\", \"extensions\": [\".ts\"] } }\n}",
+      "bad_example": "{\n  \"lsp\": { \"ts\": { \"command\": \"tsc\" } }\n}"
+    },
+    {
+      "id": "OC-LSP-002",
+      "name": "Invalid LSP Extensions",
+      "severity": "HIGH",
+      "category": "opencode",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": ["https://opencode.ai/docs/config"],
+        "verified_on": "2026-03-06",
+        "applies_to": { "tool": "opencode" },
+        "normative_level": "MUST",
+        "tests": { "unit": true, "fixtures": true, "e2e": false }
+      },
+      "fix": { "autofix": false },
+      "good_example": "{\n  \"lsp\": { \"ts\": { \"extensions\": [\".ts\", \".tsx\"] } }\n}",
+      "bad_example": "{\n  \"lsp\": { \"ts\": { \"extensions\": [] } }\n}"
+    },
+    {
+      "id": "OC-TUI-001",
+      "name": "Unknown TUI Key",
+      "severity": "MEDIUM",
+      "category": "opencode",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": ["https://opencode.ai/docs/config"],
+        "verified_on": "2026-03-06",
+        "applies_to": { "tool": "opencode" },
+        "normative_level": "SHOULD",
+        "tests": { "unit": true, "fixtures": true, "e2e": false }
+      },
+      "fix": { "autofix": false },
+      "good_example": "{\n  \"tui\": { \"theme\": \"dark\" }\n}",
+      "bad_example": "{\n  \"tui\": { \"unknown_opt\": true }\n}"
+    },
+    {
+      "id": "OC-TUI-002",
+      "name": "Invalid scroll_speed",
+      "severity": "HIGH",
+      "category": "opencode",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": ["https://opencode.ai/docs/config"],
+        "verified_on": "2026-03-06",
+        "applies_to": { "tool": "opencode" },
+        "normative_level": "MUST",
+        "tests": { "unit": true, "fixtures": true, "e2e": false }
+      },
+      "fix": { "autofix": false },
+      "good_example": "{\n  \"tui\": { \"scroll_speed\": 1.0 }\n}",
+      "bad_example": "{\n  \"tui\": { \"scroll_speed\": 0.0001 }\n}"
+    },
+    {
+      "id": "OC-TUI-003",
+      "name": "Invalid diff_style",
+      "severity": "HIGH",
+      "category": "opencode",
+      "evidence": {
+        "source_type": "vendor_docs",
+        "source_urls": ["https://opencode.ai/docs/config"],
+        "verified_on": "2026-03-06",
+        "applies_to": { "tool": "opencode" },
+        "normative_level": "MUST",
+        "tests": { "unit": true, "fixtures": true, "e2e": false }
+      },
+      "fix": { "autofix": true, "fix_safety": "unsafe" },
+      "good_example": "{\n  \"tui\": { \"diff_style\": \"auto\" }\n}",
+      "bad_example": "{\n  \"tui\": { \"diff_style\": \"unified\" }\n}"
     }
   ],
   "categories": {
@@ -7918,7 +8224,7 @@
     },
     "opencode": {
       "prefix": "OC",
-      "count": 23,
+      "count": 41,
       "description": "OpenCode configuration rules"
     },
     "gemini-cli": {

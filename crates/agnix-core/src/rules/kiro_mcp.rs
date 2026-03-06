@@ -10,13 +10,19 @@
 use crate::{
     config::LintConfig,
     diagnostics::Diagnostic,
-    rules::{seems_plaintext_secret, Validator, ValidatorMetadata},
+    rules::{Validator, ValidatorMetadata, seems_plaintext_secret},
     schemas::kiro_mcp::parse_kiro_mcp_config,
 };
 use rust_i18n::t;
 use std::path::Path;
 
-const RULE_IDS: &[&str] = &["KR-MCP-001", "KR-MCP-002", "KR-MCP-003", "KR-MCP-004", "KR-MCP-005"];
+const RULE_IDS: &[&str] = &[
+    "KR-MCP-001",
+    "KR-MCP-002",
+    "KR-MCP-003",
+    "KR-MCP-004",
+    "KR-MCP-005",
+];
 
 pub struct KiroMcpValidator;
 
@@ -96,10 +102,7 @@ impl Validator for KiroMcpValidator {
 
             // KR-MCP-003: Missing required args for command-based servers
             if config.is_rule_enabled("KR-MCP-003") && has_command {
-                let has_args = server
-                    .args
-                    .as_ref()
-                    .is_some_and(|args| !args.is_empty());
+                let has_args = server.args.as_ref().is_some_and(|args| !args.is_empty());
                 if !has_args {
                     diagnostics.push(
                         Diagnostic::warning(
@@ -130,7 +133,11 @@ impl Validator for KiroMcpValidator {
                             1,
                             0,
                             "KR-MCP-004",
-                            t!("rules.kr_mcp_004.message", server = server_name.as_str(), url = url_str),
+                            t!(
+                                "rules.kr_mcp_004.message",
+                                server = server_name.as_str(),
+                                url = url_str
+                            ),
                         )
                         .with_suggestion(t!("rules.kr_mcp_004.suggestion")),
                     );
@@ -358,6 +365,15 @@ mod tests {
         let validator = KiroMcpValidator;
         let metadata = validator.metadata();
         assert_eq!(metadata.name, "KiroMcpValidator");
-        assert_eq!(metadata.rule_ids, &["KR-MCP-001", "KR-MCP-002", "KR-MCP-003", "KR-MCP-004", "KR-MCP-005"]);
+        assert_eq!(
+            metadata.rule_ids,
+            &[
+                "KR-MCP-001",
+                "KR-MCP-002",
+                "KR-MCP-003",
+                "KR-MCP-004",
+                "KR-MCP-005"
+            ]
+        );
     }
 }

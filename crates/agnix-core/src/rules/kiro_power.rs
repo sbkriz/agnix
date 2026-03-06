@@ -13,7 +13,7 @@
 use crate::{
     config::LintConfig,
     diagnostics::Diagnostic,
-    rules::{seems_plaintext_secret, Validator, ValidatorMetadata},
+    rules::{Validator, ValidatorMetadata, seems_plaintext_secret},
     schemas::{kiro_mcp::parse_kiro_mcp_config, kiro_power::parse_kiro_power},
 };
 use regex::Regex;

@@ -15,7 +15,7 @@ use crate::{
     config::LintConfig,
     diagnostics::{Diagnostic, Fix},
     parsers::frontmatter::split_frontmatter,
-    rules::{line_col_at_offset, seems_plaintext_secret, Validator, ValidatorMetadata},
+    rules::{Validator, ValidatorMetadata, line_col_at_offset, seems_plaintext_secret},
 };
 use regex::Regex;
 use rust_i18n::t;
@@ -465,8 +465,7 @@ impl Validator for KiroSteeringValidator {
                 .lines()
                 .filter(|line| {
                     let trimmed = line.trim_start();
-                    trimmed.starts_with("inclusion:")
-                        || trimmed.starts_with("inclusion :")
+                    trimmed.starts_with("inclusion:") || trimmed.starts_with("inclusion :")
                 })
                 .count();
             if inclusion_count > 1 {

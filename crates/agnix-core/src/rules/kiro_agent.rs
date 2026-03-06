@@ -20,7 +20,7 @@
 use crate::{
     config::LintConfig,
     diagnostics::Diagnostic,
-    rules::{line_col_at_offset, Validator, ValidatorMetadata},
+    rules::{Validator, ValidatorMetadata, line_col_at_offset},
     schemas::kiro_agent::VALID_KIRO_AGENT_MODELS,
 };
 use rust_i18n::t;
@@ -725,9 +725,7 @@ impl Validator for KiroAgentValidator {
         let check_missing_reference = config.is_rule_enabled("KR-AG-006");
         let check_tool_scope = config.is_rule_enabled("KR-AG-007");
 
-        let any_enabled = RULE_IDS
-            .iter()
-            .any(|id| config.is_rule_enabled(id));
+        let any_enabled = RULE_IDS.iter().any(|id| config.is_rule_enabled(id));
         if !any_enabled {
             return diagnostics;
         }

@@ -21,7 +21,8 @@ pub const VALID_FULL_AUTO_ERROR_MODES: &[&str] = &["ask-user", "ignore-and-conti
 pub const VALID_SANDBOX_WORKSPACE_WRITE_MODES: &[&str] = &["allowlist", "denylist", "all"];
 
 /// Valid values for `model_reasoning_summary`
-pub const VALID_MODEL_REASONING_SUMMARIES: &[&str] = &["auto", "always", "none", "concise", "detailed"];
+pub const VALID_MODEL_REASONING_SUMMARIES: &[&str] =
+    &["auto", "always", "none", "concise", "detailed"];
 
 /// Valid values for `mcp_oauth_credentials_store`
 pub const VALID_MCP_OAUTH_STORES: &[&str] = &["file", "keyring", "auto", "ephemeral"];
@@ -317,7 +318,9 @@ fn detect_unknown_keys(
     // and this avoids HashSet allocation on every call.
     let mut unknown = Vec::new();
     for key in table.keys() {
-        if !KNOWN_TOP_LEVEL_KEYS.contains(&key.as_str()) && !KNOWN_TABLE_KEYS.contains(&key.as_str()) {
+        if !KNOWN_TOP_LEVEL_KEYS.contains(&key.as_str())
+            && !KNOWN_TABLE_KEYS.contains(&key.as_str())
+        {
             unknown.push(UnknownKey {
                 key: key.clone(),
                 line: find_toml_key_line(content, key).unwrap_or(1),

@@ -311,10 +311,7 @@ impl Validator for CodexValidator {
             return diagnostics;
         }
 
-        let ext = path
-            .extension()
-            .and_then(OsStr::to_str)
-            .unwrap_or_default();
+        let ext = path.extension().and_then(OsStr::to_str).unwrap_or_default();
         let is_toml = ext.eq_ignore_ascii_case("toml");
         let is_config_file = is_toml
             || ext.eq_ignore_ascii_case("json")
@@ -328,188 +325,176 @@ impl Validator for CodexValidator {
             // For Codex TOML config files, run legacy CDX-000..006 checks.
             // Skip TOML parsing entirely when all TOML-dependent rules are disabled.
             if is_toml {
-            let cdx_001_enabled = config.is_rule_enabled("CDX-001");
-            let cdx_002_enabled = config.is_rule_enabled("CDX-002");
-            let cdx_004_enabled = config.is_rule_enabled("CDX-004");
-            let cdx_005_enabled = config.is_rule_enabled("CDX-005");
-            let cdx_006_enabled = config.is_rule_enabled("CDX-006");
-            let legacy_enabled = config.is_rule_enabled("CDX-000")
-                || cdx_001_enabled
-                || cdx_002_enabled
-                || cdx_004_enabled
-                || cdx_005_enabled
-                || cdx_006_enabled;
-            if legacy_enabled {
-                let parsed = parse_codex_toml(content);
+                let cdx_001_enabled = config.is_rule_enabled("CDX-001");
+                let cdx_002_enabled = config.is_rule_enabled("CDX-002");
+                let cdx_004_enabled = config.is_rule_enabled("CDX-004");
+                let cdx_005_enabled = config.is_rule_enabled("CDX-005");
+                let cdx_006_enabled = config.is_rule_enabled("CDX-006");
+                let legacy_enabled = config.is_rule_enabled("CDX-000")
+                    || cdx_001_enabled
+                    || cdx_002_enabled
+                    || cdx_004_enabled
+                    || cdx_005_enabled
+                    || cdx_006_enabled;
+                if legacy_enabled {
+                    let parsed = parse_codex_toml(content);
 
-                // If TOML is broken, emit a diagnostic so users can fix invalid syntax
-                if config.is_rule_enabled("CDX-000")
-                    && let Some(parse_error) = &parsed.parse_error
-                {
-                    diagnostics.push(
-                        Diagnostic::error(
-                            path.to_path_buf(),
-                            parse_error.line,
-                            parse_error.column,
-                            "CDX-000",
-                            t!("rules.cdx_000.message", error = parse_error.message),
-                        )
-                        .with_suggestion(t!("rules.cdx_000.suggestion")),
-                    );
-                    return diagnostics;
-                }
-
-                // CDX-004: Unknown config keys (WARNING)
-                // Runs on unknown_keys which are populated whenever TOML parses successfully,
-                // even when schema extraction fails.
-                if cdx_004_enabled {
-                    for unknown in &parsed.unknown_keys {
-                        let mut diagnostic = Diagnostic::warning(
-                            path.to_path_buf(),
-                            unknown.line,
-                            unknown.column,
-                            "CDX-004",
-                            t!("rules.cdx_004.message", key = unknown.key.as_str()),
-                        )
-                        .with_suggestion(t!("rules.cdx_004.suggestion"));
-
-                        if let Some((start, end)) =
-                            crate::rules::line_byte_range(content, unknown.line)
-                        {
-                            diagnostic = diagnostic.with_fix(Fix::delete(
-                                start,
-                                end,
-                                format!("Remove unknown config key '{}'", unknown.key),
-                                false,
-                            ));
-                        }
-
-                        diagnostics.push(diagnostic);
-                    }
-                }
-
-                let schema = match parsed.schema {
-                    Some(s) => s,
-                    None => return diagnostics,
-                };
-
-                // CDX-001: Invalid approvalMode (ERROR)
-                if cdx_001_enabled {
-                    if parsed.approval_mode_wrong_type {
-                        let line = key_lines.get("approvalMode").copied().unwrap_or(1);
+                    // If TOML is broken, emit a diagnostic so users can fix invalid syntax
+                    if config.is_rule_enabled("CDX-000")
+                        && let Some(parse_error) = &parsed.parse_error
+                    {
                         diagnostics.push(
                             Diagnostic::error(
                                 path.to_path_buf(),
-                                line,
-                                0,
-                                "CDX-001",
-                                t!("rules.cdx_001.type_error"),
+                                parse_error.line,
+                                parse_error.column,
+                                "CDX-000",
+                                t!("rules.cdx_000.message", error = parse_error.message),
                             )
-                            .with_suggestion(t!("rules.cdx_001.suggestion")),
+                            .with_suggestion(t!("rules.cdx_000.suggestion")),
                         );
-                    } else if let Some(ref approval_value) = schema.approval_mode {
-                        if !VALID_APPROVAL_MODES.contains(&approval_value.as_str()) {
+                        return diagnostics;
+                    }
+
+                    // CDX-004: Unknown config keys (WARNING)
+                    // Runs on unknown_keys which are populated whenever TOML parses successfully,
+                    // even when schema extraction fails.
+                    if cdx_004_enabled {
+                        for unknown in &parsed.unknown_keys {
+                            let mut diagnostic = Diagnostic::warning(
+                                path.to_path_buf(),
+                                unknown.line,
+                                unknown.column,
+                                "CDX-004",
+                                t!("rules.cdx_004.message", key = unknown.key.as_str()),
+                            )
+                            .with_suggestion(t!("rules.cdx_004.suggestion"));
+
+                            if let Some((start, end)) =
+                                crate::rules::line_byte_range(content, unknown.line)
+                            {
+                                diagnostic = diagnostic.with_fix(Fix::delete(
+                                    start,
+                                    end,
+                                    format!("Remove unknown config key '{}'", unknown.key),
+                                    false,
+                                ));
+                            }
+
+                            diagnostics.push(diagnostic);
+                        }
+                    }
+
+                    let schema = match parsed.schema {
+                        Some(s) => s,
+                        None => return diagnostics,
+                    };
+
+                    // CDX-001: Invalid approvalMode (ERROR)
+                    if cdx_001_enabled {
+                        if parsed.approval_mode_wrong_type {
                             let line = key_lines.get("approvalMode").copied().unwrap_or(1);
-                            let mut diagnostic = Diagnostic::error(
-                                path.to_path_buf(),
-                                line,
-                                0,
-                                "CDX-001",
-                                t!("rules.cdx_001.message", value = approval_value.as_str()),
-                            )
-                            .with_suggestion(t!("rules.cdx_001.suggestion"));
+                            diagnostics.push(
+                                Diagnostic::error(
+                                    path.to_path_buf(),
+                                    line,
+                                    0,
+                                    "CDX-001",
+                                    t!("rules.cdx_001.type_error"),
+                                )
+                                .with_suggestion(t!("rules.cdx_001.suggestion")),
+                            );
+                        } else if let Some(ref approval_value) = schema.approval_mode {
+                            if !VALID_APPROVAL_MODES.contains(&approval_value.as_str()) {
+                                let line = key_lines.get("approvalMode").copied().unwrap_or(1);
+                                let mut diagnostic = Diagnostic::error(
+                                    path.to_path_buf(),
+                                    line,
+                                    0,
+                                    "CDX-001",
+                                    t!("rules.cdx_001.message", value = approval_value.as_str()),
+                                )
+                                .with_suggestion(t!("rules.cdx_001.suggestion"));
 
-                            // Unsafe auto-fix: replace with closest valid approval mode.
-                            if let Some(suggested) =
-                                find_closest_value(approval_value, VALID_APPROVAL_MODES)
-                            {
-                                if let Some((start, end)) = find_toml_string_value_span(
-                                    content,
-                                    "approvalMode",
-                                    approval_value,
-                                ) {
-                                    diagnostic = diagnostic.with_fix(Fix::replace(
-                                        start,
-                                        end,
-                                        suggested,
-                                        t!("rules.cdx_001.fix", fixed = suggested),
-                                        false,
-                                    ));
+                                // Unsafe auto-fix: replace with closest valid approval mode.
+                                if let Some(suggested) =
+                                    find_closest_value(approval_value, VALID_APPROVAL_MODES)
+                                {
+                                    if let Some((start, end)) = find_toml_string_value_span(
+                                        content,
+                                        "approvalMode",
+                                        approval_value,
+                                    ) {
+                                        diagnostic = diagnostic.with_fix(Fix::replace(
+                                            start,
+                                            end,
+                                            suggested,
+                                            t!("rules.cdx_001.fix", fixed = suggested),
+                                            false,
+                                        ));
+                                    }
                                 }
-                            }
 
-                            diagnostics.push(diagnostic);
+                                diagnostics.push(diagnostic);
+                            }
                         }
                     }
-                }
 
-                // CDX-002: Invalid fullAutoErrorMode (ERROR)
-                if cdx_002_enabled {
-                    if parsed.full_auto_error_mode_wrong_type {
-                        let line = key_lines.get("fullAutoErrorMode").copied().unwrap_or(1);
-                        diagnostics.push(
-                            Diagnostic::error(
-                                path.to_path_buf(),
-                                line,
-                                0,
-                                "CDX-002",
-                                t!("rules.cdx_002.type_error"),
-                            )
-                            .with_suggestion(t!("rules.cdx_002.suggestion")),
-                        );
-                    } else if let Some(ref error_mode_value) = schema.full_auto_error_mode {
-                        if !VALID_FULL_AUTO_ERROR_MODES.contains(&error_mode_value.as_str()) {
+                    // CDX-002: Invalid fullAutoErrorMode (ERROR)
+                    if cdx_002_enabled {
+                        if parsed.full_auto_error_mode_wrong_type {
                             let line = key_lines.get("fullAutoErrorMode").copied().unwrap_or(1);
-                            let mut diagnostic = Diagnostic::error(
-                                path.to_path_buf(),
-                                line,
-                                0,
-                                "CDX-002",
-                                t!("rules.cdx_002.message", value = error_mode_value.as_str()),
-                            )
-                            .with_suggestion(t!("rules.cdx_002.suggestion"));
+                            diagnostics.push(
+                                Diagnostic::error(
+                                    path.to_path_buf(),
+                                    line,
+                                    0,
+                                    "CDX-002",
+                                    t!("rules.cdx_002.type_error"),
+                                )
+                                .with_suggestion(t!("rules.cdx_002.suggestion")),
+                            );
+                        } else if let Some(ref error_mode_value) = schema.full_auto_error_mode {
+                            if !VALID_FULL_AUTO_ERROR_MODES.contains(&error_mode_value.as_str()) {
+                                let line = key_lines.get("fullAutoErrorMode").copied().unwrap_or(1);
+                                let mut diagnostic = Diagnostic::error(
+                                    path.to_path_buf(),
+                                    line,
+                                    0,
+                                    "CDX-002",
+                                    t!("rules.cdx_002.message", value = error_mode_value.as_str()),
+                                )
+                                .with_suggestion(t!("rules.cdx_002.suggestion"));
 
-                            // Unsafe auto-fix: replace with closest valid error mode.
-                            if let Some(suggested) =
-                                find_closest_value(error_mode_value, VALID_FULL_AUTO_ERROR_MODES)
-                            {
-                                if let Some((start, end)) = find_toml_string_value_span(
-                                    content,
-                                    "fullAutoErrorMode",
+                                // Unsafe auto-fix: replace with closest valid error mode.
+                                if let Some(suggested) = find_closest_value(
                                     error_mode_value,
+                                    VALID_FULL_AUTO_ERROR_MODES,
                                 ) {
-                                    diagnostic = diagnostic.with_fix(Fix::replace(
-                                        start,
-                                        end,
-                                        suggested,
-                                        t!("rules.cdx_002.fix", fixed = suggested),
-                                        false,
-                                    ));
+                                    if let Some((start, end)) = find_toml_string_value_span(
+                                        content,
+                                        "fullAutoErrorMode",
+                                        error_mode_value,
+                                    ) {
+                                        diagnostic = diagnostic.with_fix(Fix::replace(
+                                            start,
+                                            end,
+                                            suggested,
+                                            t!("rules.cdx_002.fix", fixed = suggested),
+                                            false,
+                                        ));
+                                    }
                                 }
-                            }
 
-                            diagnostics.push(diagnostic);
+                                diagnostics.push(diagnostic);
+                            }
                         }
                     }
-                }
 
-                // CDX-005: project_doc_max_bytes exceeds limit (ERROR)
-                if cdx_005_enabled {
-                    if parsed.project_doc_max_bytes_wrong_type {
-                        let line = key_lines.get("project_doc_max_bytes").copied().unwrap_or(1);
-                        diagnostics.push(
-                            Diagnostic::error(
-                                path.to_path_buf(),
-                                line,
-                                0,
-                                "CDX-005",
-                                t!("rules.cdx_005.type_error"),
-                            )
-                            .with_suggestion(t!("rules.cdx_005.suggestion")),
-                        );
-                    } else if let Some(value) = schema.project_doc_max_bytes {
-                        let line = key_lines.get("project_doc_max_bytes").copied().unwrap_or(1);
-                        if value <= 0 {
+                    // CDX-005: project_doc_max_bytes exceeds limit (ERROR)
+                    if cdx_005_enabled {
+                        if parsed.project_doc_max_bytes_wrong_type {
+                            let line = key_lines.get("project_doc_max_bytes").copied().unwrap_or(1);
                             diagnostics.push(
                                 Diagnostic::error(
                                     path.to_path_buf(),
@@ -520,120 +505,144 @@ impl Validator for CodexValidator {
                                 )
                                 .with_suggestion(t!("rules.cdx_005.suggestion")),
                             );
-                        } else if value > 65536 {
-                            diagnostics.push(
-                                Diagnostic::error(
-                                    path.to_path_buf(),
-                                    line,
-                                    0,
-                                    "CDX-005",
-                                    t!("rules.cdx_005.message", value = &value.to_string()),
-                                )
-                                .with_suggestion(t!("rules.cdx_005.suggestion")),
-                            );
+                        } else if let Some(value) = schema.project_doc_max_bytes {
+                            let line = key_lines.get("project_doc_max_bytes").copied().unwrap_or(1);
+                            if value <= 0 {
+                                diagnostics.push(
+                                    Diagnostic::error(
+                                        path.to_path_buf(),
+                                        line,
+                                        0,
+                                        "CDX-005",
+                                        t!("rules.cdx_005.type_error"),
+                                    )
+                                    .with_suggestion(t!("rules.cdx_005.suggestion")),
+                                );
+                            } else if value > 65536 {
+                                diagnostics.push(
+                                    Diagnostic::error(
+                                        path.to_path_buf(),
+                                        line,
+                                        0,
+                                        "CDX-005",
+                                        t!("rules.cdx_005.message", value = &value.to_string()),
+                                    )
+                                    .with_suggestion(t!("rules.cdx_005.suggestion")),
+                                );
+                            }
                         }
                     }
-                }
 
-                // CDX-006: project_doc_fallback_filenames validation
-                if cdx_006_enabled {
-                    let line = key_lines
-                        .get("project_doc_fallback_filenames")
-                        .copied()
-                        .unwrap_or(1);
+                    // CDX-006: project_doc_fallback_filenames validation
+                    if cdx_006_enabled {
+                        let line = key_lines
+                            .get("project_doc_fallback_filenames")
+                            .copied()
+                            .unwrap_or(1);
 
-                    if parsed.project_doc_fallback_filenames_wrong_type {
-                        diagnostics.push(
-                            Diagnostic::error(
-                                path.to_path_buf(),
-                                line,
-                                0,
-                                "CDX-006",
-                                t!("rules.cdx_006.type_error"),
-                            )
-                            .with_suggestion(t!("rules.cdx_006.suggestion")),
-                        );
-                    } else {
-                        for idx in &parsed.project_doc_fallback_filename_non_string_indices {
+                        if parsed.project_doc_fallback_filenames_wrong_type {
                             diagnostics.push(
                                 Diagnostic::error(
                                     path.to_path_buf(),
                                     line,
                                     0,
                                     "CDX-006",
-                                    t!("rules.cdx_006.non_string", index = &(idx + 1).to_string()),
+                                    t!("rules.cdx_006.type_error"),
                                 )
                                 .with_suggestion(t!("rules.cdx_006.suggestion")),
                             );
-                        }
-
-                        for idx in &parsed.project_doc_fallback_filename_empty_indices {
-                            diagnostics.push(
-                                Diagnostic::error(
-                                    path.to_path_buf(),
-                                    line,
-                                    0,
-                                    "CDX-006",
-                                    t!("rules.cdx_006.empty", index = &(idx + 1).to_string()),
-                                )
-                                .with_suggestion(t!("rules.cdx_006.suggestion")),
-                            );
-                        }
-
-                        if let Some(filenames) = &schema.project_doc_fallback_filenames {
-                            // Single pass: detect duplicates and suspicious filenames together
-                            let mut seen: HashSet<String> = HashSet::new();
-                            let mut duplicates: HashSet<String> = HashSet::new();
-                            let mut suspicious: HashSet<String> = HashSet::new();
-                            for filename in filenames {
-                                let normalized = filename.trim();
-                                if normalized.is_empty() {
-                                    continue;
-                                }
-                                if !seen.insert(normalized.to_string()) {
-                                    duplicates.insert(normalized.to_string());
-                                }
-                                if is_suspicious_fallback_filename(normalized) {
-                                    suspicious.insert(normalized.to_string());
-                                }
-                            }
-
-                            let mut dup_sorted: Vec<_> = duplicates.into_iter().collect();
-                            dup_sorted.sort();
-                            for filename in dup_sorted {
+                        } else {
+                            for idx in &parsed.project_doc_fallback_filename_non_string_indices {
                                 diagnostics.push(
-                                    Diagnostic::warning(
+                                    Diagnostic::error(
                                         path.to_path_buf(),
                                         line,
                                         0,
                                         "CDX-006",
-                                        t!("rules.cdx_006.duplicate", value = filename.as_str()),
+                                        t!(
+                                            "rules.cdx_006.non_string",
+                                            index = &(idx + 1).to_string()
+                                        ),
                                     )
                                     .with_suggestion(t!("rules.cdx_006.suggestion")),
                                 );
                             }
 
-                            let mut sus_sorted: Vec<_> = suspicious.into_iter().collect();
-                            sus_sorted.sort();
-                            for filename in sus_sorted {
+                            for idx in &parsed.project_doc_fallback_filename_empty_indices {
                                 diagnostics.push(
-                                    Diagnostic::warning(
+                                    Diagnostic::error(
                                         path.to_path_buf(),
                                         line,
                                         0,
                                         "CDX-006",
-                                        t!("rules.cdx_006.suspicious", value = filename.as_str()),
+                                        t!("rules.cdx_006.empty", index = &(idx + 1).to_string()),
                                     )
                                     .with_suggestion(t!("rules.cdx_006.suggestion")),
                                 );
+                            }
+
+                            if let Some(filenames) = &schema.project_doc_fallback_filenames {
+                                // Single pass: detect duplicates and suspicious filenames together
+                                let mut seen: HashSet<String> = HashSet::new();
+                                let mut duplicates: HashSet<String> = HashSet::new();
+                                let mut suspicious: HashSet<String> = HashSet::new();
+                                for filename in filenames {
+                                    let normalized = filename.trim();
+                                    if normalized.is_empty() {
+                                        continue;
+                                    }
+                                    if !seen.insert(normalized.to_string()) {
+                                        duplicates.insert(normalized.to_string());
+                                    }
+                                    if is_suspicious_fallback_filename(normalized) {
+                                        suspicious.insert(normalized.to_string());
+                                    }
+                                }
+
+                                let mut dup_sorted: Vec<_> = duplicates.into_iter().collect();
+                                dup_sorted.sort();
+                                for filename in dup_sorted {
+                                    diagnostics.push(
+                                        Diagnostic::warning(
+                                            path.to_path_buf(),
+                                            line,
+                                            0,
+                                            "CDX-006",
+                                            t!(
+                                                "rules.cdx_006.duplicate",
+                                                value = filename.as_str()
+                                            ),
+                                        )
+                                        .with_suggestion(t!("rules.cdx_006.suggestion")),
+                                    );
+                                }
+
+                                let mut sus_sorted: Vec<_> = suspicious.into_iter().collect();
+                                sus_sorted.sort();
+                                for filename in sus_sorted {
+                                    diagnostics.push(
+                                        Diagnostic::warning(
+                                            path.to_path_buf(),
+                                            line,
+                                            0,
+                                            "CDX-006",
+                                            t!(
+                                                "rules.cdx_006.suspicious",
+                                                value = filename.as_str()
+                                            ),
+                                        )
+                                        .with_suggestion(t!("rules.cdx_006.suggestion")),
+                                    );
+                                }
                             }
                         }
                     }
                 }
-            }
             } // is_toml (legacy CDX-000..006)
 
-            diagnostics.extend(validate_codex_config_rules(path, content, config, &key_lines));
+            diagnostics.extend(validate_codex_config_rules(
+                path, content, config, &key_lines,
+            ));
         }
 
         diagnostics
@@ -701,7 +710,12 @@ fn validate_codex_markdown_rules(
     if config.is_rule_enabled("CDX-AG-002") {
         for (line_no, line) in content.lines().enumerate() {
             // Quick pre-check: only lowercase if the line might contain a marker.
-            let might_have_marker = line.bytes().any(|b| matches!(b.to_ascii_lowercase(), b'a' | b's' | b't' | b'p' | b'b' | b'g' | b'x'));
+            let might_have_marker = line.bytes().any(|b| {
+                matches!(
+                    b.to_ascii_lowercase(),
+                    b'a' | b's' | b't' | b'p' | b'b' | b'g' | b'x'
+                )
+            });
             if !might_have_marker {
                 continue;
             }
@@ -3006,7 +3020,8 @@ name = "test"
 
     #[test]
     fn test_cdx_ag_005_missing_file_reference() {
-        let diagnostics = validate_claude_md("AGENTS.md", "Check `nonexistent-file.ts` for details.");
+        let diagnostics =
+            validate_claude_md("AGENTS.md", "Check `nonexistent-file.ts` for details.");
         assert!(diagnostics.iter().any(|d| d.rule == "CDX-AG-005"));
     }
 
@@ -3105,7 +3120,11 @@ url = "https://example.com"
             .iter()
             .filter(|d| d.rule.starts_with("CDX-CFG-"))
             .collect();
-        assert!(cdx_cfg.is_empty(), "No CDX-CFG rules should fire for valid config, got: {:?}", cdx_cfg.iter().map(|d| &d.rule).collect::<Vec<_>>());
+        assert!(
+            cdx_cfg.is_empty(),
+            "No CDX-CFG rules should fire for valid config, got: {:?}",
+            cdx_cfg.iter().map(|d| &d.rule).collect::<Vec<_>>()
+        );
     }
 
     // M11: CDX-AG-002 interpolation exclusion

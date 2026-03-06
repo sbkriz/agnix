@@ -153,7 +153,11 @@ impl Validator for KiroHookValidator {
 
         // KR-HK-007: Hook timeout out of range
         if config.is_rule_enabled("KR-HK-007") {
-            if let Some(timeout_val) = hook.extra.get("timeout").or_else(|| hook.extra.get("timeoutMs")) {
+            if let Some(timeout_val) = hook
+                .extra
+                .get("timeout")
+                .or_else(|| hook.extra.get("timeoutMs"))
+            {
                 if let Some(timeout) = timeout_val.as_u64() {
                     if timeout > MAX_HOOK_TIMEOUT_MS {
                         diagnostics.push(
@@ -162,7 +166,11 @@ impl Validator for KiroHookValidator {
                                 1,
                                 0,
                                 "KR-HK-007",
-                                t!("rules.kr_hk_007.message", value = &timeout.to_string(), limit = &MAX_HOOK_TIMEOUT_MS.to_string()),
+                                t!(
+                                    "rules.kr_hk_007.message",
+                                    value = &timeout.to_string(),
+                                    limit = &MAX_HOOK_TIMEOUT_MS.to_string()
+                                ),
                             )
                             .with_suggestion(t!("rules.kr_hk_007.suggestion")),
                         );
@@ -175,7 +183,11 @@ impl Validator for KiroHookValidator {
                                 1,
                                 0,
                                 "KR-HK-007",
-                                t!("rules.kr_hk_007.message", value = &timeout.to_string(), limit = &MAX_HOOK_TIMEOUT_MS.to_string()),
+                                t!(
+                                    "rules.kr_hk_007.message",
+                                    value = &timeout.to_string(),
+                                    limit = &MAX_HOOK_TIMEOUT_MS.to_string()
+                                ),
                             )
                             .with_suggestion(t!("rules.kr_hk_007.suggestion")),
                         );
@@ -192,7 +204,12 @@ impl Validator for KiroHookValidator {
         if config.is_rule_enabled("KR-HK-009") {
             if let Some(cmd) = hook.effective_run_command() {
                 let trimmed = cmd.trim();
-                if trimmed.starts_with('/') || (trimmed.len() >= 3 && trimmed.as_bytes()[0].is_ascii_alphabetic() && trimmed.as_bytes().get(1) == Some(&b':') && matches!(trimmed.as_bytes().get(2), Some(b'\\') | Some(b'/'))) {
+                if trimmed.starts_with('/')
+                    || (trimmed.len() >= 3
+                        && trimmed.as_bytes()[0].is_ascii_alphabetic()
+                        && trimmed.as_bytes().get(1) == Some(&b':')
+                        && matches!(trimmed.as_bytes().get(2), Some(b'\\') | Some(b'/')))
+                {
                     diagnostics.push(
                         Diagnostic::warning(
                             path.to_path_buf(),
@@ -212,14 +229,30 @@ impl Validator for KiroHookValidator {
             if let Some(cmd) = hook.effective_run_command() {
                 // Quick pre-check: only lowercase if cmd might contain a marker.
                 // All markers contain at least one of these chars (case-insensitive).
-                let might_have_marker = cmd.bytes().any(|b| matches!(b.to_ascii_lowercase(), b's' | b'a' | b't' | b'p' | b'b' | b'g' | b'x'));
+                let might_have_marker = cmd.bytes().any(|b| {
+                    matches!(
+                        b.to_ascii_lowercase(),
+                        b's' | b'a' | b't' | b'p' | b'b' | b'g' | b'x'
+                    )
+                });
                 let has_secret_marker = might_have_marker && {
                     let lower = cmd.to_ascii_lowercase();
                     [
-                        "sk-", "sk-ant-", "sk-proj-",
-                        "api_key=", "apikey=", "token=", "password=", "bearer ",
-                        "ghp_", "gho_", "xoxb-", "xoxp-",
-                        "akia", "aiza", "glpat-",
+                        "sk-",
+                        "sk-ant-",
+                        "sk-proj-",
+                        "api_key=",
+                        "apikey=",
+                        "token=",
+                        "password=",
+                        "bearer ",
+                        "ghp_",
+                        "gho_",
+                        "xoxb-",
+                        "xoxp-",
+                        "akia",
+                        "aiza",
+                        "glpat-",
                     ]
                     .iter()
                     .any(|marker| lower.contains(marker))

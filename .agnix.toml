@@ -40,5 +40,4 @@ disabled_rules = [
     "CDX-AG-005",  # AGENTS.md uses structured code blocks for API documentation
     "CC-MEM-009",  # CLAUDE.md is intentionally detailed - it's the project memory
     "CC-SK-017",   # Intentional - version is a client-specific frontmatter field
-    "XML-001",     # <ValidationOutcome> is a Rust type reference, not unclosed XML
 ]

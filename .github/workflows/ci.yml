@@ -46,8 +46,13 @@ jobs:
         with:
           persist-credentials: false
 
+      - uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7 # stable
+        with:
+          toolchain: stable
+
       - name: Validate agent configurations
         uses: ./
         with:
           config: '.agnix.toml'
           fail-on-error: 'true'
+          build-from-source: 'true'

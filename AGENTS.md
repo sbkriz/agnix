@@ -74,7 +74,7 @@ tests/fixtures/     # Test cases by category
 - `file_utils.rs` - Safe file I/O (symlink rejection, size limits)
 - `fixes.rs` - Auto-fix application engine
 - `fs.rs` - FileSystem trait abstraction (RealFileSystem, MockFileSystem)
-- `pipeline.rs` - ValidationResult, validate_project(), validate_file() -> LintResult<ValidationOutcome>
+- `pipeline.rs` - `ValidationResult`, `validate_project()`, `validate_file()` -> `LintResult<ValidationOutcome>`
 - `registry.rs` - ValidatorRegistry, ValidatorRegistryBuilder, ValidatorProvider, factory functions
 
 ### Key Abstractions

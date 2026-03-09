@@ -29,4 +29,15 @@ import_references = true
 # - VER-001: Version pinning not needed for the linter itself
 # - CC-MEM-006: Negative instructions are sometimes necessary in CLAUDE.md
 # - PE-003: Weak language in docs is acceptable
-disabled_rules = ["XP-001", "XP-002", "XP-003", "XP-006", "VER-001", "CC-MEM-006", "PE-003"]
+disabled_rules = [
+    "XP-001",      # We document tool paths, mentioning them is expected
+    "XP-002",      # Same as XP-001
+    "XP-003",      # Same as XP-001
+    "XP-006",      # Intentionally have both CLAUDE.md and AGENTS.md (kept identical)
+    "VER-001",     # Version pinning not needed for the linter itself
+    "CC-MEM-006",  # Negative instructions are sometimes necessary
+    "PE-003",      # Weak language in docs is acceptable
+    "CDX-AG-005",  # AGENTS.md uses structured code blocks for API documentation
+    "CC-MEM-009",  # CLAUDE.md is intentionally detailed - it's the project memory
+    "CC-SK-017",   # Intentional - version is a client-specific frontmatter field
+]

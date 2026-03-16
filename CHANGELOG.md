@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.2] - 2026-03-15
+
+### Fixed
+- **XML-001 false positives on Rust type references**: Wrap Rust type references in backticks to prevent XML tag misdetection (#646).
+- **Self-validation build**: Use build-from-source for self-validation in CI to ensure agnix validates itself correctly (#646).
+
+### Changed
+- **CI self-validation**: Added self-validation step to the CI pipeline so agnix lints its own agent configuration files on every PR/push (#646).
+
 ## [0.16.1] - 2026-03-07
 
 ### Changed

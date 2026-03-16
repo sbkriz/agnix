@@ -154,6 +154,7 @@ impl Validator for KiroSteeringValidator {
                 if reference.is_empty()
                     || reference.starts_with("http://")
                     || reference.starts_with("https://")
+                    || reference.starts_with('/')
                     || Path::new(reference).is_absolute()
                     || has_parent_dir_traversal(reference)
                 {

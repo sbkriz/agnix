@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Release workflow**: Create GitHub release as draft before uploading assets, then publish - fixes immutable release protection blocking asset uploads (caused v0.16.3 to ship with zero binaries)
+
 ## [0.16.3] - 2026-03-19
 
 ### Fixed

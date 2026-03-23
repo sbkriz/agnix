@@ -169,16 +169,33 @@ jobs:
             echo "Release $VERSION" > release_notes.md
           fi
 
-      - name: Create GitHub Release
+      - name: Create draft release with assets
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2
         with:
           name: ${{ steps.notes.outputs.version }}
           body_path: release_notes.md
           files: artifacts/*
-          draft: false
+          draft: true
           prerelease: ${{ contains(github.ref, '-') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish release
+        run: |
+          set -euo pipefail
+          RELEASE_ID=$(gh api "repos/${REPO}/releases" \
+            --jq ".[] | select(.tag_name == \"${TAG}\" and .draft == true) | .id")
+          if [ -z "$RELEASE_ID" ]; then
+            echo "Error: Draft release for ${TAG} not found"
+            exit 1
+          fi
+          gh api "repos/${REPO}/releases/${RELEASE_ID}" \
+            --method PATCH --field draft=false
+          echo "Published release ${TAG} (id: ${RELEASE_ID})"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ steps.notes.outputs.version }}
 
   publish:
     name: Publish to crates.io

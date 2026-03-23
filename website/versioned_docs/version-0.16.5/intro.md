@@ -24,6 +24,6 @@ npx agnix .
 
 - [Playground](/playground) - try it now, no install needed
 - [Getting Started](./getting-started.md) - install and run in 60 seconds
-- [Rules Reference](./rules/index.md) - browse all 157 validation rules
+- [Rules Reference](./rules/index.md) - browse all 230 validation rules
 - [Configuration](./configuration.md) - customize with `.agnix.toml`
 - [Editor Integration](./editor-integration.md) - set up real-time diagnostics

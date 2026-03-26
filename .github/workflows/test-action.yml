@@ -207,7 +207,7 @@ jobs:
           if [ -n "${GITHUB_TOKEN}" ]; then
             CURL_OPTS+=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
           fi
-          TAG=$(curl "${CURL_OPTS[@]}" "https://api.github.com/repos/avifenesh/agnix/releases/latest" | jq -r '.tag_name // empty')
+          TAG=$(curl "${CURL_OPTS[@]}" "https://api.github.com/repos/agent-sh/agnix/releases/latest" | jq -r '.tag_name // empty')
           if [ -n "${TAG}" ]; then
             echo "available=true" >> "${GITHUB_OUTPUT}"
           else

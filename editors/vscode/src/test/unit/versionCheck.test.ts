@@ -109,25 +109,25 @@ describe('isDownloadedBinary', () => {
 describe('buildReleaseUrl', () => {
   it('constructs correct versioned URL', () => {
     const url = buildReleaseUrl(
-      'avifenesh/agnix',
+      'agent-sh/agnix',
       '0.9.1',
       'agnix-lsp-aarch64-apple-darwin.tar.gz'
     );
     assert.strictEqual(
       url,
-      'https://github.com/avifenesh/agnix/releases/download/v0.9.1/agnix-lsp-aarch64-apple-darwin.tar.gz'
+      'https://github.com/agent-sh/agnix/releases/download/v0.9.1/agnix-lsp-aarch64-apple-darwin.tar.gz'
     );
   });
 
   it('handles different versions and assets', () => {
     const url = buildReleaseUrl(
-      'avifenesh/agnix',
+      'agent-sh/agnix',
       '1.0.0',
       'agnix-lsp-x86_64-pc-windows-msvc.zip'
     );
     assert.strictEqual(
       url,
-      'https://github.com/avifenesh/agnix/releases/download/v1.0.0/agnix-lsp-x86_64-pc-windows-msvc.zip'
+      'https://github.com/agent-sh/agnix/releases/download/v1.0.0/agnix-lsp-x86_64-pc-windows-msvc.zip'
     );
   });
 });

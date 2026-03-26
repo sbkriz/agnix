@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Download URLs**: Updated hardcoded repository path from `avifenesh/agnix` to `agent-sh/agnix` across download scripts, editor extensions, and CI workflows (#676).
+
 ## [0.16.4] - 2026-03-23
 
 ### Fixed

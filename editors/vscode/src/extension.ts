@@ -29,7 +29,7 @@ let codeLensProvider: AgnixCodeLensProvider | undefined;
 let diagnosticsTreeProvider: AgnixDiagnosticsTreeProvider | undefined;
 let extensionContext: vscode.ExtensionContext;
 
-const GITHUB_REPO = 'avifenesh/agnix';
+const GITHUB_REPO = 'agent-sh/agnix';
 
 interface PlatformInfo {
   asset: string;

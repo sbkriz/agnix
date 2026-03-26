@@ -7,7 +7,7 @@ set -euo pipefail
 #   BUILD_FROM_SOURCE - Set to "true" to build from source instead of downloading
 #   GITHUB_TOKEN - Optional token for authenticated API requests (avoids rate limits)
 
-REPO="avifenesh/agnix"
+REPO="agent-sh/agnix"
 VERSION="${AGNIX_VERSION:-latest}"
 BUILD_FROM_SOURCE="${BUILD_FROM_SOURCE:-false}"
 

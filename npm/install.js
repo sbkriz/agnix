@@ -6,7 +6,7 @@ const path = require('path');
 const { execSync } = require('child_process');
 const os = require('os');
 
-const GITHUB_REPO = 'avifenesh/agnix';
+const GITHUB_REPO = 'agent-sh/agnix';
 const VERSION = require('./package.json').version;
 
 /**

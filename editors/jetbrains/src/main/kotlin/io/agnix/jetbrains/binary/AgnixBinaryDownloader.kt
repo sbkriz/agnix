@@ -26,7 +26,7 @@ class AgnixBinaryDownloader {
     private val logger = Logger.getInstance(AgnixBinaryDownloader::class.java)
 
     companion object {
-        const val GITHUB_REPO = "avifenesh/agnix"
+        const val GITHUB_REPO = "agent-sh/agnix"
         const val DOWNLOAD_TIMEOUT = 60000 // 60 seconds
         const val BUFFER_SIZE = 8192
 

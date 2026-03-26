@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Download URLs**: Updated hardcoded repo references from `avifenesh/agnix` to `agent-sh/agnix` in JetBrains plugin binary downloader and test-action workflow
+
 ## [0.16.4] - 2026-03-23
 
 ### Fixed

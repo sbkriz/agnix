@@ -6,12 +6,12 @@
   "publisher": "avifenesh",
   "repository": {
     "type": "git",
-    "url": "https://github.com/avifenesh/agnix"
+    "url": "https://github.com/agent-sh/agnix"
   },
   "bugs": {
-    "url": "https://github.com/avifenesh/agnix/issues"
+    "url": "https://github.com/agent-sh/agnix/issues"
   },
-  "homepage": "https://github.com/avifenesh/agnix#readme",
+  "homepage": "https://github.com/agent-sh/agnix#readme",
   "license": "MIT",
   "icon": "icon.png",
   "galleryBanner": {
@@ -20,13 +20,13 @@
   },
   "badges": [
     {
-      "url": "https://img.shields.io/github/v/release/avifenesh/agnix",
-      "href": "https://github.com/avifenesh/agnix/releases",
+      "url": "https://img.shields.io/github/v/release/agent-sh/agnix",
+      "href": "https://github.com/agent-sh/agnix/releases",
       "description": "GitHub Release"
     },
     {
-      "url": "https://github.com/avifenesh/agnix/actions/workflows/ci.yml/badge.svg",
-      "href": "https://github.com/avifenesh/agnix/actions/workflows/ci.yml",
+      "url": "https://github.com/agent-sh/agnix/actions/workflows/ci.yml/badge.svg",
+      "href": "https://github.com/agent-sh/agnix/actions/workflows/ci.yml",
       "description": "CI Status"
     }
   ],

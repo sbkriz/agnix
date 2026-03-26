@@ -691,7 +691,7 @@ async function startClientInternal(): Promise<LanguageClient | undefined> {
       outputChannel.appendLine('  cargo install agnix-lsp');
       outputChannel.appendLine('');
       outputChannel.appendLine('Or via Homebrew (macOS/Linux):');
-      outputChannel.appendLine('  brew tap avifenesh/agnix && brew install agnix');
+      outputChannel.appendLine('  brew tap agent-sh/agnix && brew install agnix');
       outputChannel.show();
       return;
     } else if (choice === 'Open Settings') {

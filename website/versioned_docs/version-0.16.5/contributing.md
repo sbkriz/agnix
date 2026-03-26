@@ -11,15 +11,15 @@ Contributions are welcome and appreciated.
 
 agnix validates against 360 rules, but the agent config ecosystem moves fast. If a rule is wrong, missing, or too noisy, we want to know.
 
-- [Report a bug](https://github.com/avifenesh/agnix/issues/new)
-- [Request a rule](https://github.com/avifenesh/agnix/issues/new)
+- [Report a bug](https://github.com/agent-sh/agnix/issues/new)
+- [Request a rule](https://github.com/agent-sh/agnix/issues/new)
 
 Your real-world configs are the best test suite we could ask for.
 
 ## Contribute code
 
 Good first issues are labeled and ready:
-[good first issues](https://github.com/avifenesh/agnix/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+[good first issues](https://github.com/agent-sh/agnix/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
 
 Adding a new rule is one of the best ways to get started. Each rule is a self-contained unit with clear inputs, outputs, and test patterns. Find a similar existing rule to use as your template.
 
@@ -45,5 +45,5 @@ This website assembles and links that content for navigation and search.
 
 ## References
 
-- [CONTRIBUTING.md](https://github.com/avifenesh/agnix/blob/main/CONTRIBUTING.md) - full contribution guidelines
-- [SECURITY.md](https://github.com/avifenesh/agnix/blob/main/SECURITY.md) - security policy
+- [CONTRIBUTING.md](https://github.com/agent-sh/agnix/blob/main/CONTRIBUTING.md) - full contribution guidelines
+- [SECURITY.md](https://github.com/agent-sh/agnix/blob/main/SECURITY.md) - security policy

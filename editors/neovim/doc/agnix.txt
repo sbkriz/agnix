@@ -37,7 +37,7 @@ This plugin provides:
 
   - Neovim >= 0.9
   - agnix-lsp binary (install with `cargo install agnix-lsp` or download
-    from https://github.com/avifenesh/agnix/releases)
+    from https://github.com/agent-sh/agnix/releases)
 
 Optional:
   - telescope.nvim (for rule browsing)
@@ -48,7 +48,7 @@ Optional:
                                                          *agnix-lazy.nvim*
 Using lazy.nvim: >lua
     {
-      'avifenesh/agnix',
+      'agent-sh/agnix',
       ft = { 'markdown', 'json' },
       opts = {},
       config = function(_, opts)
@@ -60,7 +60,7 @@ Using lazy.nvim: >lua
                                                          *agnix-packer*
 Using packer.nvim: >lua
     use {
-      'avifenesh/agnix',
+      'agent-sh/agnix',
       config = function()
         require('agnix').setup()
       end,
@@ -69,7 +69,7 @@ Using packer.nvim: >lua
 
                                                          *agnix-vim-plug*
 Using vim-plug: >vim
-    Plug 'avifenesh/agnix'
+    Plug 'agent-sh/agnix'
 
     " In your init.lua or after/plugin:
     lua require('agnix').setup()

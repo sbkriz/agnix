@@ -13,7 +13,7 @@ Features:
 - Automatic `agnix-lsp` install/update via LSP4IJ server installer flow
 - Actions to restart the server, validate current file, and open settings
 
-![agnix diagnostics in JetBrains](https://raw.githubusercontent.com/avifenesh/agnix/main/editors/jetbrains/assets/jetbrains-validation.png)
+![agnix diagnostics in JetBrains](https://raw.githubusercontent.com/agent-sh/agnix/main/editors/jetbrains/assets/jetbrains-validation.png)
 <!-- Plugin description end -->
 
 ## Requirements

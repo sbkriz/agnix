@@ -50,11 +50,11 @@ Check your `.agnix.toml` configuration:
 
 Validate against the canonical rule data:
 
-- [knowledge-base/rules.json](https://github.com/avifenesh/agnix/blob/main/knowledge-base/rules.json)
-- [knowledge-base/VALIDATION-RULES.md](https://github.com/avifenesh/agnix/blob/main/knowledge-base/VALIDATION-RULES.md)
+- [knowledge-base/rules.json](https://github.com/agent-sh/agnix/blob/main/knowledge-base/rules.json)
+- [knowledge-base/VALIDATION-RULES.md](https://github.com/agent-sh/agnix/blob/main/knowledge-base/VALIDATION-RULES.md)
 
-If you find a discrepancy, please [open an issue](https://github.com/avifenesh/agnix/issues/new).
+If you find a discrepancy, please [open an issue](https://github.com/agent-sh/agnix/issues/new).
 
 ## Auto-fix changed something unexpected
 
-Run `agnix --fix` on a clean git working tree so you can review changes with `git diff`. If a fix is incorrect, [report it](https://github.com/avifenesh/agnix/issues/new) with the original file content.
+Run `agnix --fix` on a clean git working tree so you can review changes with `git diff`. If a fix is incorrect, [report it](https://github.com/agent-sh/agnix/issues/new) with the original file content.

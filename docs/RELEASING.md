@@ -69,7 +69,7 @@ cargo deny check advisories
    - Create a GitHub Release with the binaries
    - Publish the VS Code extension (if applicable)
 
-3. Verify the release at https://github.com/avifenesh/agnix/releases
+3. Verify the release at https://github.com/agent-sh/agnix/releases
 
 ## Post-release Verification
 

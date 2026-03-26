@@ -24,5 +24,5 @@ Check that editor plugin points to `agnix-lsp` binary and server logs do not sho
 
 If docs and rule behavior appear out of sync, validate against canonical rule data:
 
-- [knowledge-base/rules.json](https://github.com/avifenesh/agnix/blob/main/knowledge-base/rules.json)
-- [knowledge-base/VALIDATION-RULES.md](https://github.com/avifenesh/agnix/blob/main/knowledge-base/VALIDATION-RULES.md)
+- [knowledge-base/rules.json](https://github.com/agent-sh/agnix/blob/main/knowledge-base/rules.json)
+- [knowledge-base/VALIDATION-RULES.md](https://github.com/agent-sh/agnix/blob/main/knowledge-base/VALIDATION-RULES.md)

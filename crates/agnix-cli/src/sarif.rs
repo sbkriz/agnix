@@ -14,7 +14,7 @@ use std::sync::LazyLock;
 const SARIF_SCHEMA: &str = "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json";
 const SARIF_VERSION: &str = "2.1.0";
 const TOOL_NAME: &str = "agnix";
-const TOOL_INFO_URI: &str = "https://github.com/avifenesh/agnix";
+const TOOL_INFO_URI: &str = "https://github.com/agent-sh/agnix";
 
 #[derive(Debug, Serialize)]
 pub struct SarifLog {

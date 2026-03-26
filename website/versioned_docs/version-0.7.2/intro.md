@@ -13,5 +13,5 @@ Core capabilities:
 
 For project overview and repository context, see:
 
-- [README.md](https://github.com/avifenesh/agnix/blob/main/README.md)
-- [SPEC.md](https://github.com/avifenesh/agnix/blob/main/SPEC.md)
+- [README.md](https://github.com/agent-sh/agnix/blob/main/README.md)
+- [SPEC.md](https://github.com/agent-sh/agnix/blob/main/SPEC.md)

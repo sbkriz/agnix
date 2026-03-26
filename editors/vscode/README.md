@@ -71,7 +71,7 @@ If you prefer to install manually:
 cargo install agnix-lsp
 
 # Or via Homebrew
-brew tap avifenesh/agnix && brew install agnix
+brew tap agent-sh/agnix && brew install agnix
 ```
 
 ## Settings
@@ -163,7 +163,7 @@ target = "ClaudeCode"
 disabled_rules = ["PE-003"]
 ```
 
-See [configuration docs](https://github.com/avifenesh/agnix/blob/main/docs/CONFIGURATION.md) for all options.
+See [configuration docs](https://github.com/agent-sh/agnix/blob/main/docs/CONFIGURATION.md) for all options.
 
 ## Troubleshooting
 
@@ -189,7 +189,7 @@ The auto-downloaded binary is stored in the extension's global storage directory
 
 ## Links
 
-- [agnix on GitHub](https://github.com/avifenesh/agnix)
+- [agnix on GitHub](https://github.com/agent-sh/agnix)
 - [Validation Rules Reference](https://avifenesh.github.io/agnix/docs/rules)
 - [Agent Skills Specification](https://agentskills.io)
 - [Model Context Protocol](https://modelcontextprotocol.io)

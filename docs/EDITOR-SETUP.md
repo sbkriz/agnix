@@ -75,7 +75,7 @@ With lazy.nvim:
 
 ```lua
 {
-  'avifenesh/agnix',
+  'agent-sh/agnix',
   ft = { 'markdown', 'json' },
   opts = {},
   config = function(_, opts)
@@ -88,7 +88,7 @@ With packer.nvim:
 
 ```lua
 use {
-  'avifenesh/agnix',
+  'agent-sh/agnix',
   config = function()
     require('agnix').setup()
   end,
@@ -255,7 +255,7 @@ agnix reads configuration from `.agnix.toml` in your project root.
 **LSP binary download fails:**
 
 1. Check internet connection
-2. Verify access to https://github.com/avifenesh/agnix/releases
+2. Verify access to https://github.com/agent-sh/agnix/releases
 3. Try restarting Zed to trigger fresh download
 
 **Manual installation:**

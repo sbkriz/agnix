@@ -5,7 +5,7 @@ Thank you for contributing to agnix.
 ## Development Setup
 
 ```bash
-git clone https://github.com/avifenesh/agnix
+git clone https://github.com/agent-sh/agnix
 cd agnix
 cargo build
 cargo test

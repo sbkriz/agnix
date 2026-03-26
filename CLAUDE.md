@@ -2,7 +2,7 @@
 
 > Linter for agent configurations. Validates Skills, Hooks, MCP, Memory, Plugins.
 
-**Repository**: https://github.com/avifenesh/agnix
+**Repository**: https://github.com/agent-sh/agnix
 
 ## Project Instruction Files
 

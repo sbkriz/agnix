@@ -1,10 +1,10 @@
 class Agnix < Formula
   desc "Lint AI agent configuration files"
-  homepage "https://github.com/avifenesh/agnix"
-  url "https://github.com/avifenesh/agnix/archive/refs/tags/v0.4.0.tar.gz"
+  homepage "https://github.com/agent-sh/agnix"
+  url "https://github.com/agent-sh/agnix/archive/refs/tags/v0.4.0.tar.gz"
   sha256 "PLACEHOLDER_SHA256"
   license any_of: ["MIT", "Apache-2.0"]
-  head "https://github.com/avifenesh/agnix.git", branch: "main"
+  head "https://github.com/agent-sh/agnix.git", branch: "main"
 
   depends_on "rust" => :build
 

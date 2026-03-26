@@ -4,7 +4,7 @@ use zed_extension_api::{
     Os, Result,
 };
 
-const GITHUB_REPO: &str = "avifenesh/agnix";
+const GITHUB_REPO: &str = "agent-sh/agnix";
 
 /// Zed extension that integrates the agnix LSP for validating agent configurations.
 struct AgnixExtension {
@@ -248,7 +248,7 @@ mod tests {
 
     #[test]
     fn trusted_github_url_accepted() {
-        let url = "https://github.com/avifenesh/agnix/releases/download/v0.8.0/agnix-lsp.tar.gz";
+        let url = "https://github.com/agent-sh/agnix/releases/download/v0.8.0/agnix-lsp.tar.gz";
         let is_trusted = url.starts_with("https://github.com/")
             || url.starts_with("https://objects.githubusercontent.com/");
         assert!(is_trusted, "github.com URL should be trusted");
@@ -272,7 +272,7 @@ mod tests {
 
     #[test]
     fn http_url_rejected() {
-        let url = "http://github.com/avifenesh/agnix/releases/download/v0.8.0/agnix-lsp.tar.gz";
+        let url = "http://github.com/agent-sh/agnix/releases/download/v0.8.0/agnix-lsp.tar.gz";
         let is_trusted = url.starts_with("https://github.com/")
             || url.starts_with("https://objects.githubusercontent.com/");
         assert!(!is_trusted, "HTTP URL should be rejected");

@@ -1,5 +1,5 @@
 -- Root-level shim so that lazy.nvim users can install with just
--- "avifenesh/agnix" and require('agnix') resolves correctly.
+-- "agent-sh/agnix" and require('agnix') resolves correctly.
 --
 -- lazy.nvim adds the repo root to runtimepath, which makes Neovim's
 -- loader find this file for require('agnix').  We prepend

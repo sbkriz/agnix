@@ -20,4 +20,4 @@ Common options:
 
 Authoritative reference:
 
-- [docs/CONFIGURATION.md](https://github.com/avifenesh/agnix/blob/main/docs/CONFIGURATION.md)
+- [docs/CONFIGURATION.md](https://github.com/agent-sh/agnix/blob/main/docs/CONFIGURATION.md)

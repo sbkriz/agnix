@@ -1,6 +1,6 @@
 # agnix-rules
 
-Validation rules for [agnix](https://github.com/avifenesh/agnix) - the agent configuration linter.
+Validation rules for [agnix](https://github.com/agent-sh/agnix) - the agent configuration linter.
 
 This crate provides the rule definitions used by agnix to validate agent configurations including Skills, Hooks, MCP servers, Memory files, and Plugins.
 

@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>io.agnix.jetbrains</id>
     <name>agnix - Agent Config Linter</name>
-    <vendor email="support@agnix.io" url="https://github.com/avifenesh/agnix">agnix</vendor>
+    <vendor email="support@agnix.io" url="https://github.com/agent-sh/agnix">agnix</vendor>
 
     <description><![CDATA[
     Real-time validation for AI agent configuration files.

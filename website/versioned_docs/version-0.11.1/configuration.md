@@ -54,5 +54,5 @@ agnix --strict .
 ## Full reference
 
 For the complete configuration specification, see
-[docs/CONFIGURATION.md](https://github.com/avifenesh/agnix/blob/main/docs/CONFIGURATION.md)
+[docs/CONFIGURATION.md](https://github.com/agent-sh/agnix/blob/main/docs/CONFIGURATION.md)
 in the repository.

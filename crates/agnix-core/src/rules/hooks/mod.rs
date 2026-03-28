@@ -424,66 +424,10 @@ impl Validator for HooksValidator {
             }
         };
 
-        // CC-HK-005: Missing type field (early return on failure)
-        if config.is_rule_enabled("CC-HK-005") {
-            validate_cc_hk_005_missing_type_field(&raw_value, path, &mut diagnostics);
-            if diagnostics.iter().any(|d| d.rule == "CC-HK-005") {
-                return diagnostics;
-            }
-        }
-
-        // CC-HK-011: Invalid timeout value
-        if config.is_rule_enabled("CC-HK-011") {
-            validate_cc_hk_011_invalid_timeout_values(&raw_value, path, content, &mut diagnostics);
-        }
-
-        // CC-HK-016: Validate hook type (check for unknown types first)
-        // Run before field-specific rules so unknown types short-circuit early
-        if config.is_rule_enabled("CC-HK-016") {
-            validate_cc_hk_016_unknown_type(&raw_value, path, content, &mut diagnostics);
-            if diagnostics.iter().any(|d| d.rule == "CC-HK-016") {
-                return diagnostics;
-            }
-        }
-
-        // CC-HK-013: Async on non-command hook (only known types)
-        if config.is_rule_enabled("CC-HK-013") {
-            validate_cc_hk_013_async_field(&raw_value, path, content, &mut diagnostics);
-        }
-
-        // CC-HK-014: Once outside skill/agent frontmatter
-        if config.is_rule_enabled("CC-HK-014") {
-            validate_cc_hk_014_once_field(&raw_value, path, &mut diagnostics);
-        }
-
-        // CC-HK-020: HTTP hook missing required url field
-        if config.is_rule_enabled("CC-HK-020") {
-            validate_cc_hk_020_http_missing_url(&raw_value, path, &mut diagnostics);
-        }
-
-        // CC-HK-021: Invalid if field syntax
-        if config.is_rule_enabled("CC-HK-021") {
-            validate_cc_hk_021_invalid_if_field(&raw_value, path, &mut diagnostics);
-        }
-
-        // CC-HK-022: Invalid shell value
-        if config.is_rule_enabled("CC-HK-022") {
-            validate_cc_hk_022_invalid_shell(&raw_value, path, &mut diagnostics);
-        }
-
-        // CC-HK-023: once field must be boolean when present
-        if config.is_rule_enabled("CC-HK-023") {
-            validate_cc_hk_023_once_not_boolean(&raw_value, path, &mut diagnostics);
-        }
-
-        // CC-HK-024: HTTP headers with $VAR but missing allowedEnvVars
-        if config.is_rule_enabled("CC-HK-024") {
-            validate_cc_hk_024_headers_env_vars(&raw_value, path, &mut diagnostics);
-        }
-
-        // CC-HK-025: Invalid matcher value for event type
-        if config.is_rule_enabled("CC-HK-025") {
-            validate_cc_hk_025_invalid_matcher_value(&raw_value, path, &mut diagnostics);
+        // Raw JSON validation: CC-HK-005, 011, 013, 014, 016, 020-025.
+        // Single consolidated traversal (2 passes max instead of 11).
+        if !validate_all_raw_hooks(&raw_value, path, content, config, &mut diagnostics) {
+            return diagnostics;
         }
 
         let settings: SettingsSchema = match serde_json::from_value(raw_value) {

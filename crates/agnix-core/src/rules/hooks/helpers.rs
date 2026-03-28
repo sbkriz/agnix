@@ -1,3 +1,4 @@
+use crate::config::LintConfig;
 use crate::diagnostics::{Diagnostic, Fix};
 use crate::rules::find_closest_value;
 use crate::schemas::hooks::HooksSchema;
@@ -108,6 +109,7 @@ fn script_patterns() -> &'static Vec<Regex> {
 }
 
 /// CC-HK-005: Missing type field
+#[allow(dead_code)]
 pub(super) fn validate_cc_hk_005_missing_type_field(
     raw_value: &serde_json::Value,
     path: &Path,
@@ -145,6 +147,7 @@ pub(super) fn validate_cc_hk_005_missing_type_field(
 }
 
 /// CC-HK-011: Invalid timeout value
+#[allow(dead_code)]
 pub(super) fn validate_cc_hk_011_invalid_timeout_values(
     raw_value: &serde_json::Value,
     path: &Path,
@@ -497,6 +500,7 @@ fn find_unique_json_key_value_span(
 }
 
 /// Iterate over all raw hook entries in the JSON value, calling `f` for each one.
+#[allow(dead_code)]
 fn for_each_raw_hook<F>(raw_value: &serde_json::Value, mut f: F)
 where
     F: FnMut(&str, usize, usize, &serde_json::Value),
@@ -518,6 +522,7 @@ where
 
 /// CC-HK-013: Async on non-command hook (raw JSON check).
 /// Only flags known non-command types (prompt/agent); unknown types are handled by CC-HK-016.
+#[allow(dead_code)]
 pub(super) fn validate_cc_hk_013_async_field(
     raw_value: &serde_json::Value,
     path: &Path,
@@ -564,6 +569,7 @@ pub(super) fn validate_cc_hk_013_async_field(
 }
 
 /// CC-HK-014: Once outside skill/agent frontmatter (raw JSON check)
+#[allow(dead_code)]
 pub(super) fn validate_cc_hk_014_once_field(
     raw_value: &serde_json::Value,
     path: &Path,
@@ -591,6 +597,7 @@ use crate::rules::find_unique_json_string_value_span;
 /// CC-HK-016: Validate hook type "agent" - check for unknown types (raw JSON check)
 /// CC-HK-016: Unknown hook type (raw JSON check).
 /// Also catches non-string type values (e.g., numbers, booleans).
+#[allow(dead_code)]
 pub(super) fn validate_cc_hk_016_unknown_type(
     raw_value: &serde_json::Value,
     path: &Path,
@@ -668,6 +675,7 @@ pub(super) fn find_unique_matcher_line_span(
 
 /// CC-HK-020: HTTP hook missing required `url` field.
 /// When a hook has `type: "http"`, it MUST have a `url` field that is a non-empty string.
+#[allow(dead_code)]
 pub(super) fn validate_cc_hk_020_http_missing_url(
     raw_value: &serde_json::Value,
     path: &Path,
@@ -708,6 +716,7 @@ pub(super) fn validate_cc_hk_020_http_missing_url(
 
 /// CC-HK-021: Invalid `if` field syntax.
 /// The `if` field must be a non-empty string and is only valid on tool events.
+#[allow(dead_code)]
 pub(super) fn validate_cc_hk_021_invalid_if_field(
     raw_value: &serde_json::Value,
     path: &Path,
@@ -777,6 +786,7 @@ pub(super) fn validate_cc_hk_021_invalid_if_field(
 
 /// CC-HK-022: Invalid `shell` value.
 /// When present, `shell` must be either "bash" or "powershell".
+#[allow(dead_code)]
 pub(super) fn validate_cc_hk_022_invalid_shell(
     raw_value: &serde_json::Value,
     path: &Path,
@@ -817,6 +827,7 @@ pub(super) fn validate_cc_hk_022_invalid_shell(
 
 /// CC-HK-023: `once` field outside skill context.
 /// Validate that `once` is a boolean when present.
+#[allow(dead_code)]
 pub(super) fn validate_cc_hk_023_once_not_boolean(
     raw_value: &serde_json::Value,
     path: &Path,
@@ -846,6 +857,7 @@ pub(super) fn validate_cc_hk_023_once_not_boolean(
 
 /// CC-HK-024: HTTP hook `headers` with `$VAR` but missing `allowedEnvVars`.
 /// When headers contain `$` variable interpolation patterns, warn if `allowedEnvVars` is not set.
+#[allow(dead_code)]
 pub(super) fn validate_cc_hk_024_headers_env_vars(
     raw_value: &serde_json::Value,
     path: &Path,
@@ -890,9 +902,487 @@ pub(super) fn validate_cc_hk_024_headers_env_vars(
     });
 }
 
+/// Consolidated raw-JSON validation for hooks.
+///
+/// Walks the hooks tree at most twice instead of 11 separate traversals:
+///   - Pass 1: CC-HK-005 (missing type field). Early return if any fires.
+///   - Pass 2: CC-HK-011, CC-HK-016, CC-HK-013, CC-HK-014, CC-HK-020..025.
+///     CC-HK-016 triggers an early return that discards CC-HK-013/014/020..025.
+///
+/// Returns `true` when validation should continue to typed parsing,
+/// `false` when a structural error caused an early return.
+pub(super) fn validate_all_raw_hooks(
+    raw_value: &serde_json::Value,
+    path: &Path,
+    content: &str,
+    config: &LintConfig,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> bool {
+    let hooks_obj = match raw_value.get("hooks").and_then(|h| h.as_object()) {
+        Some(obj) => obj,
+        None => return true,
+    };
+
+    // ---- Pass 1: CC-HK-005 (missing type) ----
+    if config.is_rule_enabled("CC-HK-005") {
+        let before = diagnostics.len();
+        for (event, matchers) in hooks_obj {
+            if let Some(matchers_arr) = matchers.as_array() {
+                for (matcher_idx, matcher) in matchers_arr.iter().enumerate() {
+                    if let Some(hooks_arr) = matcher.get("hooks").and_then(|h| h.as_array()) {
+                        for (hook_idx, hook) in hooks_arr.iter().enumerate() {
+                            if hook.get("type").is_none() {
+                                let hook_location =
+                                    format!("hooks.{}[{}].hooks[{}]", event, matcher_idx, hook_idx);
+                                diagnostics.push(
+                                    Diagnostic::error(
+                                        path.to_path_buf(),
+                                        1,
+                                        0,
+                                        "CC-HK-005",
+                                        t!(
+                                            "rules.cc_hk_005.message",
+                                            location = hook_location.as_str()
+                                        ),
+                                    )
+                                    .with_suggestion(t!("rules.cc_hk_005.suggestion")),
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if diagnostics.len() > before {
+            return false;
+        }
+    }
+
+    // ---- Pass 2: all remaining raw-JSON rules in one traversal ----
+    let check_011 = config.is_rule_enabled("CC-HK-011");
+    let check_016 = config.is_rule_enabled("CC-HK-016");
+    let check_013 = config.is_rule_enabled("CC-HK-013");
+    let check_014 = config.is_rule_enabled("CC-HK-014");
+    let check_020 = config.is_rule_enabled("CC-HK-020");
+    let check_021 = config.is_rule_enabled("CC-HK-021");
+    let check_022 = config.is_rule_enabled("CC-HK-022");
+    let check_023 = config.is_rule_enabled("CC-HK-023");
+    let check_024 = config.is_rule_enabled("CC-HK-024");
+    let check_025 = config.is_rule_enabled("CC-HK-025");
+
+    let valid_types = ["command", "prompt", "agent", "http"];
+    let known_non_command = ["prompt", "agent", "http"];
+    let valid_shells = ["bash", "powershell"];
+    let tool_events = HooksSchema::TOOL_EVENTS;
+
+    const SESSION_START_MATCHERS: &[&str] = &["startup", "resume", "clear", "compact"];
+    const STOP_FAILURE_MATCHERS: &[&str] = &[
+        "rate_limit",
+        "authentication_failed",
+        "billing_error",
+        "invalid_request",
+        "server_error",
+        "max_output_tokens",
+        "unknown",
+    ];
+
+    let mut found_016 = false;
+    // Diagnostics gated on CC-HK-016 NOT firing (post-016 checks).
+    let mut conditional_diags: Vec<Diagnostic> = Vec::new();
+
+    for (event, matchers) in hooks_obj {
+        // --- CC-HK-025: matcher-level check (not per-hook) ---
+        if check_025 {
+            let valid_values: Option<&[&str]> = match event.as_str() {
+                "SessionStart" => Some(SESSION_START_MATCHERS),
+                "StopFailure" => Some(STOP_FAILURE_MATCHERS),
+                _ => None,
+            };
+
+            if let Some(valid_values) = valid_values {
+                if let Some(matchers_arr) = matchers.as_array() {
+                    for (matcher_idx, matcher) in matchers_arr.iter().enumerate() {
+                        if let Some(matcher_val) = matcher.get("matcher").and_then(|m| m.as_str()) {
+                            if !valid_values.contains(&matcher_val) {
+                                let location = format!("hooks.{}[{}]", event, matcher_idx);
+                                conditional_diags.push(
+                                    Diagnostic::warning(
+                                        path.to_path_buf(),
+                                        1,
+                                        0,
+                                        "CC-HK-025",
+                                        format!(
+                                            "Matcher '{}' at {} is not a known value for event '{}'; expected one of: {}",
+                                            matcher_val,
+                                            location,
+                                            event,
+                                            valid_values.join(", ")
+                                        ),
+                                    )
+                                    .with_suggestion(format!(
+                                        "Use one of the known matcher values for '{}': {}.",
+                                        event,
+                                        valid_values.join(", ")
+                                    )),
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- Per-hook checks ---
+        if let Some(matchers_arr) = matchers.as_array() {
+            for (matcher_idx, matcher) in matchers_arr.iter().enumerate() {
+                if let Some(hooks_arr) = matcher.get("hooks").and_then(|h| h.as_array()) {
+                    for (hook_idx, hook) in hooks_arr.iter().enumerate() {
+                        let hook_location =
+                            format!("hooks.{}[{}].hooks[{}]", event, matcher_idx, hook_idx);
+
+                        // -- CC-HK-011: Invalid timeout value --
+                        if check_011 {
+                            if let Some(timeout_val) = hook.get("timeout") {
+                                let is_invalid = match timeout_val {
+                                    serde_json::Value::Number(n) => {
+                                        if let Some(val) = n.as_u64() {
+                                            val == 0
+                                        } else {
+                                            true
+                                        }
+                                    }
+                                    _ => true,
+                                };
+                                if is_invalid {
+                                    let mut diagnostic = Diagnostic::error(
+                                        path.to_path_buf(),
+                                        1,
+                                        0,
+                                        "CC-HK-011",
+                                        t!(
+                                            "rules.cc_hk_011.message",
+                                            location = hook_location.as_str()
+                                        ),
+                                    )
+                                    .with_suggestion(t!("rules.cc_hk_011.suggestion"));
+
+                                    if let Ok(serialized) = serde_json::to_string(timeout_val) {
+                                        if let Some((start, end)) = find_unique_json_key_value_span(
+                                            content,
+                                            "timeout",
+                                            &serialized,
+                                        ) {
+                                            diagnostic = diagnostic.with_fix(Fix::replace(
+                                                start,
+                                                end,
+                                                "30",
+                                                "Set timeout to 30 seconds",
+                                                false,
+                                            ));
+                                        }
+                                    }
+
+                                    diagnostics.push(diagnostic);
+                                }
+                            }
+                        }
+
+                        // -- CC-HK-016: Unknown hook type --
+                        if check_016 {
+                            if let Some(type_value) = hook.get("type") {
+                                let hook_type_str;
+                                let is_invalid = if let Some(s) = type_value.as_str() {
+                                    hook_type_str = s.to_string();
+                                    !valid_types.contains(&s)
+                                } else {
+                                    hook_type_str = type_value.to_string();
+                                    true
+                                };
+                                if is_invalid {
+                                    found_016 = true;
+                                    let mut diagnostic = Diagnostic::error(
+                                        path.to_path_buf(),
+                                        1,
+                                        0,
+                                        "CC-HK-016",
+                                        t!(
+                                            "rules.cc_hk_016.message",
+                                            hook_type = hook_type_str.as_str(),
+                                            location = hook_location.as_str()
+                                        ),
+                                    )
+                                    .with_suggestion(t!("rules.cc_hk_016.suggestion"));
+
+                                    if let Some(hook_type_s) = type_value.as_str() {
+                                        if let Some(suggested) =
+                                            find_closest_value(hook_type_s, &valid_types)
+                                        {
+                                            if let Some((start, end)) =
+                                                find_unique_json_string_value_span(
+                                                    content,
+                                                    "type",
+                                                    hook_type_s,
+                                                )
+                                            {
+                                                diagnostic = diagnostic.with_fix(Fix::replace(
+                                                    start,
+                                                    end,
+                                                    suggested,
+                                                    t!("rules.cc_hk_016.fix", fixed = suggested),
+                                                    false,
+                                                ));
+                                            }
+                                        }
+                                    }
+
+                                    diagnostics.push(diagnostic);
+                                }
+                            }
+                        }
+
+                        // -- Post-016 checks (discarded if CC-HK-016 fires) --
+
+                        // CC-HK-013: Async on non-command hook
+                        if check_013 {
+                            if hook.get("async").is_some() {
+                                if let Some(hook_type) = hook.get("type").and_then(|t| t.as_str()) {
+                                    if known_non_command.contains(&hook_type) {
+                                        let mut diagnostic = Diagnostic::error(
+                                            path.to_path_buf(),
+                                            1,
+                                            0,
+                                            "CC-HK-013",
+                                            t!(
+                                                "rules.cc_hk_013.message",
+                                                hook_type = hook_type,
+                                                location = hook_location.as_str()
+                                            ),
+                                        )
+                                        .with_suggestion(t!("rules.cc_hk_013.suggestion"));
+
+                                        if let Some((start, end)) =
+                                            find_unique_json_field_line_span(content, "async")
+                                        {
+                                            diagnostic = diagnostic.with_fix(Fix::delete(
+                                                start,
+                                                end,
+                                                t!("rules.cc_hk_013.fix"),
+                                                true,
+                                            ));
+                                        }
+
+                                        conditional_diags.push(diagnostic);
+                                    }
+                                }
+                            }
+                        }
+
+                        // CC-HK-014: Once outside skill/agent frontmatter
+                        if check_014 {
+                            if hook.get("once").is_some() {
+                                conditional_diags.push(
+                                    Diagnostic::warning(
+                                        path.to_path_buf(),
+                                        1,
+                                        0,
+                                        "CC-HK-014",
+                                        t!(
+                                            "rules.cc_hk_014.message",
+                                            location = hook_location.as_str()
+                                        ),
+                                    )
+                                    .with_suggestion(t!("rules.cc_hk_014.suggestion")),
+                                );
+                            }
+                        }
+
+                        // CC-HK-020: HTTP hook missing url
+                        if check_020 {
+                            if let Some(type_val) = hook.get("type").and_then(|t| t.as_str()) {
+                                if type_val == "http" {
+                                    let missing = match hook.get("url") {
+                                        None => true,
+                                        Some(serde_json::Value::String(s)) => s.is_empty(),
+                                        Some(_) => true,
+                                    };
+                                    if missing {
+                                        conditional_diags.push(
+                                            Diagnostic::error(
+                                                path.to_path_buf(),
+                                                1,
+                                                0,
+                                                "CC-HK-020",
+                                                format!(
+                                                    "HTTP hook at {} is missing required 'url' field",
+                                                    hook_location
+                                                ),
+                                            )
+                                            .with_suggestion(
+                                                "Add a 'url' field with a valid HTTP(S) endpoint to the hook"
+                                                    .to_string(),
+                                            ),
+                                        );
+                                    }
+                                }
+                            }
+                        }
+
+                        // CC-HK-021: Invalid if field syntax
+                        if check_021 {
+                            if let Some(if_val) = hook.get("if") {
+                                if !tool_events.contains(&event.as_str()) {
+                                    conditional_diags.push(
+                                        Diagnostic::warning(
+                                            path.to_path_buf(),
+                                            1,
+                                            0,
+                                            "CC-HK-021",
+                                            format!(
+                                                "Hook at {} has 'if' field on non-tool event '{}'; 'if' is only valid on tool events: {}",
+                                                hook_location, event, HooksSchema::TOOL_EVENTS.join(", ")
+                                            ),
+                                        )
+                                        .with_suggestion(
+                                            "Remove the 'if' field or move the hook to a tool event".to_string(),
+                                        ),
+                                    );
+                                } else {
+                                    let is_invalid = match if_val {
+                                        serde_json::Value::String(s) => s.is_empty(),
+                                        _ => true,
+                                    };
+                                    if is_invalid {
+                                        conditional_diags.push(
+                                            Diagnostic::warning(
+                                                path.to_path_buf(),
+                                                1,
+                                                0,
+                                                "CC-HK-021",
+                                                format!(
+                                                    "Hook at {} has invalid 'if' field; must be a non-empty string",
+                                                    hook_location
+                                                ),
+                                            )
+                                            .with_suggestion(
+                                                "Set 'if' to a valid filter expression string"
+                                                    .to_string(),
+                                            ),
+                                        );
+                                    }
+                                }
+                            }
+                        }
+
+                        // CC-HK-022: Invalid shell value
+                        if check_022 {
+                            if let Some(shell_val) = hook.get("shell") {
+                                let is_invalid = match shell_val.as_str() {
+                                    Some(s) => !valid_shells.contains(&s),
+                                    None => true,
+                                };
+                                if is_invalid {
+                                    let shell_display = shell_val
+                                        .as_str()
+                                        .map(|s| s.to_string())
+                                        .unwrap_or_else(|| shell_val.to_string());
+                                    conditional_diags.push(
+                                        Diagnostic::warning(
+                                            path.to_path_buf(),
+                                            1,
+                                            0,
+                                            "CC-HK-022",
+                                            format!(
+                                                "Hook at {} has invalid 'shell' value '{}'; must be 'bash' or 'powershell'",
+                                                hook_location, shell_display
+                                            ),
+                                        )
+                                        .with_suggestion(
+                                            "Set 'shell' to either 'bash' or 'powershell'"
+                                                .to_string(),
+                                        ),
+                                    );
+                                }
+                            }
+                        }
+
+                        // CC-HK-023: once field not boolean
+                        if check_023 {
+                            if let Some(once_val) = hook.get("once") {
+                                if !once_val.is_boolean() {
+                                    conditional_diags.push(
+                                        Diagnostic::info(
+                                            path.to_path_buf(),
+                                            1,
+                                            0,
+                                            "CC-HK-023",
+                                            format!(
+                                                "Hook at {} has non-boolean 'once' field; 'once' must be true or false",
+                                                hook_location
+                                            ),
+                                        )
+                                        .with_suggestion("Set 'once' to true or false"),
+                                    );
+                                }
+                            }
+                        }
+
+                        // CC-HK-024: HTTP headers with $VAR but no allowedEnvVars
+                        if check_024 {
+                            if let Some(type_val) = hook.get("type").and_then(|t| t.as_str()) {
+                                if type_val == "http" {
+                                    if let Some(headers) =
+                                        hook.get("headers").and_then(|h| h.as_object())
+                                    {
+                                        let has_env_var = headers.values().any(|v| {
+                                            v.as_str().map(|s| s.contains('$')).unwrap_or(false)
+                                        });
+                                        if has_env_var {
+                                            let has_allowed = hook
+                                                .get("allowedEnvVars")
+                                                .and_then(|v| v.as_array())
+                                                .map(|a| !a.is_empty())
+                                                .unwrap_or(false);
+                                            if !has_allowed {
+                                                conditional_diags.push(
+                                                    Diagnostic::warning(
+                                                        path.to_path_buf(),
+                                                        1,
+                                                        0,
+                                                        "CC-HK-024",
+                                                        format!(
+                                                            "HTTP hook at {} has headers with $VAR interpolation but no 'allowedEnvVars'",
+                                                            hook_location
+                                                        ),
+                                                    )
+                                                    .with_suggestion(
+                                                        "Add 'allowedEnvVars' array listing the environment variables used in headers".to_string(),
+                                                    ),
+                                                );
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // If CC-HK-016 fired, discard post-016 diagnostics and signal early return.
+    if found_016 {
+        return false;
+    }
+
+    diagnostics.append(&mut conditional_diags);
+    true
+}
+
 /// CC-HK-025: Invalid matcher value for event type.
 /// Events that support matchers have specific valid values.
 /// Validates matcher values on `SessionStart` and `StopFailure`.
+#[cfg_attr(not(test), allow(dead_code))]
 pub(super) fn validate_cc_hk_025_invalid_matcher_value(
     raw_value: &serde_json::Value,
     path: &Path,

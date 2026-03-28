@@ -745,85 +745,128 @@ fn validate_copilot_skill(path: &Path, content: &str, config: &LintConfig) -> Ve
                     ),
                 );
             }
-            Some(p) => {
-                if let Some(ref err) = p.parse_error {
+            Some(p) if p.parse_error.is_some() => {
+                diagnostics.push(
+                    Diagnostic::error(
+                        path.to_path_buf(),
+                        p.start_line,
+                        0,
+                        "COP-022",
+                        format!(
+                            "Copilot CLI SKILL.md has invalid frontmatter: {}",
+                            p.parse_error.as_ref().unwrap()
+                        ),
+                    )
+                    .with_suggestion("Fix YAML syntax in SKILL.md frontmatter."),
+                );
+            }
+            _ => {}
+        }
+    }
+
+    // For COP-022 field checks, COP-023, and COP-024 we need valid parsed
+    // frontmatter. Parse the YAML once and share across all three rules.
+    let p = match &parsed {
+        Some(p) if p.parse_error.is_none() => p,
+        _ => return diagnostics,
+    };
+
+    let raw_yaml: serde_yaml::Value =
+        serde_yaml::from_str(&p.raw).unwrap_or(serde_yaml::Value::Null);
+    let mapping = raw_yaml.as_mapping();
+
+    // Build lookup keys once to avoid per-lookup String allocations.
+    let name_key = serde_yaml::Value::String("name".into());
+    let desc_key = serde_yaml::Value::String("description".into());
+
+    let has_name = mapping
+        .and_then(|m| m.get(&name_key))
+        .is_some_and(|v| !v.is_null());
+    let has_description = mapping
+        .and_then(|m| m.get(&desc_key))
+        .is_some_and(|v| !v.is_null());
+
+    // COP-022 (continued): missing required fields
+    if config.is_rule_enabled("COP-022") {
+        if !has_name {
+            diagnostics.push(
+                Diagnostic::error(
+                    path.to_path_buf(),
+                    p.start_line,
+                    0,
+                    "COP-022",
+                    "Copilot CLI SKILL.md frontmatter is missing required field 'name'".to_string(),
+                )
+                .with_suggestion("Add a 'name' field to the SKILL.md frontmatter."),
+            );
+        }
+
+        if !has_description {
+            diagnostics.push(
+                Diagnostic::error(
+                    path.to_path_buf(),
+                    p.start_line,
+                    0,
+                    "COP-022",
+                    "Copilot CLI SKILL.md frontmatter is missing required field 'description'"
+                        .to_string(),
+                )
+                .with_suggestion("Add a 'description' field to the SKILL.md frontmatter."),
+            );
+        }
+    }
+
+    // COP-023: CLI SKILL.md name format (MEDIUM)
+    if config.is_rule_enabled("COP-023") && has_name {
+        if let Some(name_val) = mapping.and_then(|m| m.get(&name_key)) {
+            if let Some(name_str) = name_val.as_str() {
+                if !is_kebab_case(name_str) {
+                    let line = frontmatter_key_line(&p.raw, p.start_line, "name:");
                     diagnostics.push(
-                        Diagnostic::error(
+                        Diagnostic::warning(
                             path.to_path_buf(),
-                            p.start_line,
+                            line,
                             0,
-                            "COP-022",
-                            format!("Copilot CLI SKILL.md has invalid frontmatter: {}", err),
-                        )
-                        .with_suggestion("Fix YAML syntax in SKILL.md frontmatter."),
-                    );
-                } else {
-                    let raw_yaml: serde_yaml::Value =
-                        serde_yaml::from_str(&p.raw).unwrap_or(serde_yaml::Value::Null);
-                    let mapping = raw_yaml.as_mapping();
-
-                    let has_name = mapping
-                        .and_then(|m| m.get(serde_yaml::Value::String("name".to_string())))
-                        .is_some_and(|v| !v.is_null());
-                    let has_description = mapping
-                        .and_then(|m| m.get(serde_yaml::Value::String("description".to_string())))
-                        .is_some_and(|v| !v.is_null());
-
-                    if !has_name {
-                        diagnostics.push(
-                            Diagnostic::error(
-                                path.to_path_buf(),
-                                p.start_line,
-                                0,
-                                "COP-022",
-                                "Copilot CLI SKILL.md frontmatter is missing required field 'name'"
-                                    .to_string(),
-                            )
-                            .with_suggestion("Add a 'name' field to the SKILL.md frontmatter."),
-                        );
-                    }
-
-                    if !has_description {
-                        diagnostics.push(
-                            Diagnostic::error(
-                                path.to_path_buf(),
-                                p.start_line,
-                                0,
-                                "COP-022",
-                                "Copilot CLI SKILL.md frontmatter is missing required field 'description'".to_string(),
-                            )
-                            .with_suggestion(
-                                "Add a 'description' field to the SKILL.md frontmatter.",
+                            "COP-023",
+                            format!(
+                                "SKILL.md name '{}' must be lowercase kebab-case (e.g. 'my-skill')",
+                                name_str
                             ),
-                        );
-                    }
+                        )
+                        .with_suggestion(
+                            "Use only lowercase letters and hyphens for the skill name.",
+                        ),
+                    );
+                }
+            }
+        }
+    }
 
-                    // COP-023: CLI SKILL.md name format (MEDIUM)
-                    if config.is_rule_enabled("COP-023") && has_name {
-                        if let Some(name_val) = mapping
-                            .and_then(|m| m.get(serde_yaml::Value::String("name".to_string())))
-                        {
-                            if let Some(name_str) = name_val.as_str() {
-                                if !is_kebab_case(name_str) {
-                                    let line = frontmatter_key_line(&p.raw, p.start_line, "name:");
-                                    diagnostics.push(
-                                        Diagnostic::warning(
-                                            path.to_path_buf(),
-                                            line,
-                                            0,
-                                            "COP-023",
-                                            format!(
-                                                "SKILL.md name '{}' must be lowercase kebab-case (e.g. 'my-skill')",
-                                                name_str
-                                            ),
-                                        )
-                                        .with_suggestion(
-                                            "Use only lowercase letters and hyphens for the skill name.",
-                                        ),
-                                    );
-                                }
-                            }
-                        }
+    // COP-024: Unknown SKILL.md frontmatter fields (MEDIUM)
+    if config.is_rule_enabled("COP-024") {
+        if let Some(m) = mapping {
+            for key in m.keys() {
+                if let Some(key_str) = key.as_str() {
+                    if !KNOWN_SKILL_FRONTMATTER_KEYS.contains(&key_str) {
+                        let line = frontmatter_key_line(&p.raw, p.start_line, key_str);
+                        diagnostics.push(
+                            Diagnostic::warning(
+                                path.to_path_buf(),
+                                line,
+                                0,
+                                "COP-024",
+                                format!(
+                                    "Unknown SKILL.md frontmatter field '{}'; expected one of: {}",
+                                    key_str,
+                                    KNOWN_SKILL_FRONTMATTER_KEYS.join(", ")
+                                ),
+                            )
+                            .with_suggestion(format!(
+                                "Remove unknown field '{}' or use one of: {}.",
+                                key_str,
+                                KNOWN_SKILL_FRONTMATTER_KEYS.join(", ")
+                            )),
+                        );
                     }
                 }
             }
@@ -859,62 +902,6 @@ fn is_kebab_case(s: &str) -> bool {
 
 /// Known SKILL.md frontmatter fields for Copilot CLI skills.
 const KNOWN_SKILL_FRONTMATTER_KEYS: &[&str] = &["name", "description", "license"];
-
-/// COP-024: Unknown SKILL.md frontmatter field.
-/// Warn on frontmatter keys that aren't in the known set for SKILL.md files.
-fn validate_copilot_skill_unknown_fields(
-    path: &Path,
-    content: &str,
-    config: &LintConfig,
-) -> Vec<Diagnostic> {
-    let mut diagnostics = Vec::new();
-
-    if !config.is_rule_enabled("COP-024") {
-        return diagnostics;
-    }
-
-    let parsed = match parse_agent_frontmatter(content) {
-        Some(p) => p,
-        None => return diagnostics,
-    };
-
-    if parsed.parse_error.is_some() {
-        return diagnostics;
-    }
-
-    let raw_yaml: serde_yaml::Value =
-        serde_yaml::from_str(&parsed.raw).unwrap_or(serde_yaml::Value::Null);
-
-    if let Some(mapping) = raw_yaml.as_mapping() {
-        for key in mapping.keys() {
-            if let Some(key_str) = key.as_str() {
-                if !KNOWN_SKILL_FRONTMATTER_KEYS.contains(&key_str) {
-                    let line = frontmatter_key_line(&parsed.raw, parsed.start_line, key_str);
-                    diagnostics.push(
-                        Diagnostic::warning(
-                            path.to_path_buf(),
-                            line,
-                            0,
-                            "COP-024",
-                            format!(
-                                "Unknown SKILL.md frontmatter field '{}'; expected one of: {}",
-                                key_str,
-                                KNOWN_SKILL_FRONTMATTER_KEYS.join(", ")
-                            ),
-                        )
-                        .with_suggestion(format!(
-                            "Remove unknown field '{}' or use one of: {}.",
-                            key_str,
-                            KNOWN_SKILL_FRONTMATTER_KEYS.join(", ")
-                        )),
-                    );
-                }
-            }
-        }
-    }
-
-    diagnostics
-}
 
 /// COP-025: CLI `.agent.md` in wrong location.
 /// When a file ends with `.agent.md` but is not under `.github/agents/` or `~/.copilot/agents/`,
@@ -1054,10 +1041,7 @@ impl Validator for CopilotValidator {
             return validate_plugin_manifest(path, content, config);
         }
         if is_copilot_skill_md(path) {
-            let mut skill_diagnostics = validate_copilot_skill(path, content, config);
-            // COP-024: Unknown SKILL.md frontmatter fields
-            skill_diagnostics.extend(validate_copilot_skill_unknown_fields(path, content, config));
-            return skill_diagnostics;
+            return validate_copilot_skill(path, content, config);
         }
 
         // COP-025: .agent.md in wrong location

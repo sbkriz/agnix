@@ -8,7 +8,7 @@ use crate::{
     config::LintConfig,
     diagnostics::{Diagnostic, Fix},
     fs::FileSystem,
-    parsers::frontmatter::split_frontmatter,
+    parsers::frontmatter::{FrontmatterParts, split_frontmatter},
     rules::{Validator, ValidatorMetadata},
     schemas::agent::AgentSchema,
     schemas::hooks::HooksSchema,
@@ -151,10 +151,13 @@ pub struct AgentValidator;
 /// Maximum directory traversal depth to prevent unbounded filesystem walking
 const MAX_TRAVERSAL_DEPTH: usize = 10;
 
-/// Find the byte range of a scalar frontmatter value for a key.
-/// Returns the value-only range (without quotes) in full-content byte offsets.
-fn frontmatter_value_byte_range(content: &str, key: &str) -> Option<(usize, usize)> {
-    let parts = split_frontmatter(content);
+/// Find the byte range of a scalar frontmatter value for a key, using
+/// pre-computed [`FrontmatterParts`]. Returns the value-only range (without
+/// quotes) in full-content byte offsets.
+fn frontmatter_value_byte_range_from_parts(
+    parts: &FrontmatterParts,
+    key: &str,
+) -> Option<(usize, usize)> {
     if !parts.has_frontmatter || !parts.has_closing {
         return None;
     }
@@ -437,7 +440,9 @@ impl Validator for AgentValidator {
                     .with_suggestion(t!("rules.cc_ag_003.suggestion", valid = valid_display));
 
                     // Unsafe auto-fix: default invalid model to sonnet.
-                    if let Some((start, end)) = frontmatter_value_byte_range(content, "model") {
+                    if let Some((start, end)) =
+                        frontmatter_value_byte_range_from_parts(&parts, "model")
+                    {
                         diagnostic = diagnostic.with_fix(Fix::replace(
                             start,
                             end,
@@ -474,7 +479,7 @@ impl Validator for AgentValidator {
 
                     // Unsafe auto-fix: normalize invalid permission mode to default.
                     if let Some((start, end)) =
-                        frontmatter_value_byte_range(content, "permissionMode")
+                        frontmatter_value_byte_range_from_parts(&parts, "permissionMode")
                     {
                         diagnostic = diagnostic.with_fix(Fix::replace(
                             start,
@@ -557,7 +562,8 @@ impl Validator for AgentValidator {
                     if let Some(closest) =
                         super::find_closest_value(memory.as_str(), VALID_MEMORY_SCOPES)
                     {
-                        if let Some((start, end)) = frontmatter_value_byte_range(content, "memory")
+                        if let Some((start, end)) =
+                            frontmatter_value_byte_range_from_parts(&parts, "memory")
                         {
                             diagnostic = diagnostic.with_fix(Fix::replace(
                                 start,
@@ -840,7 +846,7 @@ impl Validator for AgentValidator {
 
                     // Unsafe auto-fix: replace 'bypassPermissions' with 'default'.
                     if let Some((start, end)) =
-                        frontmatter_value_byte_range(content, "permissionMode")
+                        frontmatter_value_byte_range_from_parts(&parts, "permissionMode")
                     {
                         diagnostic = diagnostic.with_fix(Fix::replace(
                             start,
@@ -876,12 +882,11 @@ impl Validator for AgentValidator {
                             // the frontmatter; if unavailable (e.g. multi-line YAML lists),
                             // fall back to searching the entire frontmatter.
                             let (search_start, search_end) = if let Some((start, end)) =
-                                frontmatter_value_byte_range(content, "skills")
+                                frontmatter_value_byte_range_from_parts(&parts, "skills")
                             {
                                 (start, end)
                             } else {
-                                let parts_fm = split_frontmatter(content);
-                                (0, parts_fm.frontmatter_start + parts_fm.frontmatter.len())
+                                (0, parts.frontmatter_start + parts.frontmatter.len())
                             };
 
                             // The value range covers the whole skills field which may be
@@ -928,7 +933,8 @@ impl Validator for AgentValidator {
                     if let Some(closest) =
                         super::find_closest_value(effort.as_str(), VALID_EFFORT_VALUES)
                     {
-                        if let Some((start, end)) = frontmatter_value_byte_range(content, "effort")
+                        if let Some((start, end)) =
+                            frontmatter_value_byte_range_from_parts(&parts, "effort")
                         {
                             diagnostic = diagnostic.with_fix(Fix::replace(
                                 start,
@@ -963,7 +969,9 @@ impl Validator for AgentValidator {
                     .with_suggestion(format!("Use a valid isolation value: {}", valid_display));
 
                     // Unsafe auto-fix: replace with 'worktree' (the only valid value)
-                    if let Some((start, end)) = frontmatter_value_byte_range(content, "isolation") {
+                    if let Some((start, end)) =
+                        frontmatter_value_byte_range_from_parts(&parts, "isolation")
+                    {
                         diagnostic = diagnostic.with_fix(Fix::replace(
                             start,
                             end,

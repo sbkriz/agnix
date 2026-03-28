@@ -8,6 +8,7 @@
     <a href="https://github.com/agent-sh/agnix/releases"><img src="https://img.shields.io/github/v/release/agent-sh/agnix?color=0A7E8C" alt="Release"></a>
     <a href="https://github.com/agent-sh/agnix/actions/workflows/ci.yml"><img src="https://github.com/agent-sh/agnix/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
     <a href="LICENSE-MIT"><img src="https://img.shields.io/badge/license-MIT%2FApache--2.0-64748B.svg" alt="License"></a>
+    <a href="https://github.com/hesreallyhim/awesome-claude-code"><img src="https://awesome.re/mentioned-badge.svg" alt="Mentioned in Awesome Claude Code"></a>
   </p>
 </div>
 

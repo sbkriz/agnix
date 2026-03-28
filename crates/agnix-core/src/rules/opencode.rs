@@ -486,7 +486,7 @@ impl Validator for OpenCodeValidator {
                                         "OC-CFG-001",
                                         t!("rules.oc_cfg_001.type_error").to_string(),
                                     )
-                                    .with_suggestion(t!("rules.oc_cfg_001.suggestion").to_string()),
+                                    .with_suggestion(t!("rules.oc_cfg_001.suggestion")),
                                 );
                             }
                         }
@@ -511,7 +511,7 @@ impl Validator for OpenCodeValidator {
                                 "OC-CFG-002",
                                 t!("rules.oc_cfg_002.message").to_string(),
                             )
-                            .with_suggestion(t!("rules.oc_cfg_002.suggestion").to_string()),
+                            .with_suggestion(t!("rules.oc_cfg_002.suggestion")),
                         );
                     }
                 }
@@ -528,7 +528,7 @@ impl Validator for OpenCodeValidator {
                                 t!("rules.oc_cfg_003.message", key = unknown.key.as_str())
                                     .to_string(),
                             )
-                            .with_suggestion(t!("rules.oc_cfg_003.suggestion").to_string()),
+                            .with_suggestion(t!("rules.oc_cfg_003.suggestion")),
                         );
                     }
                 }
@@ -1130,7 +1130,7 @@ impl Validator for OpenCodeValidator {
                                         )
                                         .to_string(),
                                     )
-                                    .with_suggestion(t!("rules.oc_pm_001.suggestion").to_string()),
+                                    .with_suggestion(t!("rules.oc_pm_001.suggestion")),
                                 );
                             }
                         }
@@ -1220,7 +1220,7 @@ impl Validator for OpenCodeValidator {
                                     "OC-PM-001",
                                     t!("rules.oc_pm_001.type_error").to_string(),
                                 )
-                                .with_suggestion(t!("rules.oc_pm_001.suggestion").to_string()),
+                                .with_suggestion(t!("rules.oc_pm_001.suggestion")),
                             );
                         }
                     }
@@ -1638,7 +1638,7 @@ impl Validator for OpenCodeValidator {
                                             "Invalid server.mdns type. Expected a boolean"
                                                 .to_string(),
                                         )
-                                        .with_suggestion("Set mdns to true or false".to_string()),
+                                        .with_suggestion("Set mdns to true or false"),
                                     );
                                 }
                             }

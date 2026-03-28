@@ -409,7 +409,7 @@ fn validate_cursor_hooks_file(path: &Path, content: &str, config: &LintConfig) -
                                         n
                                     ),
                                 )
-                                .with_suggestion("Set 'timeout' to a positive number (milliseconds).".to_string()),
+                                .with_suggestion("Set 'timeout' to a positive number (milliseconds)."),
                             );
                         }
                         None => {
@@ -426,7 +426,7 @@ fn validate_cursor_hooks_file(path: &Path, content: &str, config: &LintConfig) -
                                         json_type_name(timeout)
                                     ),
                                 )
-                                .with_suggestion("Set 'timeout' to a positive number (milliseconds).".to_string()),
+                                .with_suggestion("Set 'timeout' to a positive number (milliseconds)."),
                             );
                         }
                     }
@@ -447,7 +447,7 @@ fn validate_cursor_hooks_file(path: &Path, content: &str, config: &LintConfig) -
                                     json_type_name(loop_limit)
                                 ),
                             )
-                            .with_suggestion("Set 'loop_limit' to a number or null.".to_string()),
+                            .with_suggestion("Set 'loop_limit' to a number or null."),
                         );
                     }
                 }
@@ -467,7 +467,7 @@ fn validate_cursor_hooks_file(path: &Path, content: &str, config: &LintConfig) -
                                     json_type_name(fail_closed)
                                 ),
                             )
-                            .with_suggestion("Set 'failClosed' to true or false.".to_string()),
+                            .with_suggestion("Set 'failClosed' to true or false."),
                         );
                     }
                 }
@@ -493,7 +493,7 @@ fn validate_cursor_hooks_file(path: &Path, content: &str, config: &LintConfig) -
                                 event_name
                             ),
                         )
-                        .with_suggestion("Add a 'prompt' field with the prompt string for this hook.".to_string()),
+                        .with_suggestion("Add a 'prompt' field with the prompt string for this hook."),
                     );
                 }
             }
@@ -521,7 +521,7 @@ fn validate_cursor_hooks_file(path: &Path, content: &str, config: &LintConfig) -
                                         json_type_name(model)
                                     ),
                                 )
-                                .with_suggestion("Set 'model' to a string model identifier.".to_string()),
+                                .with_suggestion("Set 'model' to a string model identifier."),
                             );
                         }
                     }

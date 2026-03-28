@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
 
 /// Agent .md file frontmatter schema
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -65,6 +66,14 @@ pub struct AgentSchema {
     /// Optional: MCP server configurations
     #[serde(skip_serializing_if = "Option::is_none", rename = "mcpServers")]
     pub mcp_servers: Option<Value>,
+
+    /// Optional: agent mode (e.g. "plan")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mode: Option<String>,
+
+    /// Catch-all for unknown frontmatter fields (used by CC-AG-019)
+    #[serde(flatten)]
+    pub extra: HashMap<String, serde_yaml::Value>,
 }
 
 // Validation is performed in rules/agent.rs (AgentValidator)

@@ -68,7 +68,7 @@ pub const EXCLUDED_PARENT_DIRECTORIES: &[&str] =
 // ============================================================================
 
 /// Returns true if the path contains two consecutive normal path components.
-fn path_contains_consecutive_components(path: &Path, first: &str, second: &str) -> bool {
+pub(crate) fn path_contains_consecutive_components(path: &Path, first: &str, second: &str) -> bool {
     let mut previous: Option<&str> = None;
 
     for component in path.components() {

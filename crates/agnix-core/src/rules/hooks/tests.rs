@@ -4377,6 +4377,30 @@ fn test_cc_hk_022_valid_shell_bash_ok() {
     assert_eq!(cc_hk_022.len(), 0);
 }
 
+#[test]
+fn test_cc_hk_022_valid_shell_powershell_ok() {
+    let content = r#"{
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": "Bash",
+                        "hooks": [
+                            { "type": "command", "command": "echo hi", "shell": "powershell" }
+                        ]
+                    }
+                ]
+            }
+        }"#;
+
+    let diagnostics = validate(content);
+    let cc_hk_022: Vec<_> = diagnostics
+        .iter()
+        .filter(|d| d.rule == "CC-HK-022")
+        .collect();
+
+    assert_eq!(cc_hk_022.len(), 0);
+}
+
 // ---------------------------------------------------------------------------
 // CC-HK-023: `once` not boolean
 // ---------------------------------------------------------------------------
@@ -4431,6 +4455,30 @@ fn test_cc_hk_023_once_boolean_ok() {
     assert_eq!(cc_hk_023.len(), 0);
 }
 
+#[test]
+fn test_cc_hk_023_once_numeric() {
+    let content = r#"{
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": "Bash",
+                        "hooks": [
+                            { "type": "command", "command": "echo hi", "once": 1 }
+                        ]
+                    }
+                ]
+            }
+        }"#;
+
+    let diagnostics = validate(content);
+    let cc_hk_023: Vec<_> = diagnostics
+        .iter()
+        .filter(|d| d.rule == "CC-HK-023")
+        .collect();
+
+    assert_eq!(cc_hk_023.len(), 1);
+}
+
 // ---------------------------------------------------------------------------
 // CC-HK-024: Headers with $VAR but no allowedEnvVars
 // ---------------------------------------------------------------------------
@@ -4482,6 +4530,36 @@ fn test_cc_hk_024_headers_env_var_with_allowed_ok() {
                                 "url": "https://example.com/hook",
                                 "headers": { "Authorization": "$TOKEN" },
                                 "allowedEnvVars": ["TOKEN"]
+                            }
+                        ]
+                    }
+                ]
+            }
+        }"#;
+
+    let diagnostics = validate(content);
+    let cc_hk_024: Vec<_> = diagnostics
+        .iter()
+        .filter(|d| d.rule == "CC-HK-024")
+        .collect();
+
+    assert_eq!(cc_hk_024.len(), 0);
+}
+
+// CC-HK-024 only fires when $VAR appears in headers, not in the url field.
+// This is by design: url values are not interpolated the same way as header
+// values, so a bare $VAR in url without allowedEnvVars is not a concern.
+#[test]
+fn test_cc_hk_024_env_var_in_url_only_no_fire() {
+    let content = r#"{
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": "Bash",
+                        "hooks": [
+                            {
+                                "type": "http",
+                                "url": "https://example.com/$SERVICE/hook"
                             }
                         ]
                     }

@@ -38,38 +38,38 @@ const VALID_HOOK_EVENTS: &[&str] = &[
     "PreCompact",
 ];
 
+/// Check whether two consecutive path components match a predicate, without allocating.
+fn has_consecutive_components(path: &Path, predicate: impl Fn(&str, &str) -> bool) -> bool {
+    let mut prev: Option<&str> = None;
+    for component in path.components() {
+        if let Some(s) = component.as_os_str().to_str() {
+            if let Some(p) = prev {
+                if predicate(p, s) {
+                    return true;
+                }
+            }
+            prev = Some(s);
+        }
+    }
+    false
+}
+
 /// Returns true if the path is under `.clinerules/workflows/`.
 fn is_workflow_path(path: &Path) -> bool {
-    let components: Vec<&str> = path
-        .components()
-        .filter_map(|c| c.as_os_str().to_str())
-        .collect();
-    components
-        .windows(2)
-        .any(|w| w[0] == ".clinerules" && w[1] == "workflows")
+    has_consecutive_components(path, |a, b| a == ".clinerules" && b == "workflows")
 }
 
 /// Returns true if the path is under `.clinerules/hooks/`.
 fn is_hook_path(path: &Path) -> bool {
-    let components: Vec<&str> = path
-        .components()
-        .filter_map(|c| c.as_os_str().to_str())
-        .collect();
-    components
-        .windows(2)
-        .any(|w| w[0] == ".clinerules" && w[1] == "hooks")
+    has_consecutive_components(path, |a, b| a == ".clinerules" && b == "hooks")
 }
 
 /// Returns true if the path is a Cline skill SKILL.md
 /// (under `.cline/skills/` or `.clinerules/skills/`).
 fn is_cline_skill_path(path: &Path) -> bool {
-    let components: Vec<&str> = path
-        .components()
-        .filter_map(|c| c.as_os_str().to_str())
-        .collect();
-    let has_cline_skills = components
-        .windows(2)
-        .any(|w| (w[0] == ".cline" || w[0] == ".clinerules") && w[1] == "skills");
+    let has_cline_skills = has_consecutive_components(path, |a, b| {
+        (a == ".cline" || a == ".clinerules") && b == "skills"
+    });
     let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
     has_cline_skills && filename == "SKILL.md"
 }

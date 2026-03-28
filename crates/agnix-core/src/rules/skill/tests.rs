@@ -4120,6 +4120,10 @@ fn test_cc_sk_019_whitespace_only_paths() {
         .collect();
 
     assert_eq!(cc_sk_019.len(), 1);
+    assert_eq!(
+        cc_sk_019[0].level,
+        crate::diagnostics::DiagnosticLevel::Info
+    );
 }
 
 #[test]

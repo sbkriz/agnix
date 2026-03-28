@@ -837,7 +837,7 @@ pub(super) fn validate_cc_hk_023_once_not_boolean(
                             hook_location
                         ),
                     )
-                    .with_suggestion("Set 'once' to true or false".to_string()),
+                    .with_suggestion("Set 'once' to true or false"),
                 );
             }
         }

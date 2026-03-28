@@ -718,9 +718,9 @@ fn is_copilot_skill_md(path: &Path) -> bool {
     if path.file_name().and_then(|n| n.to_str()) != Some("SKILL.md") {
         return false;
     }
-    let path_str = path.to_string_lossy();
-    let normalized = path_str.replace('\\', "/");
-    normalized.contains(".github/skills/") || normalized.contains(".agents/skills/")
+    use crate::file_types::path_contains_consecutive_components;
+    path_contains_consecutive_components(path, ".github", "skills")
+        || path_contains_consecutive_components(path, ".agents", "skills")
 }
 
 fn validate_copilot_skill(path: &Path, content: &str, config: &LintConfig) -> Vec<Diagnostic> {
@@ -931,12 +931,11 @@ fn validate_agent_md_location(path: &Path, config: &LintConfig) -> Vec<Diagnosti
         _ => return diagnostics,
     };
 
-    let path_str = path.to_string_lossy();
-    let normalized = path_str.replace('\\', "/");
+    use crate::file_types::path_contains_consecutive_components;
 
     // Check if it's in a correct location
-    let in_github_agents = normalized.contains(".github/agents/");
-    let in_copilot_agents = normalized.contains(".copilot/agents/");
+    let in_github_agents = path_contains_consecutive_components(path, ".github", "agents");
+    let in_copilot_agents = path_contains_consecutive_components(path, ".copilot", "agents");
 
     if !in_github_agents && !in_copilot_agents {
         diagnostics.push(

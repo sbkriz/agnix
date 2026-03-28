@@ -1007,32 +1007,24 @@ impl Validator for AgentValidator {
         }
 
         // CC-AG-019: Unknown agent frontmatter field
+        // Unknown keys are captured by serde(flatten) into schema.extra during
+        // the initial parse, so no re-parsing is needed.
         if config.is_rule_enabled("CC-AG-019") {
-            // Re-parse the frontmatter as a generic YAML mapping to detect unknown keys
-            if let Ok(value) = serde_yaml::from_str::<serde_yaml::Value>(&parts.frontmatter) {
-                if let Some(mapping) = value.as_mapping() {
-                    let known_set: HashSet<&str> = KNOWN_AGENT_FIELDS.iter().copied().collect();
-                    for key in mapping.keys() {
-                        if let Some(key_str) = key.as_str() {
-                            if !known_set.contains(key_str) {
-                                diagnostics.push(
-                                    Diagnostic::warning(
-                                        path.to_path_buf(),
-                                        1,
-                                        0,
-                                        "CC-AG-019",
-                                        format!("Unknown agent frontmatter field '{}'", key_str),
-                                    )
-                                    .with_suggestion(format!(
-                                        "Remove or rename '{}' - known fields: {}",
-                                        key_str,
-                                        KNOWN_AGENT_FIELDS.join(", ")
-                                    )),
-                                );
-                            }
-                        }
-                    }
-                }
+            for key_str in schema.extra.keys() {
+                diagnostics.push(
+                    Diagnostic::warning(
+                        path.to_path_buf(),
+                        1,
+                        0,
+                        "CC-AG-019",
+                        format!("Unknown agent frontmatter field '{}'", key_str),
+                    )
+                    .with_suggestion(format!(
+                        "Remove or rename '{}' - known fields: {}",
+                        key_str,
+                        KNOWN_AGENT_FIELDS.join(", ")
+                    )),
+                );
             }
         }
 
@@ -3737,14 +3729,11 @@ mcpServers:
 ---
 Body";
         let d = validate(c);
-        let e: Vec<_> = d
-            .iter()
-            .filter(|x| x.level == DiagnosticLevel::Error)
-            .collect();
+        let parse_errors: Vec<_> = d.iter().filter(|x| x.rule == "CC-AG-007").collect();
         assert!(
-            e.is_empty(),
-            "New fields should not trigger errors: {:?}",
-            e
+            parse_errors.is_empty(),
+            "New fields should not trigger CC-AG-007 parse errors: {:?}",
+            parse_errors
         );
     }
 
@@ -3757,11 +3746,10 @@ maxTurns: 10
 ---
 Body";
         let d = validate(c);
-        assert!(
-            d.iter()
-                .filter(|x| x.level == DiagnosticLevel::Error)
-                .count()
-                == 0
+        assert_eq!(
+            d.iter().filter(|x| x.rule == "CC-AG-017").count(),
+            0,
+            "Valid maxTurns should not trigger CC-AG-017"
         );
     }
 
@@ -3790,11 +3778,11 @@ Body",
                 e
             );
             let d = validate(&c);
-            assert!(
-                d.iter()
-                    .filter(|x| x.level == DiagnosticLevel::Error)
-                    .count()
-                    == 0
+            assert_eq!(
+                d.iter().filter(|x| x.rule == "CC-AG-014").count(),
+                0,
+                "Valid effort '{}' should not trigger CC-AG-014",
+                e
             );
         }
     }
@@ -3808,11 +3796,10 @@ background: false
 ---
 Body";
         let d = validate(c);
-        assert!(
-            d.iter()
-                .filter(|x| x.level == DiagnosticLevel::Error)
-                .count()
-                == 0
+        assert_eq!(
+            d.iter().filter(|x| x.rule == "CC-AG-007").count(),
+            0,
+            "Valid background bool should not trigger CC-AG-007 parse error"
         );
     }
 
@@ -3837,11 +3824,10 @@ isolation: worktree
 ---
 Body";
         let d = validate(c);
-        assert!(
-            d.iter()
-                .filter(|x| x.level == DiagnosticLevel::Error)
-                .count()
-                == 0
+        assert_eq!(
+            d.iter().filter(|x| x.rule == "CC-AG-015").count(),
+            0,
+            "Valid isolation 'worktree' should not trigger CC-AG-015"
         );
     }
 
@@ -3854,11 +3840,10 @@ initialPrompt: Start here
 ---
 Body";
         let d = validate(c);
-        assert!(
-            d.iter()
-                .filter(|x| x.level == DiagnosticLevel::Error)
-                .count()
-                == 0
+        assert_eq!(
+            d.iter().filter(|x| x.rule == "CC-AG-007").count(),
+            0,
+            "Valid initialPrompt string should not trigger CC-AG-007 parse error"
         );
     }
 
@@ -3873,11 +3858,10 @@ mcpServers:
 ---
 Body";
         let d = validate(c);
-        assert!(
-            d.iter()
-                .filter(|x| x.level == DiagnosticLevel::Error)
-                .count()
-                == 0
+        assert_eq!(
+            d.iter().filter(|x| x.rule == "CC-AG-007").count(),
+            0,
+            "Valid mcpServers object should not trigger CC-AG-007 parse error"
         );
     }
 

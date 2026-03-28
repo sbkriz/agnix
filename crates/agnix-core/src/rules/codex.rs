@@ -1698,7 +1698,7 @@ fn validate_codex_config_rules(
                             VALID_SERVICE_TIERS.join(", ")
                         ),
                     )
-                    .with_suggestion("Set service_tier to 'flex' or 'fast'.".to_string()),
+                    .with_suggestion("Set service_tier to 'flex' or 'fast'."),
                 );
             }
         } else if !value.is_null() {
@@ -1713,7 +1713,7 @@ fn validate_codex_config_rules(
                         value_type_name(value)
                     ),
                 )
-                .with_suggestion("Set service_tier to 'flex' or 'fast'.".to_string()),
+                .with_suggestion("Set service_tier to 'flex' or 'fast'."),
             );
         }
     }
@@ -1782,7 +1782,7 @@ fn validate_codex_config_rules(
                         value_type_name(value)
                     ),
                 )
-                .with_suggestion("Set windows.sandbox to 'elevated' or 'unelevated'.".to_string()),
+                .with_suggestion("Set windows.sandbox to 'elevated' or 'unelevated'."),
             );
         }
     }

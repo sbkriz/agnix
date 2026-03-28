@@ -22,5 +22,5 @@ npm --prefix website start
 
 Contribution references:
 
-- [CONTRIBUTING.md](https://github.com/avifenesh/agnix/blob/main/CONTRIBUTING.md)
-- [SECURITY.md](https://github.com/avifenesh/agnix/blob/main/SECURITY.md)
+- [CONTRIBUTING.md](https://github.com/agent-sh/agnix/blob/main/CONTRIBUTING.md)
+- [SECURITY.md](https://github.com/agent-sh/agnix/blob/main/SECURITY.md)

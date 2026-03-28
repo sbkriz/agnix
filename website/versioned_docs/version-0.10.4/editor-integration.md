@@ -21,7 +21,7 @@ Install the extension from the
 The extension bundles the LSP server. No additional setup needed.
 
 For manual configuration, see the
-[VS Code extension README](https://github.com/avifenesh/agnix/tree/main/editors/vscode).
+[VS Code extension README](https://github.com/agent-sh/agnix/tree/main/editors/vscode).
 
 ## JetBrains (IntelliJ, WebStorm, etc.)
 
@@ -31,7 +31,7 @@ Install from the
 Configure the `agnix-lsp` binary path in plugin settings if not auto-detected.
 
 For details, see the
-[JetBrains plugin README](https://github.com/avifenesh/agnix/tree/main/editors/jetbrains).
+[JetBrains plugin README](https://github.com/agent-sh/agnix/tree/main/editors/jetbrains).
 
 ## Neovim
 
@@ -49,12 +49,12 @@ cargo install agnix-lsp
 ```
 
 For full setup instructions, see the
-[Neovim plugin README](https://github.com/avifenesh/agnix/tree/main/editors/neovim).
+[Neovim plugin README](https://github.com/agent-sh/agnix/tree/main/editors/neovim).
 
 ## Zed
 
 Install the agnix extension from the Zed extension marketplace, or see the
-[Zed extension README](https://github.com/avifenesh/agnix/tree/main/editors/zed).
+[Zed extension README](https://github.com/agent-sh/agnix/tree/main/editors/zed).
 
 ## Other editors
 
@@ -66,4 +66,4 @@ agnix-lsp
 ```
 
 For the full editor support matrix, see
-[docs/EDITOR-SETUP.md](https://github.com/avifenesh/agnix/blob/main/docs/EDITOR-SETUP.md).
+[docs/EDITOR-SETUP.md](https://github.com/agent-sh/agnix/blob/main/docs/EDITOR-SETUP.md).

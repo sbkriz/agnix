@@ -2,7 +2,7 @@
 
 This document tracks RUSTSEC security advisories that are currently ignored in the project and explains why they are ignored and when they should be reviewed.
 
-Related: [Issue #346](https://github.com/avifenesh/agnix/issues/346) (this tracking system resolves that issue)
+Related: [Issue #346](https://github.com/agent-sh/agnix/issues/346) (this tracking system resolves that issue)
 
 ## Currently Ignored Advisories
 

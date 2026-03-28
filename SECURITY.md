@@ -179,4 +179,4 @@ Security fixes are released as patch versions (e.g., 0.8.0 -> 0.8.1) and announc
 
 - Security issues: aviarchi1994@gmail.com
 - General issues: GitHub Issues
-- Repository: https://github.com/avifenesh/agnix
+- Repository: https://github.com/agent-sh/agnix

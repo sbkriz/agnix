@@ -35,5 +35,5 @@ Available tools include:
 
 Specification references:
 
-- [SPEC.md](https://github.com/avifenesh/agnix/blob/main/SPEC.md)
+- [SPEC.md](https://github.com/agent-sh/agnix/blob/main/SPEC.md)
 - [MCP docs](https://modelcontextprotocol.io)

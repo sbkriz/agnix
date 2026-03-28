@@ -95,5 +95,5 @@ Found 1 error, 1 warning (2 fixable)
 
 ## Links
 
-- [GitHub](https://github.com/avifenesh/agnix)
+- [GitHub](https://github.com/agent-sh/agnix)
 - [Rules Reference](https://avifenesh.github.io/agnix/docs/rules)

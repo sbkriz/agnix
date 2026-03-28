@@ -11,16 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `picomatch` from 2.3.1 to 2.3.2 in editors/vscode and website (CVE-2026-33671, CVE-2026-33672) (#677).
 
 ### Fixed
+- **Repo references**: Updated remaining hardcoded `avifenesh/agnix` references to `agent-sh/agnix` across all editors (Zed, Neovim), website, metadata files, and documentation
 - **Download URLs**: Updated hardcoded repository path from `avifenesh/agnix` to `agent-sh/agnix` across download scripts, editor extensions, and CI workflows (#676).
 
 ## [0.16.4] - 2026-03-23
 
 ### Fixed
+- **Repo references**: Updated remaining hardcoded `avifenesh/agnix` references to `agent-sh/agnix` across all editors (Zed, Neovim), website, metadata files, and documentation
 - **Release workflow**: Create GitHub release as draft before uploading assets, then publish - fixes immutable release protection blocking asset uploads (caused v0.16.3 to ship with zero binaries)
 
 ## [0.16.3] - 2026-03-19
 
 ### Fixed
+- **Repo references**: Updated remaining hardcoded `avifenesh/agnix` references to `agent-sh/agnix` across all editors (Zed, Neovim), website, metadata files, and documentation
 - **CC-MEM-006 false positive on bold positive before dash**: Fix `.trim()` stripping trailing space needed for ` - ` separator detection in `has_positive_before` check. Pattern `**Positive action** - Never negative` is now correctly recognized (#661).
 - **XP-006 false positive for identical CLAUDE.md and AGENTS.md**: Skip "multiple instruction layers" warning when instruction files have identical content, since they are intentional copies for different tools (#660).
 - **CDX-AG-002 false positive on prose words**: Require sensitive keywords like `token`, `secret`, `password` to appear in an assignment context (`=` or `:`) before flagging as a potential secret. Prose like "Token efficiency" no longer triggers (#659).
@@ -28,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.16.2] - 2026-03-15
 
 ### Fixed
+- **Repo references**: Updated remaining hardcoded `avifenesh/agnix` references to `agent-sh/agnix` across all editors (Zed, Neovim), website, metadata files, and documentation
 - **XML-001 false positives on Rust type references**: Wrap Rust type references in backticks to prevent XML tag misdetection (#646).
 - **Self-validation build**: Use build-from-source for self-validation in CI to ensure agnix validates itself correctly (#646).
 
@@ -71,6 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CDX-006 rule**: Validates `project_doc_fallback_filenames` semantics in Codex CLI configuration (#569).
 
 ### Fixed
+- **Repo references**: Updated remaining hardcoded `avifenesh/agnix` references to `agent-sh/agnix` across all editors (Zed, Neovim), website, metadata files, and documentation
 - **OC-004 config key allowlist expanded**: Added 9 missing top-level keys (`autoshare`, `enterprise`, `layout`, `logLevel`, `lsp`, `mode`, `skills`, `snapshot`, `username`) to `KNOWN_TOP_LEVEL_KEYS` in the OpenCode schema, eliminating false-positive OC-004 warnings for valid opencode.json fields. All 9 OC rules re-verified against current OpenCode source on 2026-02-27.
 - **CUR-016 environment.json validation rewritten**: Schema now matches the current Cursor Cloud Agent spec - `install` is required, `terminals` is optional (was previously required), and `build` (with `dockerfile` and `context`) and `update` fields are now validated. Snapshot-based approach replaced with field-level structural validation. Includes 12 new unit tests.
 - **CUR-001 to CUR-016 verified_on dates updated**: All 16 Cursor rules re-verified against current Cursor documentation on 2026-02-26.
@@ -154,6 +159,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`LintConfig` cheap cloning**: Introduced `Arc<ConfigData>` inner struct to hold all serializable fields. Cloning a `LintConfig` (e.g., in `validate_project` / `validate_project_with_registry` parallel dispatch) now bumps an `Arc` refcount instead of deep-copying `Vec<String>` fields and nested structs. Mutations use `Arc::make_mut` for copy-on-write semantics, so the allocation only occurs when the `Arc` is actually shared (#467)
 
 ### Fixed
+- **Repo references**: Updated remaining hardcoded `avifenesh/agnix` references to `agent-sh/agnix` across all editors (Zed, Neovim), website, metadata files, and documentation
 - **`resolve_validation_root` silent fallback removed**: Passing a nonexistent path to `validate_project()` or `validate_project_with_registry()` now returns `Err(CoreError::Validation(ValidationError::RootNotFound { path }))` immediately instead of silently falling back to the current working directory. The CLI exits with code 1 and prints `"Validation root not found: <path>"` to stderr. Added `ValidationError::RootNotFound` variant and extended `CoreError::path()` to cover it (#483)
 - **LSP document version tracking**: The LSP backend now tracks document versions reported by the client (`did_open`, `did_change`) and includes them in all `publish_diagnostics` calls. Editors that inspect diagnostic version tags (e.g., for stale-result suppression) now receive accurate version numbers instead of `None`. Version and content updates are atomized under a single lock acquisition so readers never observe a state where content and version are out of sync. Empty `did_change` notifications (no content changes) also correctly advance the tracked version per the LSP spec (#478)
 - **Frontmatter leading newline stripped**: `split_frontmatter()` no longer includes the newline that follows the opening `---` delimiter in the extracted frontmatter string. Downstream validators (`AgentValidator`, `AmpValidator`, `KiroSteeringValidator`) have been updated to compute correct 1-based line numbers; diagnostic line numbers for AMP-001, CC-AG-007, and KIRO-001 through KIRO-004 are now accurate (#482)
@@ -182,6 +188,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.11.1] - 2026-02-11
 
 ### Fixed
+- **Repo references**: Updated remaining hardcoded `avifenesh/agnix` references to `agent-sh/agnix` across all editors (Zed, Neovim), website, metadata files, and documentation
 - **CI**: Release workflow now explicitly builds binary crates (`-p agnix-cli -p agnix-lsp -p agnix-mcp`) to prevent cache-related build skips
 - **CI**: Release version check now reads from `[workspace.package]` instead of root `[package]` section
 
@@ -224,6 +231,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **API**: Use saturating cast for validation timing (prevents u128 truncation to u64)
 
 ### Fixed
+- **Repo references**: Updated remaining hardcoded `avifenesh/agnix` references to `agent-sh/agnix` across all editors (Zed, Neovim), website, metadata files, and documentation
 - i18n diagnostic messages now display properly translated text instead of raw key paths when installed via `cargo install` (fixes #341)
 - CI locale-sync check prevents locale files from drifting across crates
 - CC-AG-009, CC-AG-010, CC-SK-008 false positives for `Skill`, `StatusBarMessageTool`, `TaskOutput` tools and MCP server tools with `mcp__<server>__<tool>` format (fixes #342)
@@ -239,6 +247,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.10.2] - 2026-02-08
 
 ### Fixed
+- **Repo references**: Updated remaining hardcoded `avifenesh/agnix` references to `agent-sh/agnix` across all editors (Zed, Neovim), website, metadata files, and documentation
 
 - VS Code extension version was out of sync with release binaries, causing download failures for agnix-lsp
 
@@ -249,6 +258,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Per-client skill validation** - 10 new rules detect when SKILL.md files in client-specific directories use unsupported frontmatter fields: CR-SK-001 (Cursor), CL-SK-001 (Cline), CP-SK-001 (Copilot), CX-SK-001 (Codex), OC-SK-001 (OpenCode), WS-SK-001 (Windsurf), KR-SK-001 (Kiro), AMP-SK-001 (Amp), RC-SK-001 (Roo Code), XP-SK-001 (cross-platform portability)
 
 ### Fixed
+- **Repo references**: Updated remaining hardcoded `avifenesh/agnix` references to `agent-sh/agnix` across all editors (Zed, Neovim), website, metadata files, and documentation
 
 - Markdown structure validation now skips headers inside fenced code blocks
 - Flaky telemetry env-dependent tests serialized with mutex
@@ -329,6 +339,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.9.3] - 2026-02-06
 
 ### Fixed
+- **Repo references**: Updated remaining hardcoded `avifenesh/agnix` references to `agent-sh/agnix` across all editors (Zed, Neovim), website, metadata files, and documentation
 
 - VS Code extension now probes PATH binaries with `--version` and prefers up-to-date downloaded binary over outdated system installations
 - Version check handles pre-0.9.2 agnix-lsp binaries without `--version` support
@@ -341,6 +352,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `agnix-lsp --version`/`-V` flag for debugging
 
 ### Fixed
+- **Repo references**: Updated remaining hardcoded `avifenesh/agnix` references to `agent-sh/agnix` across all editors (Zed, Neovim), website, metadata files, and documentation
 
 - VS Code and JetBrains plugins now auto-update LSP binary when plugin version changes
 - Plugin writes `.agnix-lsp-version` marker file to detect version mismatches
@@ -349,6 +361,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.9.1] - 2026-02-06
 
 ### Fixed
+- **Repo references**: Updated remaining hardcoded `avifenesh/agnix` references to `agent-sh/agnix` across all editors (Zed, Neovim), website, metadata files, and documentation
 
 - CC-MEM-006: Detect positive alternatives after negatives ("NEVER X - always Y" no longer false positive)
 - PE-004: Skip ambiguous terms inside parentheses (descriptive text no longer flagged)
@@ -405,6 +418,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Agent and skill validators now use `split_frontmatter()` directly for better error location and fix generation
 
 ### Fixed
+- **Repo references**: Updated remaining hardcoded `avifenesh/agnix` references to `agent-sh/agnix` across all editors (Zed, Neovim), website, metadata files, and documentation
 
 - CC-AG-007 parse error diagnostics now report the actual error line/column instead of always line 1
 
@@ -423,6 +437,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Agent directory files (`agents/*.md`) take precedence over filename exclusions
 
 ### Fixed
+- **Repo references**: Updated remaining hardcoded `avifenesh/agnix` references to `agent-sh/agnix` across all editors (Zed, Neovim), website, metadata files, and documentation
 
 - Operator precedence bug in `@import` email filtering that incorrectly matched email addresses
 - Zed editor extension with automatic LSP binary download and MDC file type support (#198)
@@ -460,6 +475,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Adds per-module `test_regex_patterns_compile` tests for all static patterns
 
 ### Fixed
+- **Repo references**: Updated remaining hardcoded `avifenesh/agnix` references to `agent-sh/agnix` across all editors (Zed, Neovim), website, metadata files, and documentation
 
 - CLI: harden telemetry queue timestamp parsing against malformed data (#231)
   - Replace panic-prone byte-index slicing with safe `str::get()` calls
@@ -567,6 +583,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - No validation behavior changes; refactor is layout-only for maintainability
 
 ### Fixed
+- **Repo references**: Updated remaining hardcoded `avifenesh/agnix` references to `agent-sh/agnix` across all editors (Zed, Neovim), website, metadata files, and documentation
 
 - CLI `--fix` now exits with status `0` when all diagnostics are resolved by auto-fixes (#230)
   - Exit status now reflects post-fix diagnostics for non-dry-run fix modes
@@ -587,6 +604,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.7.2] - 2026-02-05
 
 ### Fixed
+- **Repo references**: Updated remaining hardcoded `avifenesh/agnix` references to `agent-sh/agnix` across all editors (Zed, Neovim), website, metadata files, and documentation
 
 - npm package wrapper script now preserved during binary installation
   - Fixes "command not found" error when running `agnix` from npm install
@@ -595,6 +613,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.7.1] - 2026-02-05
 
 ### Fixed
+- **Repo references**: Updated remaining hardcoded `avifenesh/agnix` references to `agent-sh/agnix` across all editors (Zed, Neovim), website, metadata files, and documentation
 
 - VS Code extension LSP installation - now downloads LSP-specific archives (`agnix-lsp-*.tar.gz`)
   - Fixes "chmod: No such file or directory" error on macOS ARM64 and Linux ARM64
@@ -642,6 +661,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for partial config files (only specify fields you need)
 
 ### Fixed
+- **Repo references**: Updated remaining hardcoded `avifenesh/agnix` references to `agent-sh/agnix` across all editors (Zed, Neovim), website, metadata files, and documentation
 
 - Config now allows partial files - users can specify only `disabled_rules` without all other fields
 - Windows path false positives - regex patterns (`\n`, `\s`, `\d`) no longer flagged as Windows paths
@@ -780,6 +800,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Backward compatibility maintained - old configs with these fields still parse correctly
 
 ### Fixed
+- **Repo references**: Updated remaining hardcoded `avifenesh/agnix` references to `agent-sh/agnix` across all editors (Zed, Neovim), website, metadata files, and documentation
 
 - Mutex locks in streaming validation now use unwrap() for consistent fail-fast on poisoning (#172)
 - CLAUDE/AGENTS parity test now resilient to different directory structures (worktrees, symlinks)

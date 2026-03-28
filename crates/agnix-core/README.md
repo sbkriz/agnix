@@ -1,6 +1,6 @@
 # agnix-core
 
-Core validation engine for [agnix](https://github.com/avifenesh/agnix) - the agent configuration linter.
+Core validation engine for [agnix](https://github.com/agent-sh/agnix) - the agent configuration linter.
 
 This crate provides the parsing, schema validation, and diagnostic generation for agent configurations including Skills, Hooks, MCP servers, Memory files, and Plugins.
 

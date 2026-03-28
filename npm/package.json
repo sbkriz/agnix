@@ -16,13 +16,13 @@
     "codex",
     "ai"
   ],
-  "homepage": "https://github.com/avifenesh/agnix",
+  "homepage": "https://github.com/agent-sh/agnix",
   "bugs": {
-    "url": "https://github.com/avifenesh/agnix/issues"
+    "url": "https://github.com/agent-sh/agnix/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/avifenesh/agnix.git"
+    "url": "git+https://github.com/agent-sh/agnix.git"
   },
   "license": "MIT OR Apache-2.0",
   "author": "Avi Fenesh <avifenesh@gmail.com>",

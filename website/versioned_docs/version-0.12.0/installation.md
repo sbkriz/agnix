@@ -22,7 +22,7 @@ npx agnix .
 ## Homebrew (macOS / Linux)
 
 ```bash
-brew tap avifenesh/agnix && brew install agnix
+brew tap agent-sh/agnix && brew install agnix
 ```
 
 ## Cargo (Rust toolchain)
@@ -33,7 +33,7 @@ cargo install agnix-cli
 
 ## Pre-built binaries
 
-Download from [GitHub Releases](https://github.com/avifenesh/agnix/releases) for your platform.
+Download from [GitHub Releases](https://github.com/agent-sh/agnix/releases) for your platform.
 
 ## Verify installation
 
@@ -49,7 +49,7 @@ agnix ships editor integrations powered by the `agnix-lsp` server:
 |--------|---------|
 | VS Code | [Marketplace](https://marketplace.visualstudio.com/items?itemName=avifenesh.agnix) |
 | JetBrains | [Plugin](https://plugins.jetbrains.com/plugin/30087-agnix) |
-| Neovim | [Plugin](https://github.com/avifenesh/agnix.nvim) |
-| Zed | [Extension](https://github.com/avifenesh/agnix/tree/main/editors/zed) |
+| Neovim | [Plugin](https://github.com/agent-sh/agnix.nvim) |
+| Zed | [Extension](https://github.com/agent-sh/agnix/tree/main/editors/zed) |
 
 See [Editor Integration](./editor-integration.md) for setup details.

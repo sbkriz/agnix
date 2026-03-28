@@ -113,7 +113,7 @@ object AgnixNotifications {
         notification.addAction(object : AnAction("Install Manually") {
             override fun actionPerformed(e: AnActionEvent) {
                 // Open documentation URL
-                com.intellij.ide.BrowserUtil.browse("https://github.com/avifenesh/agnix#installation")
+                com.intellij.ide.BrowserUtil.browse("https://github.com/agent-sh/agnix#installation")
                 notification.expire()
             }
         })

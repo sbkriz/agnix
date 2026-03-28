@@ -1,6 +1,6 @@
 -- Root-level shim: adds editors/neovim to runtimepath so that
 -- require('agnix') resolves to editors/neovim/lua/agnix/init.lua.
--- This allows lazy.nvim users to install with just "avifenesh/agnix"
+-- This allows lazy.nvim users to install with just "agent-sh/agnix"
 -- without needing subdir = "editors/neovim".
 
 if vim.g.loaded_agnix then

@@ -1,6 +1,6 @@
 # agnix for Zed
 
-Zed extension for [agnix](https://github.com/avifenesh/agnix) - lint agent configurations before they break your workflow.
+Zed extension for [agnix](https://github.com/agent-sh/agnix) - lint agent configurations before they break your workflow.
 
 Provides real-time validation of AI agent configuration files (CLAUDE.md, AGENTS.md, SKILL.md, `.claude/settings.json`, `*.mcp.json`, `.cursor/rules/*.mdc`, and more) using the `agnix-lsp` language server.
 
@@ -69,7 +69,7 @@ disabled_rules = ["AS-001"]
 The extension downloads the `agnix-lsp` binary from GitHub releases. If the download fails:
 
 1. Check your internet connection
-2. Verify you can access https://github.com/avifenesh/agnix/releases
+2. Verify you can access https://github.com/agent-sh/agnix/releases
 3. Try restarting Zed to trigger a fresh download
 
 **Manual LSP binary**
@@ -84,7 +84,7 @@ npm install -g agnix
 cargo install agnix-lsp
 
 # Or download from releases
-# https://github.com/avifenesh/agnix/releases
+# https://github.com/agent-sh/agnix/releases
 ```
 
 ## License

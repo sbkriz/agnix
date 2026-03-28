@@ -54,8 +54,8 @@ const config = {
         applicationCategory: 'DeveloperApplication',
         operatingSystem: 'Windows, macOS, Linux',
         url: 'https://avifenesh.github.io/agnix/',
-        downloadUrl: 'https://github.com/avifenesh/agnix/releases',
-        codeRepository: 'https://github.com/avifenesh/agnix',
+        downloadUrl: 'https://github.com/agent-sh/agnix/releases',
+        codeRepository: 'https://github.com/agent-sh/agnix',
         programmingLanguage: 'Rust',
         license: 'https://opensource.org/licenses/MIT',
         offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
@@ -71,7 +71,7 @@ const config = {
           path: 'docs',
           routeBasePath: 'docs',
           sidebarPath: require.resolve('./sidebars.js'),
-          editUrl: 'https://github.com/avifenesh/agnix/tree/main/website/',
+          editUrl: 'https://github.com/agent-sh/agnix/tree/main/website/',
           showLastUpdateTime: true,
           lastVersion: 'current',
           versions: {
@@ -171,7 +171,7 @@ const config = {
             },
             {
               label: 'Neovim',
-              href: 'https://github.com/avifenesh/agnix/tree/main/editors/neovim',
+              href: 'https://github.com/agent-sh/agnix/tree/main/editors/neovim',
             },
             {
               label: 'Zed',
@@ -180,7 +180,7 @@ const config = {
           ],
         },
         {
-          href: 'https://github.com/avifenesh/agnix',
+          href: 'https://github.com/agent-sh/agnix',
           position: 'right',
           className: 'header-github-link',
           'aria-label': 'GitHub repository',
@@ -212,9 +212,9 @@ const config = {
         {
           title: 'Community',
           items: [
-            { label: 'GitHub', href: 'https://github.com/avifenesh/agnix' },
-            { label: 'Issues', href: 'https://github.com/avifenesh/agnix/issues' },
-            { label: 'Discussions', href: 'https://github.com/avifenesh/agnix/discussions' },
+            { label: 'GitHub', href: 'https://github.com/agent-sh/agnix' },
+            { label: 'Issues', href: 'https://github.com/agent-sh/agnix/issues' },
+            { label: 'Discussions', href: 'https://github.com/agent-sh/agnix/discussions' },
           ],
         },
         {
@@ -222,7 +222,7 @@ const config = {
           items: [
             { label: 'npm', href: 'https://www.npmjs.com/package/agnix' },
             { label: 'crates.io', href: 'https://crates.io/crates/agnix-cli' },
-            { label: 'Releases', href: 'https://github.com/avifenesh/agnix/releases' },
+            { label: 'Releases', href: 'https://github.com/agent-sh/agnix/releases' },
           ],
         },
       ],

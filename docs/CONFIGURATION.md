@@ -231,13 +231,13 @@ Full SARIF 2.1.0 compliance for GitHub Code Scanning.
 **Basic:**
 
 ```yaml
-- uses: avifenesh/agnix@v0
+- uses: agent-sh/agnix@v0
 ```
 
 **Strict with target:**
 
 ```yaml
-- uses: avifenesh/agnix@v0
+- uses: agent-sh/agnix@v0
   with:
     target: 'claude-code'
     strict: 'true'
@@ -246,7 +246,7 @@ Full SARIF 2.1.0 compliance for GitHub Code Scanning.
 **SARIF upload:**
 
 ```yaml
-- uses: avifenesh/agnix@v0
+- uses: agent-sh/agnix@v0
   id: agnix
   with:
     format: 'sarif'
@@ -259,7 +259,7 @@ Full SARIF 2.1.0 compliance for GitHub Code Scanning.
 **Conditional failure:**
 
 ```yaml
-- uses: avifenesh/agnix@v0
+- uses: agent-sh/agnix@v0
   id: validate
   with:
     fail-on-error: 'false'
@@ -282,7 +282,7 @@ Add to `.pre-commit-config.yaml`:
 
 ```yaml
 repos:
-  - repo: https://github.com/avifenesh/agnix
+  - repo: https://github.com/agent-sh/agnix
     rev: v0.8.0
     hooks:
       - id: agnix
@@ -299,7 +299,7 @@ repos:
 
 ```yaml
 repos:
-  - repo: https://github.com/avifenesh/agnix
+  - repo: https://github.com/agent-sh/agnix
     rev: v0.8.0
     hooks:
       - id: agnix-fix

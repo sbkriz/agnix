@@ -1,6 +1,6 @@
 # agnix.nvim
 
-Neovim plugin for [agnix](https://github.com/avifenesh/agnix) - lint agent configurations before they break your workflow.
+Neovim plugin for [agnix](https://github.com/agent-sh/agnix) - lint agent configurations before they break your workflow.
 
 Provides real-time validation of AI agent configuration files (CLAUDE.md, AGENTS.md, SKILL.md, `.claude/settings.json`, `*.mcp.json`, `.cursor/rules/*.mdc`, and more) using the `agnix-lsp` language server.
 
@@ -32,7 +32,7 @@ npm install -g agnix
 cargo install agnix-lsp
 
 # Or download from releases
-# https://github.com/avifenesh/agnix/releases
+# https://github.com/agent-sh/agnix/releases
 ```
 
 ## Installation

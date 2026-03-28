@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-03-28
+
 ### Added
 - **44 new validation rules** from March 2026 monthly spec drift review covering Claude Code hooks (CC-HK-020..025), skills (CC-SK-018..020), agents (CC-AG-014..017,019), plugins (CC-PL-011..014), memory (CC-MEM-014), Codex CLI (CDX-CFG-023..027), Cursor (CUR-017..019), Cline workflows/hooks/skills (CLN-005,006,009, CL-SK-002,003), Copilot CLI plugins/skills (COP-019..027), and OpenCode (OC-CFG-013, OC-AG-009, OC-DEP-005,006)
 - **HTTP hook type support** for Claude Code hooks (`type: "http"` with url, headers, allowedEnvVars, timeout fields)

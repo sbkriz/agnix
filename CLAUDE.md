@@ -57,7 +57,7 @@ editors/
 ├── vscode/         # VS Code extension
 ├── jetbrains/      # JetBrains IDE plugin
 └── zed/            # Zed extension
-knowledge-base/     # 342 rules, 75+ sources, rules.json
+knowledge-base/     # 385 rules, 75+ sources, rules.json
 
 tests/fixtures/     # Test cases by category
 ```
@@ -66,7 +66,7 @@ tests/fixtures/     # Test cases by category
 
 - `parsers/` - Frontmatter, JSON, Markdown parsing
 - `schemas/` - Type definitions (13 schemas: skill, hooks, agent, mcp, cline, roo, etc.)
-- `rules/` - Validators implementing Validator trait (28 validators)
+- `rules/` - Validators implementing Validator trait (39 validators)
 - `config.rs` - LintConfig, LintConfigBuilder, ConfigError, ToolVersions, SpecRevisions
 - `diagnostics.rs` - Diagnostic, Fix, DiagnosticLevel, ValidationOutcome, LintError (= CoreError), LintResult
 - `eval.rs` - Rule efficacy evaluation (precision/recall/F1)
@@ -178,7 +178,7 @@ cargo run --bin agnix-mcp   # Run MCP server
 
 ## Rules Reference
 
-342 rules defined in `knowledge-base/rules.json` (source of truth)
+385 rules defined in `knowledge-base/rules.json` (source of truth)
 
 
 Human-readable docs: `knowledge-base/VALIDATION-RULES.md`
@@ -190,9 +190,9 @@ Format: `[CATEGORY]-[NUMBER]` (AS-004, CC-HK-001, etc.)
 ## Current State
 
 - v0.16.1 - Production-ready with full validation pipeline
-- 342 validation rules across 28 validators
+- 385 validation rules across 39 validators
 
-- 3400+ passing tests
+- 4200+ passing tests
 - LSP + MCP servers with VS Code extension
 - See GitHub issues for roadmap
 

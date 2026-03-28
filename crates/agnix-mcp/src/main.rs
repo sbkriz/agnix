@@ -370,7 +370,7 @@ fn make_invalid_params(msg: String) -> McpError {
 /// Agnix MCP Server - validates AI agent configurations
 ///
 /// Provides tools to validate SKILL.md, CLAUDE.md, AGENTS.md, hooks,
-/// MCP configs, and more against 230 rules.
+/// MCP configs, and more against 385 rules.
 
 #[derive(Debug, Clone)]
 pub struct AgnixServer {
@@ -505,11 +505,11 @@ impl ServerHandler for AgnixServer {
         info.instructions = Some(
             "Agnix - AI agent configuration linter.\n\n\
              Validates SKILL.md, CLAUDE.md, AGENTS.md, hooks, MCP configs, \
-             Cursor rules, and more against 230 rules.\n\n\
+             Cursor rules, and more against 385 rules.\n\n\
              Tools:\n\
              - validate_project: Validate all agent configs in a directory\n\
              - validate_file: Validate a single config file\n\
-             - get_rules: List all 229 validation rules\n\
+             - get_rules: List all 385 validation rules\n\
              - get_rule_docs: Get details about a specific rule\n\n\
              Preferred input: tools (array of tool names, or comma-separated string as fallback)\n\
              Legacy fallback: target\n\

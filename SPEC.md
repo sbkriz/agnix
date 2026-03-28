@@ -1,32 +1,32 @@
 # agnix Technical Reference
 
-> Linter for agent configs. 342 rules across 36 categories.
+> Linter for agent configs. 385 rules across 36 categories.
 
 
 ## What agnix Validates
 
 | Type | Files | Rules |
 |------|-------|-------|
-| Skills | SKILL.md | 36 |
-| Hooks | settings.json | 19 |
-| Memory (Claude Code) | CLAUDE.md, CLAUDE.local.md, .claude/rules/*.md | 12 |
+| Skills | SKILL.md | 39 |
+| Hooks | settings.json | 25 |
+| Memory (Claude Code) | CLAUDE.md, CLAUDE.local.md, .claude/rules/*.md | 13 |
 | Instructions (Cross-Tool) | AGENTS.md, AGENTS.local.md, AGENTS.override.md | 6 |
-| Agents | agents/*.md | 13 |
-| Plugins | plugin.json | 10 |
+| Agents | agents/*.md | 17 |
+| Plugins | plugin.json | 14 |
 | Prompt Engineering | CLAUDE.md, AGENTS.md | 6 |
 | Cross-Platform | AGENTS.md | 9 |
 | MCP | tool definitions | 24 |
 | XML | all .md files | 3 |
 | References | @imports | 4 |
-| GitHub Copilot | .github/copilot-instructions.md, .github/instructions/*.instructions.md, .github/agents/*.agent.md, .github/prompts/*.prompt.md, .github/hooks/hooks.json, .github/workflows/copilot-setup-steps.yml | 17 |
-| Cursor Project Rules | .cursor/rules/*.mdc, .cursorrules, .cursor/hooks.json, .cursor/agents/**/*.md, .cursor/environment.json | 16 |
-| Cline | .clinerules, .clinerules/*.md, .clinerules/*.txt | 4 |
-| OpenCode | opencode.json | 41 |
+| GitHub Copilot | .github/copilot-instructions.md, .github/instructions/*.instructions.md, .github/agents/*.agent.md, .github/prompts/*.prompt.md, .github/hooks/hooks.json, .github/workflows/copilot-setup-steps.yml | 25 |
+| Cursor Project Rules | .cursor/rules/*.mdc, .cursorrules, .cursor/hooks.json, .cursor/agents/**/*.md, .cursor/environment.json | 19 |
+| Cline | .clinerules, .clinerules/*.md, .clinerules/*.txt | 7 |
+| OpenCode | opencode.json | 45 |
 | Gemini CLI | GEMINI.md, GEMINI.local.md, .gemini/settings.json (hooks), gemini-extension.json (extensions), .geminiignore | 9 |
-| Codex CLI | .codex/config.toml/.json/.yaml | 39 |
+| Codex CLI | .codex/config.toml/.json/.yaml | 44 |
 | Version Awareness | .agnix.toml | 1 |
 | Cursor Skills | .cursor/skills/*/SKILL.md | 1 |
-| Cline Skills | .cline/skills/*/SKILL.md | 1 |
+| Cline Skills | .cline/skills/*/SKILL.md | 3 |
 | Copilot Skills | .github/skills/*/SKILL.md | 1 |
 | Codex Skills | .agents/skills/*/SKILL.md | 1 |
 | OpenCode Skills | .opencode/skills/*/SKILL.md | 1 |
@@ -58,7 +58,7 @@ agnix/
 │   ├── agnix-mcp/      # MCP server
 │   └── agnix-wasm/     # WebAssembly bindings
 ├── editors/            # Neovim, VS Code, JetBrains, Zed integrations
-├── knowledge-base/     # 342 rules documented
+├── knowledge-base/     # 385 rules documented
 
 ├── scripts/            # Build/dev automation scripts
 ├── website/            # Docusaurus documentation website

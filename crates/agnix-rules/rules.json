@@ -1233,7 +1233,8 @@
         }
       },
       "fix": {
-        "autofix": false
+        "autofix": true,
+        "fix_safety": "unsafe"
       },
       "good_example": "---\nname: my-agent\neffort: high\n---\nAgent instructions.",
       "bad_example": "---\nname: my-agent\neffort: maximum\n---\nAgent instructions."
@@ -1260,7 +1261,8 @@
         }
       },
       "fix": {
-        "autofix": false
+        "autofix": true,
+        "fix_safety": "unsafe"
       },
       "good_example": "---\nname: my-agent\nisolation: full\n---\nAgent instructions.",
       "bad_example": "---\nname: my-agent\nisolation: partial\n---\nAgent instructions."
@@ -1314,7 +1316,8 @@
         }
       },
       "fix": {
-        "autofix": false
+        "autofix": true,
+        "fix_safety": "unsafe"
       },
       "good_example": "---\nname: my-agent\ndescription: A helpful agent\n---\nAgent instructions.",
       "bad_example": "---\nname: my-agent\npriority: high\n---\nAgent instructions."
@@ -1936,7 +1939,8 @@
         }
       },
       "fix": {
-        "autofix": false
+        "autofix": true,
+        "fix_safety": "unsafe"
       },
       "good_example": "{ \"type\": \"command\", \"command\": \"echo hi\", \"shell\": \"bash\" }",
       "bad_example": "{ \"type\": \"command\", \"command\": \"echo hi\", \"shell\": \"zsh\" }"
@@ -1967,7 +1971,8 @@
         }
       },
       "fix": {
-        "autofix": false
+        "autofix": true,
+        "fix_safety": "unsafe"
       },
       "good_example": "{ \"type\": \"command\", \"command\": \"echo hi\", \"once\": true }",
       "bad_example": "{ \"type\": \"command\", \"command\": \"echo hi\", \"once\": \"yes\" }"
@@ -1998,7 +2003,8 @@
         }
       },
       "fix": {
-        "autofix": false
+        "autofix": true,
+        "fix_safety": "safe"
       },
       "good_example": "{ \"type\": \"http\", \"url\": \"https://ex.com\", \"headers\": { \"Authorization\": \"$TOKEN\" }, \"allowedEnvVars\": [\"TOKEN\"] }",
       "bad_example": "{ \"type\": \"http\", \"url\": \"https://ex.com\", \"headers\": { \"Authorization\": \"$TOKEN\" } }"
@@ -2029,7 +2035,8 @@
         }
       },
       "fix": {
-        "autofix": false
+        "autofix": true,
+        "fix_safety": "unsafe"
       },
       "good_example": "{ \"matcher\": \"Bash\", \"hooks\": [{ \"type\": \"command\", \"command\": \"echo ok\" }] }",
       "bad_example": "{ \"matcher\": 123, \"hooks\": [{ \"type\": \"command\", \"command\": \"echo ok\" }] }"
@@ -2759,7 +2766,8 @@
         }
       },
       "fix": {
-        "autofix": false
+        "autofix": true,
+        "fix_safety": "safe"
       },
       "good_example": "{\n  \"agents\": [{ \"name\": \"helper\", \"description\": \"Assists with code\" }]\n}",
       "bad_example": "{\n  \"agents\": [{ \"name\": \"helper\", \"priority\": 1 }]\n}"
@@ -3256,7 +3264,8 @@
         }
       },
       "fix": {
-        "autofix": false
+        "autofix": true,
+        "fix_safety": "unsafe"
       },
       "good_example": "---\nname: my-skill\neffort: high\n---\nSkill instructions.",
       "bad_example": "---\nname: my-skill\neffort: maximum\n---\nSkill instructions."
@@ -3310,7 +3319,8 @@
         }
       },
       "fix": {
-        "autofix": false
+        "autofix": true,
+        "fix_safety": "unsafe"
       },
       "good_example": "---\nname: my-skill\nshell: bash\n---\nSkill instructions.",
       "bad_example": "---\nname: my-skill\nshell: zsh\n---\nSkill instructions."
@@ -4431,7 +4441,8 @@
         }
       },
       "fix": {
-        "autofix": false
+        "autofix": true,
+        "fix_safety": "safe"
       },
       "good_example": "[approval_policy]\nmode = \"suggest\"",
       "bad_example": "[approval_policy]\nmode = \"yolo\""
@@ -4458,7 +4469,8 @@
         }
       },
       "fix": {
-        "autofix": false
+        "autofix": true,
+        "fix_safety": "unsafe"
       },
       "good_example": "[approvals]\nreviewer = \"user\"",
       "bad_example": "[approvals]\nreviewer = 42"
@@ -4485,7 +4497,8 @@
         }
       },
       "fix": {
-        "autofix": false
+        "autofix": true,
+        "fix_safety": "unsafe"
       },
       "good_example": "service_tier = \"default\"",
       "bad_example": "service_tier = \"ultra\""
@@ -4512,7 +4525,8 @@
         }
       },
       "fix": {
-        "autofix": false
+        "autofix": true,
+        "fix_safety": "safe"
       },
       "good_example": "[network]\nallow = [\"*.example.com\"]",
       "bad_example": "[network]\nallow = \"all\""
@@ -4539,7 +4553,8 @@
         }
       },
       "fix": {
-        "autofix": false
+        "autofix": true,
+        "fix_safety": "unsafe"
       },
       "good_example": "[sandbox]\nwindows = \"wsl\"",
       "bad_example": "[sandbox]\nwindows = \"docker\""
@@ -4594,7 +4609,8 @@
         }
       },
       "fix": {
-        "autofix": false
+        "autofix": true,
+        "fix_safety": "safe"
       },
       "good_example": "---\nname: my-skill\ndescription: A skill\n---\n# My Skill",
       "bad_example": "---\ndescription: A skill\n---\n# My Skill"
@@ -4785,7 +4801,8 @@
         }
       },
       "fix": {
-        "autofix": false
+        "autofix": true,
+        "fix_safety": "unsafe"
       },
       "good_example": "# Deploy Workflow\n\n1. Run tests\n2. Deploy",
       "bad_example": "---\nname: deploy\n---\n# Deploy Workflow\n\n1. Run tests\n2. Deploy"
@@ -5397,7 +5414,8 @@
         }
       },
       "fix": {
-        "autofix": false
+        "autofix": true,
+        "fix_safety": "safe"
       },
       "good_example": "---\nname: lint-config\ndescription: Lint config files\n---",
       "bad_example": "---\nname: Lint Config!!\ndescription: Lint config files\n---"
@@ -5424,7 +5442,8 @@
         }
       },
       "fix": {
-        "autofix": false
+        "autofix": true,
+        "fix_safety": "safe"
       },
       "good_example": "---\nname: my-skill\ndescription: A useful skill\n---",
       "bad_example": "---\nname: my-skill\ndescription: A useful skill\npriority: high\n---"
@@ -5478,7 +5497,8 @@
         }
       },
       "fix": {
-        "autofix": false
+        "autofix": true,
+        "fix_safety": "unsafe"
       },
       "good_example": "{\n  \"transport\": \"streamable-http\"\n}",
       "bad_example": "{\n  \"transport\": \"sse\"\n}"
@@ -10149,7 +10169,8 @@
         }
       },
       "fix": {
-        "autofix": false
+        "autofix": true,
+        "fix_safety": "safe"
       },
       "good_example": "{\n  \"agent\": { \"a\": { \"maxTokens\": 8000 } }\n}",
       "bad_example": "{\n  \"agent\": { \"a\": { \"maxSteps\": 50 } }\n}"
@@ -10448,7 +10469,8 @@
         }
       },
       "fix": {
-        "autofix": false
+        "autofix": true,
+        "fix_safety": "unsafe"
       },
       "good_example": "{\n  \"agent\": { \"a\": { \"disabled\": true } }\n}",
       "bad_example": "{\n  \"agent\": { \"a\": { \"disabled\": \"yes\" } }\n}"

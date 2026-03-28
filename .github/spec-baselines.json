@@ -38,7 +38,7 @@
       "claude-code-subagents": {
         "url": "https://code.claude.com/docs/en/sub-agents",
         "hash": "b17ed99452ce65f18804fff1ed945414d9e42ae862d295ad49be6b13dd93210c",
-        "rules": ["CC-SA-001", "CC-SA-002", "CC-SA-003", "CC-SA-004", "CC-SA-005", "CC-SA-006", "CC-SA-007"]
+        "rules": ["CC-AG-001", "CC-AG-002", "CC-AG-003", "CC-AG-004", "CC-AG-005", "CC-AG-006", "CC-AG-007"]
       },
       "codex-cli-agents-md": {
         "url": "https://developers.openai.com/codex/guides/agents-md/",
@@ -75,12 +75,12 @@
       "github-copilot": {
         "url": "https://docs.github.com/en/copilot/customizing-copilot",
         "hash": "668c75acb7948484e1334aeb040332961836fbe187561fa830219afcde8ae289",
-        "rules": ["GH-001", "GH-002", "GH-003", "GH-004"]
+        "rules": ["COP-001", "COP-002", "COP-003", "COP-004"]
       },
       "cline-rules": {
         "url": "https://docs.cline.bot/features/cline-rules/overview",
         "hash": "3a42acacd88e62655c440c04214bed9e622793007489f1d9ef68a2ea85360063",
-        "rules": ["CLINE-001", "CLINE-002", "CLINE-003"]
+        "rules": ["CLN-001", "CLN-002", "CLN-003"]
       }
     }
   }

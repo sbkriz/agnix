@@ -256,8 +256,12 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-          # Output drift sources JSON for downstream jobs
-          echo "drift_sources=$DRIFT_SOURCES_JSON" >> "$GITHUB_OUTPUT"
+          # Output drift sources JSON for downstream jobs (multiline-safe)
+          {
+            echo "drift_sources<<EOF"
+            echo "$DRIFT_SOURCES_JSON"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
           # Output new hashes if update requested
           if [[ "$UPDATE_BASELINES" == "true" ]]; then

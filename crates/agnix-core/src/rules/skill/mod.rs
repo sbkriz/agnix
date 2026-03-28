@@ -7,7 +7,7 @@ use crate::{
     regex_util::static_regex,
     rules::{Validator, ValidatorMetadata},
     schemas::hooks::HooksSchema,
-    schemas::skill::SkillSchema,
+    schemas::skill::{SkillSchema, VALID_EFFORT_LEVELS, VALID_SHELLS, is_valid_skill_model},
     validation::is_valid_mcp_tool_format,
 };
 use regex::Regex;
@@ -38,6 +38,9 @@ struct SkillFrontmatter {
     model: Option<String>,
     context: Option<String>,
     agent: Option<String>,
+    effort: Option<String>,
+    paths: Option<serde_yaml::Value>,
+    shell: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -57,8 +60,8 @@ static_regex!(fn imperative_verb_regex, r"(?i)\b(run|execute|create|build|deploy
 static_regex!(fn first_second_person_regex, r"(?i)(^\s*(?:i|you|we)\b|\b(?:i will|you can|you should|we can|we should|we will)\b)");
 static_regex!(fn indexed_arguments_regex, r"\$ARGUMENTS\[\d+\]");
 
-/// Valid model values for CC-SK-001
-const VALID_MODELS: &[&str] = &["sonnet", "opus", "haiku", "inherit"];
+/// Valid model description for CC-SK-001 diagnostic messages
+const VALID_MODELS_DESC: &str = "sonnet, opus, haiku, inherit, or claude-*";
 
 /// Built-in agent types for CC-SK-005
 const BUILTIN_AGENTS: &[&str] = &["Explore", "Plan", "general-purpose"];
@@ -102,6 +105,9 @@ const KNOWN_FRONTMATTER_FIELDS: &[&str] = &[
     "context",
     "agent",
     "hooks",
+    "effort",
+    "paths",
+    "shell",
 ];
 
 /// Vague skill names that provide little routing signal for invocation
@@ -702,7 +708,7 @@ impl<'a> ValidationContext<'a> {
         // CC-SK-001: Invalid model value
         if self.config.is_rule_enabled("CC-SK-001") {
             if let Some(model) = &schema.model {
-                if !VALID_MODELS.contains(&model.as_str()) {
+                if !is_valid_skill_model(model.as_str()) {
                     let mut diagnostic = Diagnostic::error(
                         self.path.to_path_buf(),
                         model_line,
@@ -711,13 +717,10 @@ impl<'a> ValidationContext<'a> {
                         t!(
                             "rules.cc_sk_001.message",
                             model = model.as_str(),
-                            valid = VALID_MODELS.join(", ")
+                            valid = VALID_MODELS_DESC
                         ),
                     )
-                    .with_suggestion(t!(
-                        "rules.cc_sk_001.suggestion",
-                        valid = VALID_MODELS.join(", ")
-                    ));
+                    .with_suggestion(t!("rules.cc_sk_001.suggestion", valid = VALID_MODELS_DESC));
 
                     // Unsafe auto-fix: default invalid model to sonnet.
                     if let Some((start, end)) = self.frontmatter_value_byte_range("model") {
@@ -858,6 +861,88 @@ impl<'a> ValidationContext<'a> {
                     }
 
                     self.diagnostics.push(diagnostic);
+                }
+            }
+        }
+    }
+
+    /// CC-SK-018, CC-SK-019, CC-SK-020: Validate effort, paths, and shell fields
+    fn validate_cc_effort_paths_shell(&mut self, schema: &SkillSchema) {
+        // CC-SK-018: Invalid effort value
+        if self.config.is_rule_enabled("CC-SK-018") {
+            if let Some(effort) = &schema.effort {
+                if !VALID_EFFORT_LEVELS.contains(&effort.as_str()) {
+                    let (effort_line, effort_col) = self.frontmatter_key_line_col("effort");
+                    self.diagnostics.push(
+                        Diagnostic::warning(
+                            self.path.to_path_buf(),
+                            effort_line,
+                            effort_col,
+                            "CC-SK-018",
+                            format!(
+                                "Invalid effort '{}'. Must be one of: {}",
+                                effort,
+                                VALID_EFFORT_LEVELS.join(", ")
+                            ),
+                        )
+                        .with_suggestion(format!(
+                            "Use one of the valid effort values: {}",
+                            VALID_EFFORT_LEVELS.join(", ")
+                        )),
+                    );
+                }
+            }
+        }
+
+        // CC-SK-019: Invalid paths format
+        if self.config.is_rule_enabled("CC-SK-019") {
+            if let Some(paths) = &schema.paths {
+                let is_empty = match paths {
+                    serde_yaml::Value::String(s) => s.trim().is_empty(),
+                    serde_yaml::Value::Sequence(seq) => seq.is_empty(),
+                    serde_yaml::Value::Null => true,
+                    _ => false,
+                };
+                if is_empty {
+                    let (paths_line, paths_col) = self.frontmatter_key_line_col("paths");
+                    self.diagnostics.push(
+                        Diagnostic::info(
+                            self.path.to_path_buf(),
+                            paths_line,
+                            paths_col,
+                            "CC-SK-019",
+                            "paths field is empty".to_string(),
+                        )
+                        .with_suggestion(
+                            "Provide at least one glob pattern or file path".to_string(),
+                        ),
+                    );
+                }
+            }
+        }
+
+        // CC-SK-020: Invalid shell value
+        if self.config.is_rule_enabled("CC-SK-020") {
+            if let Some(shell) = &schema.shell {
+                if !VALID_SHELLS.contains(&shell.as_str()) {
+                    let (shell_line, shell_col) = self.frontmatter_key_line_col("shell");
+                    self.diagnostics.push(
+                        Diagnostic::warning(
+                            self.path.to_path_buf(),
+                            shell_line,
+                            shell_col,
+                            "CC-SK-020",
+                            format!(
+                                "Invalid shell '{}'. Must be one of: {}",
+                                shell,
+                                VALID_SHELLS.join(", ")
+                            ),
+                        )
+                        .with_suggestion(format!(
+                            "Use one of the valid shell values: {}",
+                            VALID_SHELLS.join(", ")
+                        )),
+                    );
                 }
             }
         }
@@ -1542,6 +1627,9 @@ const RULE_IDS: &[&str] = &[
     "CC-SK-015",
     "CC-SK-016",
     "CC-SK-017",
+    "CC-SK-018",
+    "CC-SK-019",
+    "CC-SK-020",
 ];
 
 pub struct SkillValidator;
@@ -1637,6 +1725,9 @@ impl Validator for SkillValidator {
                     model: frontmatter.model.clone(),
                     context: frontmatter.context.clone(),
                     agent: frontmatter.agent.clone(),
+                    effort: frontmatter.effort.clone(),
+                    paths: frontmatter.paths.clone(),
+                    shell: frontmatter.shell.clone(),
                 };
 
                 // CC-SK-006 (dangerous auto-invocation) and CC-SK-009 (too many injections)
@@ -1650,6 +1741,9 @@ impl Validator for SkillValidator {
 
                 // CC-SK-005 (agent type)
                 ctx.validate_cc_agent(&schema);
+
+                // CC-SK-018 (effort), CC-SK-019 (paths), CC-SK-020 (shell)
+                ctx.validate_cc_effort_paths_shell(&schema);
             }
         }
 

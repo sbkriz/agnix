@@ -1,4 +1,4 @@
-//! GitHub Copilot validation rules (COP-001 to COP-018)
+//! GitHub Copilot validation rules (COP-001 to COP-027)
 //!
 //! Validates:
 //! - COP-001: Empty instruction file (HIGH) - files must have content
@@ -11,6 +11,14 @@
 //! - COP-013 to COP-015: Reusable prompt validation
 //! - COP-017: Hooks schema validation
 //! - COP-018: Setup workflow validation
+//! - COP-019: Plugin manifest missing required fields (HIGH)
+//! - COP-020: Plugin manifest invalid field types (MEDIUM)
+//! - COP-022: CLI SKILL.md missing required frontmatter (HIGH)
+//! - COP-023: CLI SKILL.md name format (MEDIUM)
+//! - COP-024: Unknown SKILL.md frontmatter field (MEDIUM)
+//! - COP-025: CLI `.agent.md` in wrong location (LOW)
+//! - COP-026: Deprecated SSE transport in MCP config (LOW)
+//! - COP-027: Deprecated `infer` field in custom agent frontmatter (LOW)
 
 use crate::{
     FileType,
@@ -35,7 +43,8 @@ use std::path::Path;
 const RULE_IDS: &[&str] = &[
     "COP-001", "COP-002", "COP-003", "COP-004", "COP-005", "COP-006", "COP-007", "COP-008",
     "COP-009", "COP-010", "COP-011", "COP-012", "COP-013", "COP-014", "COP-015", "COP-017",
-    "COP-018",
+    "COP-018", "COP-019", "COP-020", "COP-022", "COP-023", "COP-024", "COP-025", "COP-026",
+    "COP-027",
 ];
 
 pub struct CopilotValidator;
@@ -171,7 +180,8 @@ fn validate_custom_agent(path: &Path, content: &str, config: &LintConfig) -> Vec
     if let Some(parsed) = &parsed {
         let cop_008_enabled = config.is_rule_enabled("COP-008");
         let cop_010_enabled = config.is_rule_enabled("COP-010");
-        let raw_mapping = if cop_008_enabled || cop_010_enabled {
+        let cop_027_enabled = config.is_rule_enabled("COP-027");
+        let raw_mapping = if cop_008_enabled || cop_010_enabled || cop_027_enabled {
             serde_yaml::from_str::<serde_yaml::Value>(&parsed.raw)
                 .ok()
                 .and_then(|raw| raw.as_mapping().cloned())
@@ -348,6 +358,31 @@ fn validate_custom_agent(path: &Path, content: &str, config: &LintConfig) -> Vec
                             "Custom agent 'infer' field must be a boolean",
                         )
                         .with_suggestion("Set 'infer' to true or false."),
+                    );
+                }
+            }
+
+            // COP-027: Deprecated `infer` field in custom agent frontmatter (LOW)
+            if config.is_rule_enabled("COP-027") {
+                let has_infer = schema.infer.is_some() || {
+                    raw_mapping
+                        .as_ref()
+                        .and_then(|map| map.get(serde_yaml::Value::String("infer".to_string())))
+                        .is_some()
+                };
+                if has_infer {
+                    let line = frontmatter_key_line(&parsed.raw, parsed.start_line, "infer:");
+                    diagnostics.push(
+                        Diagnostic::info(
+                            path.to_path_buf(),
+                            line,
+                            0,
+                            "COP-027",
+                            "Field 'infer' is deprecated; use 'disable-model-invocation' and 'user-invocable' instead".to_string(),
+                        )
+                        .with_suggestion(
+                            "Replace 'infer' with 'disable-model-invocation' and 'user-invocable'.",
+                        ),
                     );
                 }
             }
@@ -592,6 +627,441 @@ fn validate_hooks_file(path: &Path, content: &str, config: &LintConfig) -> Vec<D
     diagnostics
 }
 
+/// Check if a path looks like it's under a Copilot plugin directory.
+/// Returns true for paths like `.github/copilot-extensions/plugin.json`
+/// or any `plugin.json` that contains Copilot-specific keys.
+fn is_copilot_plugin_manifest(path: &Path) -> bool {
+    path.file_name().and_then(|n| n.to_str()) == Some("plugin.json")
+}
+
+/// Check if content looks like a Copilot plugin manifest by checking for
+/// Copilot-specific top-level keys.
+fn looks_like_copilot_plugin(value: &serde_json::Value) -> bool {
+    let obj = match value.as_object() {
+        Some(o) => o,
+        None => return false,
+    };
+    const COPILOT_KEYS: &[&str] = &["agents", "skills", "hooks", "mcpServers"];
+    COPILOT_KEYS.iter().any(|key| obj.contains_key(*key))
+}
+
+fn validate_plugin_manifest(path: &Path, content: &str, config: &LintConfig) -> Vec<Diagnostic> {
+    let mut diagnostics = Vec::new();
+
+    let value: serde_json::Value = match serde_json::from_str(content) {
+        Ok(v) => v,
+        Err(_) => return diagnostics,
+    };
+
+    if !looks_like_copilot_plugin(&value) {
+        return diagnostics;
+    }
+
+    let obj = match value.as_object() {
+        Some(o) => o,
+        None => return diagnostics,
+    };
+
+    // COP-019: Plugin manifest missing required fields (HIGH)
+    if config.is_rule_enabled("COP-019") {
+        let required_fields = ["name", "description", "version"];
+        for field in required_fields {
+            if !obj.contains_key(field) {
+                diagnostics.push(
+                    Diagnostic::error(
+                        path.to_path_buf(),
+                        1,
+                        0,
+                        "COP-019",
+                        format!("Copilot plugin manifest missing required field '{}'", field),
+                    )
+                    .with_suggestion(format!("Add a '{}' field to the plugin manifest.", field)),
+                );
+            }
+        }
+    }
+
+    // COP-020: Plugin manifest invalid field types (MEDIUM)
+    if config.is_rule_enabled("COP-020") {
+        #[allow(clippy::type_complexity)]
+        let type_checks: &[(&str, fn(&serde_json::Value) -> bool, &str)] = &[
+            ("name", |v| v.is_string(), "string"),
+            ("version", |v| v.is_string(), "string"),
+            ("description", |v| v.is_string(), "string"),
+            ("keywords", |v| v.is_array(), "array"),
+            ("agents", |v| v.is_object(), "object"),
+            ("skills", |v| v.is_object(), "object"),
+        ];
+
+        for (field, check, expected_type) in type_checks {
+            if let Some(val) = obj.get(*field) {
+                if !check(val) {
+                    diagnostics.push(
+                        Diagnostic::warning(
+                            path.to_path_buf(),
+                            1,
+                            0,
+                            "COP-020",
+                            format!(
+                                "Copilot plugin manifest field '{}' should be {} but found {}",
+                                field,
+                                expected_type,
+                                json_type_name(val)
+                            ),
+                        )
+                        .with_suggestion(format!(
+                            "Change '{}' to a {} value.",
+                            field, expected_type
+                        )),
+                    );
+                }
+            }
+        }
+    }
+
+    diagnostics
+}
+
+/// Quick content-based check for plugin manifest without full parse.
+fn looks_like_copilot_plugin_content(content: &str) -> bool {
+    match serde_json::from_str::<serde_json::Value>(content) {
+        Ok(v) => looks_like_copilot_plugin(&v),
+        Err(_) => false,
+    }
+}
+
+fn json_type_name(value: &serde_json::Value) -> &'static str {
+    match value {
+        serde_json::Value::Null => "null",
+        serde_json::Value::Bool(_) => "boolean",
+        serde_json::Value::Number(_) => "number",
+        serde_json::Value::String(_) => "string",
+        serde_json::Value::Array(_) => "array",
+        serde_json::Value::Object(_) => "object",
+    }
+}
+
+/// Check if a path is a SKILL.md under a Copilot CLI skills directory.
+fn is_copilot_skill_md(path: &Path) -> bool {
+    if path.file_name().and_then(|n| n.to_str()) != Some("SKILL.md") {
+        return false;
+    }
+    let path_str = path.to_string_lossy();
+    let normalized = path_str.replace('\\', "/");
+    normalized.contains(".github/skills/") || normalized.contains(".agents/skills/")
+}
+
+fn validate_copilot_skill(path: &Path, content: &str, config: &LintConfig) -> Vec<Diagnostic> {
+    let mut diagnostics = Vec::new();
+
+    let parsed = parse_agent_frontmatter(content);
+
+    // COP-022: CLI SKILL.md missing required frontmatter (HIGH)
+    if config.is_rule_enabled("COP-022") {
+        match &parsed {
+            None => {
+                diagnostics.push(
+                    Diagnostic::error(
+                        path.to_path_buf(),
+                        1,
+                        0,
+                        "COP-022",
+                        "Copilot CLI SKILL.md is missing required frontmatter with 'name' and 'description' fields".to_string(),
+                    )
+                    .with_suggestion(
+                        "Add YAML frontmatter with 'name' and 'description' fields.",
+                    ),
+                );
+            }
+            Some(p) => {
+                if let Some(ref err) = p.parse_error {
+                    diagnostics.push(
+                        Diagnostic::error(
+                            path.to_path_buf(),
+                            p.start_line,
+                            0,
+                            "COP-022",
+                            format!("Copilot CLI SKILL.md has invalid frontmatter: {}", err),
+                        )
+                        .with_suggestion("Fix YAML syntax in SKILL.md frontmatter."),
+                    );
+                } else {
+                    let raw_yaml: serde_yaml::Value =
+                        serde_yaml::from_str(&p.raw).unwrap_or(serde_yaml::Value::Null);
+                    let mapping = raw_yaml.as_mapping();
+
+                    let has_name = mapping
+                        .and_then(|m| m.get(serde_yaml::Value::String("name".to_string())))
+                        .is_some_and(|v| !v.is_null());
+                    let has_description = mapping
+                        .and_then(|m| m.get(serde_yaml::Value::String("description".to_string())))
+                        .is_some_and(|v| !v.is_null());
+
+                    if !has_name {
+                        diagnostics.push(
+                            Diagnostic::error(
+                                path.to_path_buf(),
+                                p.start_line,
+                                0,
+                                "COP-022",
+                                "Copilot CLI SKILL.md frontmatter is missing required field 'name'"
+                                    .to_string(),
+                            )
+                            .with_suggestion("Add a 'name' field to the SKILL.md frontmatter."),
+                        );
+                    }
+
+                    if !has_description {
+                        diagnostics.push(
+                            Diagnostic::error(
+                                path.to_path_buf(),
+                                p.start_line,
+                                0,
+                                "COP-022",
+                                "Copilot CLI SKILL.md frontmatter is missing required field 'description'".to_string(),
+                            )
+                            .with_suggestion(
+                                "Add a 'description' field to the SKILL.md frontmatter.",
+                            ),
+                        );
+                    }
+
+                    // COP-023: CLI SKILL.md name format (MEDIUM)
+                    if config.is_rule_enabled("COP-023") && has_name {
+                        if let Some(name_val) = mapping
+                            .and_then(|m| m.get(serde_yaml::Value::String("name".to_string())))
+                        {
+                            if let Some(name_str) = name_val.as_str() {
+                                if !is_kebab_case(name_str) {
+                                    let line = frontmatter_key_line(&p.raw, p.start_line, "name:");
+                                    diagnostics.push(
+                                        Diagnostic::warning(
+                                            path.to_path_buf(),
+                                            line,
+                                            0,
+                                            "COP-023",
+                                            format!(
+                                                "SKILL.md name '{}' must be lowercase kebab-case (e.g. 'my-skill')",
+                                                name_str
+                                            ),
+                                        )
+                                        .with_suggestion(
+                                            "Use only lowercase letters and hyphens for the skill name.",
+                                        ),
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    diagnostics
+}
+
+/// Check if a string is valid kebab-case: lowercase ASCII letters and hyphens only,
+/// no leading/trailing hyphens, no consecutive hyphens, non-empty.
+fn is_kebab_case(s: &str) -> bool {
+    if s.is_empty() {
+        return false;
+    }
+    // Must be only lowercase ASCII letters, digits, and hyphens
+    if !s
+        .chars()
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+    {
+        return false;
+    }
+    // No leading or trailing hyphens
+    if s.starts_with('-') || s.ends_with('-') {
+        return false;
+    }
+    // No consecutive hyphens
+    if s.contains("--") {
+        return false;
+    }
+    true
+}
+
+/// Known SKILL.md frontmatter fields for Copilot CLI skills.
+const KNOWN_SKILL_FRONTMATTER_KEYS: &[&str] = &["name", "description", "license"];
+
+/// COP-024: Unknown SKILL.md frontmatter field.
+/// Warn on frontmatter keys that aren't in the known set for SKILL.md files.
+fn validate_copilot_skill_unknown_fields(
+    path: &Path,
+    content: &str,
+    config: &LintConfig,
+) -> Vec<Diagnostic> {
+    let mut diagnostics = Vec::new();
+
+    if !config.is_rule_enabled("COP-024") {
+        return diagnostics;
+    }
+
+    let parsed = match parse_agent_frontmatter(content) {
+        Some(p) => p,
+        None => return diagnostics,
+    };
+
+    if parsed.parse_error.is_some() {
+        return diagnostics;
+    }
+
+    let raw_yaml: serde_yaml::Value =
+        serde_yaml::from_str(&parsed.raw).unwrap_or(serde_yaml::Value::Null);
+
+    if let Some(mapping) = raw_yaml.as_mapping() {
+        for key in mapping.keys() {
+            if let Some(key_str) = key.as_str() {
+                if !KNOWN_SKILL_FRONTMATTER_KEYS.contains(&key_str) {
+                    let line = frontmatter_key_line(&parsed.raw, parsed.start_line, key_str);
+                    diagnostics.push(
+                        Diagnostic::warning(
+                            path.to_path_buf(),
+                            line,
+                            0,
+                            "COP-024",
+                            format!(
+                                "Unknown SKILL.md frontmatter field '{}'; expected one of: {}",
+                                key_str,
+                                KNOWN_SKILL_FRONTMATTER_KEYS.join(", ")
+                            ),
+                        )
+                        .with_suggestion(format!(
+                            "Remove unknown field '{}' or use one of: {}.",
+                            key_str,
+                            KNOWN_SKILL_FRONTMATTER_KEYS.join(", ")
+                        )),
+                    );
+                }
+            }
+        }
+    }
+
+    diagnostics
+}
+
+/// COP-025: CLI `.agent.md` in wrong location.
+/// When a file ends with `.agent.md` but is not under `.github/agents/` or `~/.copilot/agents/`,
+/// emit an info diagnostic suggesting the correct location.
+fn validate_agent_md_location(path: &Path, config: &LintConfig) -> Vec<Diagnostic> {
+    let mut diagnostics = Vec::new();
+
+    if !config.is_rule_enabled("COP-025") {
+        return diagnostics;
+    }
+
+    let filename = match path.file_name().and_then(|n| n.to_str()) {
+        Some(name) if name.ends_with(".agent.md") => name,
+        _ => return diagnostics,
+    };
+
+    let path_str = path.to_string_lossy();
+    let normalized = path_str.replace('\\', "/");
+
+    // Check if it's in a correct location
+    let in_github_agents = normalized.contains(".github/agents/");
+    let in_copilot_agents = normalized.contains(".copilot/agents/");
+
+    if !in_github_agents && !in_copilot_agents {
+        diagnostics.push(
+            Diagnostic::info(
+                path.to_path_buf(),
+                1,
+                0,
+                "COP-025",
+                format!(
+                    "Agent file '{}' is not under '.github/agents/' or '~/.copilot/agents/'",
+                    filename
+                ),
+            )
+            .with_suggestion(
+                "Move agent files to '.github/agents/' (project) or '~/.copilot/agents/' (global).",
+            ),
+        );
+    }
+
+    diagnostics
+}
+
+/// COP-026: Deprecated SSE transport in MCP config.
+/// When an mcp-config.json server entry has `"type": "sse"`, warn that SSE transport
+/// is deprecated in favor of HTTP/Streamable HTTP.
+fn validate_mcp_config_sse(path: &Path, content: &str, config: &LintConfig) -> Vec<Diagnostic> {
+    let mut diagnostics = Vec::new();
+
+    if !config.is_rule_enabled("COP-026") {
+        return diagnostics;
+    }
+
+    // Only applies to mcp-config.json files
+    let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+    if filename != "mcp-config.json" {
+        return diagnostics;
+    }
+
+    let value: serde_json::Value = match serde_json::from_str(content) {
+        Ok(v) => v,
+        Err(_) => return diagnostics,
+    };
+
+    // Check for servers with "type": "sse" - could be at top level or under "mcpServers"
+    let check_servers = |servers: &serde_json::Value| -> Vec<String> {
+        let mut sse_servers = Vec::new();
+        if let Some(obj) = servers.as_object() {
+            for (name, server) in obj {
+                if let Some(transport_type) = server.get("type").and_then(|t| t.as_str()) {
+                    if transport_type == "sse" {
+                        sse_servers.push(name.clone());
+                    }
+                }
+            }
+        }
+        sse_servers
+    };
+
+    let mut sse_servers = Vec::new();
+
+    // Check "mcpServers" key
+    if let Some(servers) = value.get("mcpServers") {
+        sse_servers.extend(check_servers(servers));
+    }
+
+    // Check top-level keys that look like server definitions
+    if let Some(obj) = value.as_object() {
+        for (key, val) in obj {
+            if key != "mcpServers" && val.is_object() {
+                if let Some(t) = val.get("type").and_then(|t| t.as_str()) {
+                    if t == "sse" {
+                        sse_servers.push(key.clone());
+                    }
+                }
+            }
+        }
+    }
+
+    for server_name in sse_servers {
+        diagnostics.push(
+            Diagnostic::warning(
+                path.to_path_buf(),
+                1,
+                0,
+                "COP-026",
+                format!(
+                    "MCP server '{}' uses deprecated SSE transport type",
+                    server_name
+                ),
+            )
+            .with_suggestion("Replace 'sse' with 'http' or 'streamable-http' transport."),
+        );
+    }
+
+    diagnostics
+}
+
 impl Validator for CopilotValidator {
     fn metadata(&self) -> ValidatorMetadata {
         ValidatorMetadata {
@@ -602,6 +1072,32 @@ impl Validator for CopilotValidator {
 
     fn validate(&self, path: &Path, content: &str, config: &LintConfig) -> Vec<Diagnostic> {
         let mut diagnostics = Vec::new();
+
+        // COP-026: Deprecated SSE transport in MCP config
+        if path.file_name().and_then(|n| n.to_str()) == Some("mcp-config.json") {
+            return validate_mcp_config_sse(path, content, config);
+        }
+
+        // Path-based checks that work regardless of FileType dispatch
+        if is_copilot_plugin_manifest(path) && looks_like_copilot_plugin_content(content) {
+            return validate_plugin_manifest(path, content, config);
+        }
+        if is_copilot_skill_md(path) {
+            let mut skill_diagnostics = validate_copilot_skill(path, content, config);
+            // COP-024: Unknown SKILL.md frontmatter fields
+            skill_diagnostics.extend(validate_copilot_skill_unknown_fields(path, content, config));
+            return skill_diagnostics;
+        }
+
+        // COP-025: .agent.md in wrong location
+        if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+            if name.ends_with(".agent.md") {
+                let file_type = crate::detect_file_type(path);
+                if file_type != FileType::CopilotAgent {
+                    return validate_agent_md_location(path, config);
+                }
+            }
+        }
 
         let file_type = crate::detect_file_type(path);
         match file_type {
@@ -2087,5 +2583,488 @@ Refactor the selected code.
         );
         assert!(!cop_015[0].fixes[0].safe, "COP-015 fix should be unsafe");
         assert!(cop_015[0].fixes[0].replacement.contains("always"));
+    }
+
+    // ===== Helper functions for new rules =====
+
+    fn validate_plugin(content: &str) -> Vec<Diagnostic> {
+        let validator = CopilotValidator;
+        validator.validate(
+            Path::new(".github/copilot-extensions/plugin.json"),
+            content,
+            &LintConfig::default(),
+        )
+    }
+
+    fn validate_copilot_skill_md(content: &str) -> Vec<Diagnostic> {
+        let validator = CopilotValidator;
+        validator.validate(
+            Path::new(".github/skills/my-skill/SKILL.md"),
+            content,
+            &LintConfig::default(),
+        )
+    }
+
+    fn validate_copilot_skill_md_agents(content: &str) -> Vec<Diagnostic> {
+        let validator = CopilotValidator;
+        validator.validate(
+            Path::new(".agents/skills/my-skill/SKILL.md"),
+            content,
+            &LintConfig::default(),
+        )
+    }
+
+    // ===== COP-019: Plugin Manifest Missing Required Fields =====
+
+    #[test]
+    fn test_cop_019_missing_name() {
+        let diagnostics = validate_plugin(
+            r#"{
+  "description": "A Copilot plugin",
+  "version": "1.0.0",
+  "agents": {}
+}"#,
+        );
+        let cop_019: Vec<_> = diagnostics.iter().filter(|d| d.rule == "COP-019").collect();
+        assert_eq!(cop_019.len(), 1);
+        assert_eq!(cop_019[0].level, DiagnosticLevel::Error);
+        assert!(cop_019[0].message.contains("name"));
+    }
+
+    #[test]
+    fn test_cop_019_missing_all_required() {
+        let diagnostics = validate_plugin(
+            r#"{
+  "agents": {}
+}"#,
+        );
+        let cop_019: Vec<_> = diagnostics.iter().filter(|d| d.rule == "COP-019").collect();
+        assert_eq!(cop_019.len(), 3);
+    }
+
+    #[test]
+    fn test_cop_019_all_present() {
+        let diagnostics = validate_plugin(
+            r#"{
+  "name": "my-plugin",
+  "description": "A Copilot plugin",
+  "version": "1.0.0",
+  "skills": {}
+}"#,
+        );
+        let cop_019: Vec<_> = diagnostics.iter().filter(|d| d.rule == "COP-019").collect();
+        assert!(cop_019.is_empty());
+    }
+
+    #[test]
+    fn test_cop_019_not_copilot_plugin() {
+        // Without Copilot-specific keys, should not trigger
+        let diagnostics = validate_plugin(
+            r#"{
+  "foo": "bar"
+}"#,
+        );
+        let cop_019: Vec<_> = diagnostics.iter().filter(|d| d.rule == "COP-019").collect();
+        assert!(cop_019.is_empty());
+    }
+
+    // ===== COP-020: Plugin Manifest Invalid Field Types =====
+
+    #[test]
+    fn test_cop_020_name_not_string() {
+        let diagnostics = validate_plugin(
+            r#"{
+  "name": 123,
+  "description": "A Copilot plugin",
+  "version": "1.0.0",
+  "agents": {}
+}"#,
+        );
+        let cop_020: Vec<_> = diagnostics.iter().filter(|d| d.rule == "COP-020").collect();
+        assert_eq!(cop_020.len(), 1);
+        assert_eq!(cop_020[0].level, DiagnosticLevel::Warning);
+        assert!(cop_020[0].message.contains("name"));
+        assert!(cop_020[0].message.contains("string"));
+    }
+
+    #[test]
+    fn test_cop_020_keywords_not_array() {
+        let diagnostics = validate_plugin(
+            r#"{
+  "name": "my-plugin",
+  "description": "A Copilot plugin",
+  "version": "1.0.0",
+  "keywords": "not-an-array",
+  "hooks": {}
+}"#,
+        );
+        let cop_020: Vec<_> = diagnostics.iter().filter(|d| d.rule == "COP-020").collect();
+        assert_eq!(cop_020.len(), 1);
+        assert!(cop_020[0].message.contains("keywords"));
+        assert!(cop_020[0].message.contains("array"));
+    }
+
+    #[test]
+    fn test_cop_020_valid_types() {
+        let diagnostics = validate_plugin(
+            r#"{
+  "name": "my-plugin",
+  "description": "A Copilot plugin",
+  "version": "1.0.0",
+  "keywords": ["copilot"],
+  "agents": {},
+  "skills": {}
+}"#,
+        );
+        let cop_020: Vec<_> = diagnostics.iter().filter(|d| d.rule == "COP-020").collect();
+        assert!(cop_020.is_empty());
+    }
+
+    // ===== COP-022: CLI SKILL.md Missing Required Frontmatter =====
+
+    #[test]
+    fn test_cop_022_missing_frontmatter() {
+        let diagnostics = validate_copilot_skill_md("# My Skill\n\nDo something useful.");
+        let cop_022: Vec<_> = diagnostics.iter().filter(|d| d.rule == "COP-022").collect();
+        assert_eq!(cop_022.len(), 1);
+        assert_eq!(cop_022[0].level, DiagnosticLevel::Error);
+        assert!(cop_022[0].message.contains("missing required frontmatter"));
+    }
+
+    #[test]
+    fn test_cop_022_missing_name() {
+        let diagnostics = validate_copilot_skill_md(
+            r#"---
+description: A useful skill
+---
+# My Skill
+"#,
+        );
+        let cop_022: Vec<_> = diagnostics.iter().filter(|d| d.rule == "COP-022").collect();
+        assert_eq!(cop_022.len(), 1);
+        assert!(cop_022[0].message.contains("name"));
+    }
+
+    #[test]
+    fn test_cop_022_missing_description() {
+        let diagnostics = validate_copilot_skill_md(
+            r#"---
+name: my-skill
+---
+# My Skill
+"#,
+        );
+        let cop_022: Vec<_> = diagnostics.iter().filter(|d| d.rule == "COP-022").collect();
+        assert_eq!(cop_022.len(), 1);
+        assert!(cop_022[0].message.contains("description"));
+    }
+
+    #[test]
+    fn test_cop_022_valid_frontmatter() {
+        let diagnostics = validate_copilot_skill_md(
+            r#"---
+name: my-skill
+description: A useful skill
+---
+# My Skill
+"#,
+        );
+        let cop_022: Vec<_> = diagnostics.iter().filter(|d| d.rule == "COP-022").collect();
+        assert!(cop_022.is_empty());
+    }
+
+    #[test]
+    fn test_cop_022_agents_skills_path() {
+        let diagnostics = validate_copilot_skill_md_agents("# My Skill\n\nDo something useful.");
+        let cop_022: Vec<_> = diagnostics.iter().filter(|d| d.rule == "COP-022").collect();
+        assert_eq!(cop_022.len(), 1);
+    }
+
+    // ===== COP-023: CLI SKILL.md Name Format =====
+
+    #[test]
+    fn test_cop_023_uppercase_name() {
+        let diagnostics = validate_copilot_skill_md(
+            r#"---
+name: MySkill
+description: A useful skill
+---
+# My Skill
+"#,
+        );
+        let cop_023: Vec<_> = diagnostics.iter().filter(|d| d.rule == "COP-023").collect();
+        assert_eq!(cop_023.len(), 1);
+        assert_eq!(cop_023[0].level, DiagnosticLevel::Warning);
+        assert!(cop_023[0].message.contains("kebab-case"));
+    }
+
+    #[test]
+    fn test_cop_023_underscores() {
+        let diagnostics = validate_copilot_skill_md(
+            r#"---
+name: my_skill
+description: A useful skill
+---
+# My Skill
+"#,
+        );
+        let cop_023: Vec<_> = diagnostics.iter().filter(|d| d.rule == "COP-023").collect();
+        assert_eq!(cop_023.len(), 1);
+    }
+
+    #[test]
+    fn test_cop_023_spaces() {
+        let diagnostics = validate_copilot_skill_md(
+            r#"---
+name: my skill
+description: A useful skill
+---
+# My Skill
+"#,
+        );
+        let cop_023: Vec<_> = diagnostics.iter().filter(|d| d.rule == "COP-023").collect();
+        assert_eq!(cop_023.len(), 1);
+    }
+
+    #[test]
+    fn test_cop_023_valid_kebab_case() {
+        let diagnostics = validate_copilot_skill_md(
+            r#"---
+name: my-useful-skill
+description: A useful skill
+---
+# My Skill
+"#,
+        );
+        let cop_023: Vec<_> = diagnostics.iter().filter(|d| d.rule == "COP-023").collect();
+        assert!(cop_023.is_empty());
+    }
+
+    // ===== COP-027: Deprecated `infer` Field =====
+
+    #[test]
+    fn test_cop_027_deprecated_infer_true() {
+        let diagnostics = validate_agent(
+            r#"---
+description: Review pull requests
+infer: true
+---
+Review pull requests.
+"#,
+        );
+        let cop_027: Vec<_> = diagnostics.iter().filter(|d| d.rule == "COP-027").collect();
+        assert_eq!(cop_027.len(), 1);
+        assert_eq!(cop_027[0].level, DiagnosticLevel::Info);
+        assert!(cop_027[0].message.contains("deprecated"));
+        assert!(cop_027[0].message.contains("disable-model-invocation"));
+    }
+
+    #[test]
+    fn test_cop_027_deprecated_infer_false() {
+        let diagnostics = validate_agent(
+            r#"---
+description: Review pull requests
+infer: false
+---
+Review pull requests.
+"#,
+        );
+        let cop_027: Vec<_> = diagnostics.iter().filter(|d| d.rule == "COP-027").collect();
+        assert_eq!(cop_027.len(), 1);
+    }
+
+    #[test]
+    fn test_cop_027_no_infer_field() {
+        let diagnostics = validate_agent(
+            r#"---
+description: Review pull requests
+---
+Review pull requests.
+"#,
+        );
+        let cop_027: Vec<_> = diagnostics.iter().filter(|d| d.rule == "COP-027").collect();
+        assert!(cop_027.is_empty());
+    }
+
+    // ===== COP-024: Unknown SKILL.md frontmatter field =====
+
+    fn validate_skill(content: &str) -> Vec<Diagnostic> {
+        let validator = CopilotValidator;
+        validator.validate(
+            Path::new(".github/skills/my-skill/SKILL.md"),
+            content,
+            &LintConfig::default(),
+        )
+    }
+
+    #[test]
+    fn test_cop_024_unknown_skill_frontmatter_field() {
+        let content = r#"---
+name: my-skill
+description: A test skill
+unknown_field: some value
+---
+This is the skill body.
+"#;
+        let diagnostics = validate_skill(content);
+        let cop_024: Vec<_> = diagnostics.iter().filter(|d| d.rule == "COP-024").collect();
+        assert_eq!(cop_024.len(), 1);
+        assert!(cop_024[0].message.contains("unknown_field"));
+        assert_eq!(cop_024[0].level, DiagnosticLevel::Warning);
+    }
+
+    #[test]
+    fn test_cop_024_known_skill_fields_no_warning() {
+        let content = r#"---
+name: my-skill
+description: A test skill
+license: MIT
+---
+This is the skill body.
+"#;
+        let diagnostics = validate_skill(content);
+        let cop_024: Vec<_> = diagnostics.iter().filter(|d| d.rule == "COP-024").collect();
+        assert!(cop_024.is_empty());
+    }
+
+    #[test]
+    fn test_cop_024_multiple_unknown_fields() {
+        let content = r#"---
+name: my-skill
+description: A test skill
+author: someone
+version: 1.0
+---
+Skill body.
+"#;
+        let diagnostics = validate_skill(content);
+        let cop_024: Vec<_> = diagnostics.iter().filter(|d| d.rule == "COP-024").collect();
+        assert_eq!(cop_024.len(), 2);
+        assert!(cop_024.iter().any(|d| d.message.contains("author")));
+        assert!(cop_024.iter().any(|d| d.message.contains("version")));
+    }
+
+    // ===== COP-025: CLI .agent.md in wrong location =====
+
+    #[test]
+    fn test_cop_025_agent_md_in_wrong_location() {
+        let validator = CopilotValidator;
+        let diagnostics = validator.validate(
+            Path::new("reviewer.agent.md"),
+            "---\ndescription: Review PRs\n---\nReview pull requests.",
+            &LintConfig::default(),
+        );
+        let cop_025: Vec<_> = diagnostics.iter().filter(|d| d.rule == "COP-025").collect();
+        assert_eq!(cop_025.len(), 1);
+        assert!(cop_025[0].message.contains("reviewer.agent.md"));
+        assert_eq!(cop_025[0].level, DiagnosticLevel::Info);
+    }
+
+    #[test]
+    fn test_cop_025_agent_md_in_correct_location() {
+        let diagnostics =
+            validate_agent("---\ndescription: Review PRs\n---\nReview pull requests.");
+        let cop_025: Vec<_> = diagnostics.iter().filter(|d| d.rule == "COP-025").collect();
+        assert!(cop_025.is_empty());
+    }
+
+    #[test]
+    fn test_cop_025_non_agent_md_file() {
+        let validator = CopilotValidator;
+        let diagnostics = validator.validate(
+            Path::new("README.md"),
+            "Some content",
+            &LintConfig::default(),
+        );
+        let cop_025: Vec<_> = diagnostics.iter().filter(|d| d.rule == "COP-025").collect();
+        assert!(cop_025.is_empty());
+    }
+
+    // ===== COP-026: Deprecated SSE transport in MCP config =====
+
+    fn validate_mcp_config(content: &str) -> Vec<Diagnostic> {
+        let validator = CopilotValidator;
+        validator.validate(
+            Path::new("mcp-config.json"),
+            content,
+            &LintConfig::default(),
+        )
+    }
+
+    #[test]
+    fn test_cop_026_sse_transport_deprecated() {
+        let content = r#"{
+    "mcpServers": {
+        "my-server": {
+            "type": "sse",
+            "url": "http://localhost:3000"
+        }
+    }
+}"#;
+        let diagnostics = validate_mcp_config(content);
+        let cop_026: Vec<_> = diagnostics.iter().filter(|d| d.rule == "COP-026").collect();
+        assert_eq!(cop_026.len(), 1);
+        assert!(cop_026[0].message.contains("my-server"));
+        assert!(cop_026[0].message.contains("SSE"));
+        assert_eq!(cop_026[0].level, DiagnosticLevel::Warning);
+    }
+
+    #[test]
+    fn test_cop_026_http_transport_no_warning() {
+        let content = r#"{
+    "mcpServers": {
+        "my-server": {
+            "type": "http",
+            "url": "http://localhost:3000"
+        }
+    }
+}"#;
+        let diagnostics = validate_mcp_config(content);
+        let cop_026: Vec<_> = diagnostics.iter().filter(|d| d.rule == "COP-026").collect();
+        assert!(cop_026.is_empty());
+    }
+
+    #[test]
+    fn test_cop_026_non_mcp_config_file() {
+        // Should not trigger for files named differently
+        let validator = CopilotValidator;
+        let content = r#"{
+    "mcpServers": {
+        "my-server": {
+            "type": "sse",
+            "url": "http://localhost:3000"
+        }
+    }
+}"#;
+        let diagnostics = validator.validate(
+            Path::new("other-config.json"),
+            content,
+            &LintConfig::default(),
+        );
+        let cop_026: Vec<_> = diagnostics.iter().filter(|d| d.rule == "COP-026").collect();
+        assert!(cop_026.is_empty());
+    }
+
+    #[test]
+    fn test_cop_026_multiple_sse_servers() {
+        let content = r#"{
+    "mcpServers": {
+        "server-a": {
+            "type": "sse",
+            "url": "http://localhost:3000"
+        },
+        "server-b": {
+            "type": "sse",
+            "url": "http://localhost:4000"
+        },
+        "server-c": {
+            "type": "http",
+            "url": "http://localhost:5000"
+        }
+    }
+}"#;
+        let diagnostics = validate_mcp_config(content);
+        let cop_026: Vec<_> = diagnostics.iter().filter(|d| d.rule == "COP-026").collect();
+        assert_eq!(cop_026.len(), 2);
     }
 }

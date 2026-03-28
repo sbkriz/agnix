@@ -1082,11 +1082,12 @@ fn test_cc_hk_004_matcher_on_stop() {
 
 #[test]
 fn test_cc_hk_004_matcher_on_session_start() {
+    // SessionStart now supports matchers - no CC-HK-004
     let content = r#"{
             "hooks": {
                 "SessionStart": [
                     {
-                        "matcher": "Write",
+                        "matcher": "startup",
                         "hooks": [
                             { "type": "command", "command": "echo 'test'" }
                         ]
@@ -1101,7 +1102,7 @@ fn test_cc_hk_004_matcher_on_session_start() {
         .filter(|d| d.rule == "CC-HK-004")
         .collect();
 
-    assert_eq!(cc_hk_004.len(), 1);
+    assert_eq!(cc_hk_004.len(), 0, "SessionStart now supports matchers");
 }
 
 #[test]
@@ -1131,7 +1132,7 @@ fn test_cc_hk_004_no_matcher_on_stop_ok() {
 fn test_cc_hk_004_has_safe_fix_when_unique_matcher_line() {
     let content = r#"{
             "hooks": {
-                "SessionStart": [
+                "TaskCompleted": [
                     {
                         "matcher": "Bash",
                         "hooks": [
@@ -1164,9 +1165,9 @@ fn test_fixture_matcher_on_wrong_event() {
         .iter()
         .filter(|d| d.rule == "CC-HK-004")
         .collect();
-    // SubagentStop and SessionStart trigger CC-HK-004
+    // SubagentStop and SessionStart now support matchers - no CC-HK-004
     // Stop and UserPromptSubmit are handled by CC-HK-018 instead
-    assert_eq!(cc_hk_004.len(), 2);
+    assert_eq!(cc_hk_004.len(), 0);
 
     let cc_hk_018: Vec<_> = diagnostics
         .iter()
@@ -2489,12 +2490,8 @@ fn test_cc_hk_003_all_tool_events_hint_matcher() {
 #[test]
 fn test_cc_hk_004_non_tool_events_reject_matcher() {
     // Stop and UserPromptSubmit are handled by CC-HK-018 instead
-    let non_tool_events = [
-        "SubagentStop",
-        "SessionStart",
-        "TeammateIdle",
-        "TaskCompleted",
-    ];
+    // SubagentStop, SessionStart, etc. now support matchers via MATCHER_EVENTS
+    let non_tool_events = ["TeammateIdle", "TaskCompleted"];
 
     for event in non_tool_events {
         let content = format!(
@@ -4105,4 +4102,290 @@ fn test_cc_hk_019_autofix_application() {
         .filter(|d| d.rule == "CC-HK-019")
         .collect();
     assert_eq!(re_019.len(), 0, "After fix, CC-HK-019 should not fire");
+}
+
+// ---------------------------------------------------------------------------
+// CC-HK-020: HTTP hook missing `url` field
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_cc_hk_020_http_hook_missing_url() {
+    let content = r#"{
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": "Bash",
+                        "hooks": [
+                            { "type": "http" }
+                        ]
+                    }
+                ]
+            }
+        }"#;
+
+    let diagnostics = validate(content);
+    let cc_hk_020: Vec<_> = diagnostics
+        .iter()
+        .filter(|d| d.rule == "CC-HK-020")
+        .collect();
+
+    assert_eq!(cc_hk_020.len(), 1);
+    assert_eq!(cc_hk_020[0].level, DiagnosticLevel::Error);
+    assert!(
+        cc_hk_020[0]
+            .message
+            .contains("missing required 'url' field")
+    );
+}
+
+#[test]
+fn test_cc_hk_020_http_hook_with_url_ok() {
+    let content = r#"{
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": "Bash",
+                        "hooks": [
+                            { "type": "http", "url": "https://example.com/hook" }
+                        ]
+                    }
+                ]
+            }
+        }"#;
+
+    let diagnostics = validate(content);
+    let cc_hk_020: Vec<_> = diagnostics
+        .iter()
+        .filter(|d| d.rule == "CC-HK-020")
+        .collect();
+
+    assert_eq!(cc_hk_020.len(), 0);
+}
+
+// ---------------------------------------------------------------------------
+// CC-HK-021: Invalid `if` field
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_cc_hk_021_if_field_on_non_tool_event() {
+    let content = r#"{
+            "hooks": {
+                "Stop": [
+                    {
+                        "hooks": [
+                            { "type": "command", "command": "echo done", "if": "tool === 'Bash'" }
+                        ]
+                    }
+                ]
+            }
+        }"#;
+
+    let diagnostics = validate(content);
+    let cc_hk_021: Vec<_> = diagnostics
+        .iter()
+        .filter(|d| d.rule == "CC-HK-021")
+        .collect();
+
+    assert_eq!(cc_hk_021.len(), 1);
+    assert_eq!(cc_hk_021[0].level, DiagnosticLevel::Warning);
+    assert!(cc_hk_021[0].message.contains("non-tool event"));
+}
+
+#[test]
+fn test_cc_hk_021_if_field_on_pre_tool_use_ok() {
+    let content = r#"{
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": "Bash",
+                        "hooks": [
+                            { "type": "command", "command": "echo check", "if": "tool === 'Bash'" }
+                        ]
+                    }
+                ]
+            }
+        }"#;
+
+    let diagnostics = validate(content);
+    let cc_hk_021: Vec<_> = diagnostics
+        .iter()
+        .filter(|d| d.rule == "CC-HK-021")
+        .collect();
+
+    assert_eq!(cc_hk_021.len(), 0);
+}
+
+// ---------------------------------------------------------------------------
+// CC-HK-022: Invalid `shell` value
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_cc_hk_022_invalid_shell_value() {
+    let content = r#"{
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": "Bash",
+                        "hooks": [
+                            { "type": "command", "command": "echo hi", "shell": "zsh" }
+                        ]
+                    }
+                ]
+            }
+        }"#;
+
+    let diagnostics = validate(content);
+    let cc_hk_022: Vec<_> = diagnostics
+        .iter()
+        .filter(|d| d.rule == "CC-HK-022")
+        .collect();
+
+    assert_eq!(cc_hk_022.len(), 1);
+    assert_eq!(cc_hk_022[0].level, DiagnosticLevel::Warning);
+    assert!(cc_hk_022[0].message.contains("invalid 'shell' value"));
+}
+
+#[test]
+fn test_cc_hk_022_valid_shell_bash_ok() {
+    let content = r#"{
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": "Bash",
+                        "hooks": [
+                            { "type": "command", "command": "echo hi", "shell": "bash" }
+                        ]
+                    }
+                ]
+            }
+        }"#;
+
+    let diagnostics = validate(content);
+    let cc_hk_022: Vec<_> = diagnostics
+        .iter()
+        .filter(|d| d.rule == "CC-HK-022")
+        .collect();
+
+    assert_eq!(cc_hk_022.len(), 0);
+}
+
+// ---------------------------------------------------------------------------
+// CC-HK-023: `once` not boolean
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_cc_hk_023_once_not_boolean() {
+    let content = r#"{
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": "Bash",
+                        "hooks": [
+                            { "type": "command", "command": "echo hi", "once": "yes" }
+                        ]
+                    }
+                ]
+            }
+        }"#;
+
+    let diagnostics = validate(content);
+    let cc_hk_023: Vec<_> = diagnostics
+        .iter()
+        .filter(|d| d.rule == "CC-HK-023")
+        .collect();
+
+    assert_eq!(cc_hk_023.len(), 1);
+    assert_eq!(cc_hk_023[0].level, DiagnosticLevel::Info);
+    assert!(cc_hk_023[0].message.contains("non-boolean 'once' field"));
+}
+
+#[test]
+fn test_cc_hk_023_once_boolean_ok() {
+    let content = r#"{
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": "Bash",
+                        "hooks": [
+                            { "type": "command", "command": "echo hi", "once": true }
+                        ]
+                    }
+                ]
+            }
+        }"#;
+
+    let diagnostics = validate(content);
+    let cc_hk_023: Vec<_> = diagnostics
+        .iter()
+        .filter(|d| d.rule == "CC-HK-023")
+        .collect();
+
+    assert_eq!(cc_hk_023.len(), 0);
+}
+
+// ---------------------------------------------------------------------------
+// CC-HK-024: Headers with $VAR but no allowedEnvVars
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_cc_hk_024_headers_env_var_without_allowed() {
+    let content = r#"{
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": "Bash",
+                        "hooks": [
+                            {
+                                "type": "http",
+                                "url": "https://example.com/hook",
+                                "headers": { "Authorization": "$TOKEN" }
+                            }
+                        ]
+                    }
+                ]
+            }
+        }"#;
+
+    let diagnostics = validate(content);
+    let cc_hk_024: Vec<_> = diagnostics
+        .iter()
+        .filter(|d| d.rule == "CC-HK-024")
+        .collect();
+
+    assert_eq!(cc_hk_024.len(), 1);
+    assert_eq!(cc_hk_024[0].level, DiagnosticLevel::Warning);
+    assert!(
+        cc_hk_024[0]
+            .message
+            .contains("$VAR interpolation but no 'allowedEnvVars'")
+    );
+}
+
+#[test]
+fn test_cc_hk_024_headers_env_var_with_allowed_ok() {
+    let content = r#"{
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": "Bash",
+                        "hooks": [
+                            {
+                                "type": "http",
+                                "url": "https://example.com/hook",
+                                "headers": { "Authorization": "$TOKEN" },
+                                "allowedEnvVars": ["TOKEN"]
+                            }
+                        ]
+                    }
+                ]
+            }
+        }"#;
+
+    let diagnostics = validate(content);
+    let cc_hk_024: Vec<_> = diagnostics
+        .iter()
+        .filter(|d| d.rule == "CC-HK-024")
+        .collect();
+
+    assert_eq!(cc_hk_024.len(), 0);
 }

@@ -4162,6 +4162,56 @@ fn test_cc_hk_020_http_hook_with_url_ok() {
     assert_eq!(cc_hk_020.len(), 0);
 }
 
+#[test]
+fn test_cc_hk_020_http_hook_empty_url_string() {
+    let content = r#"{
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": "Bash",
+                        "hooks": [
+                            { "type": "http", "url": "" }
+                        ]
+                    }
+                ]
+            }
+        }"#;
+
+    let diagnostics = validate(content);
+    let cc_hk_020: Vec<_> = diagnostics
+        .iter()
+        .filter(|d| d.rule == "CC-HK-020")
+        .collect();
+
+    assert_eq!(cc_hk_020.len(), 1, "Empty url string should fire CC-HK-020");
+    assert_eq!(cc_hk_020[0].level, DiagnosticLevel::Error);
+}
+
+#[test]
+fn test_cc_hk_020_http_hook_non_string_url() {
+    let content = r#"{
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": "Bash",
+                        "hooks": [
+                            { "type": "http", "url": 123 }
+                        ]
+                    }
+                ]
+            }
+        }"#;
+
+    let diagnostics = validate(content);
+    let cc_hk_020: Vec<_> = diagnostics
+        .iter()
+        .filter(|d| d.rule == "CC-HK-020")
+        .collect();
+
+    assert_eq!(cc_hk_020.len(), 1, "Non-string url should fire CC-HK-020");
+    assert_eq!(cc_hk_020[0].level, DiagnosticLevel::Error);
+}
+
 // ---------------------------------------------------------------------------
 // CC-HK-021: Invalid `if` field
 // ---------------------------------------------------------------------------
@@ -4213,6 +4263,64 @@ fn test_cc_hk_021_if_field_on_pre_tool_use_ok() {
         .collect();
 
     assert_eq!(cc_hk_021.len(), 0);
+}
+
+#[test]
+fn test_cc_hk_021_if_field_empty_string_on_pre_tool_use() {
+    let content = r#"{
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": "Bash",
+                        "hooks": [
+                            { "type": "command", "command": "echo check", "if": "" }
+                        ]
+                    }
+                ]
+            }
+        }"#;
+
+    let diagnostics = validate(content);
+    let cc_hk_021: Vec<_> = diagnostics
+        .iter()
+        .filter(|d| d.rule == "CC-HK-021")
+        .collect();
+
+    assert_eq!(
+        cc_hk_021.len(),
+        1,
+        "Empty 'if' string on PreToolUse should fire CC-HK-021"
+    );
+    assert_eq!(cc_hk_021[0].level, DiagnosticLevel::Warning);
+}
+
+#[test]
+fn test_cc_hk_021_if_field_non_string_on_pre_tool_use() {
+    let content = r#"{
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": "Bash",
+                        "hooks": [
+                            { "type": "command", "command": "echo check", "if": 42 }
+                        ]
+                    }
+                ]
+            }
+        }"#;
+
+    let diagnostics = validate(content);
+    let cc_hk_021: Vec<_> = diagnostics
+        .iter()
+        .filter(|d| d.rule == "CC-HK-021")
+        .collect();
+
+    assert_eq!(
+        cc_hk_021.len(),
+        1,
+        "Non-string 'if' on PreToolUse should fire CC-HK-021"
+    );
+    assert_eq!(cc_hk_021[0].level, DiagnosticLevel::Warning);
 }
 
 // ---------------------------------------------------------------------------

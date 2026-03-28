@@ -46,6 +46,7 @@ const RULE_IDS: &[&str] = &[
     "OC-CFG-010",
     "OC-CFG-011",
     "OC-CFG-012",
+    "OC-CFG-013",
     "OC-AG-001",
     "OC-AG-002",
     "OC-AG-003",
@@ -54,10 +55,13 @@ const RULE_IDS: &[&str] = &[
     "OC-AG-006",
     "OC-AG-007",
     "OC-AG-008",
+    "OC-AG-009",
     "OC-DEP-001",
     "OC-DEP-002",
     "OC-DEP-003",
     "OC-DEP-004",
+    "OC-DEP-005",
+    "OC-DEP-006",
     "OC-LSP-001",
     "OC-LSP-002",
     "OC-TUI-001",
@@ -2319,7 +2323,18 @@ mod tests {
     #[test]
     fn test_all_oc_rules_can_be_disabled() {
         let rules = [
-            "OC-001", "OC-002", "OC-003", "OC-004", "OC-006", "OC-007", "OC-008", "OC-009",
+            "OC-001",
+            "OC-002",
+            "OC-003",
+            "OC-004",
+            "OC-006",
+            "OC-007",
+            "OC-008",
+            "OC-009",
+            "OC-AG-009",
+            "OC-CFG-013",
+            "OC-DEP-005",
+            "OC-DEP-006",
         ];
 
         for rule in rules {
@@ -2335,6 +2350,10 @@ mod tests {
                 "OC-007" => r#"{"agent": {"test": {}}}"#,
                 "OC-008" => r#"{"permission": {"read": "bogus"}}"#,
                 "OC-009" => r#"{"model": "{bad:value}"}"#,
+                "OC-AG-009" => r#"{"agent": {"a": {"disable": "yes"}}}"#,
+                "OC-CFG-013" => r#"{"server": {"port": "8080"}}"#,
+                "OC-DEP-005" => r#"{"theme": "dark"}"#,
+                "OC-DEP-006" => r#"{"agent": {"a": {"maxSteps": 20}}}"#,
                 _ => unreachable!(),
             };
 

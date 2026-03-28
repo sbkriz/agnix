@@ -26,7 +26,7 @@ use crate::{
     config::LintConfig,
     diagnostics::{Diagnostic, Fix},
     parsers::frontmatter::split_frontmatter,
-    rules::{Validator, ValidatorMetadata},
+    rules::{Validator, ValidatorMetadata, json_type_name},
     schemas::cursor::{
         ParsedMdcFrontmatter, is_body_empty, is_content_empty, parse_mdc_frontmatter,
         validate_glob_pattern,
@@ -135,17 +135,6 @@ fn find_yaml_quoted_value_range(
     key: &str,
 ) -> Option<(usize, usize)> {
     crate::rules::find_yaml_value_range(content, parsed, key, true)
-}
-
-fn json_type_name(value: &JsonValue) -> &'static str {
-    match value {
-        JsonValue::Null => "null",
-        JsonValue::Bool(_) => "boolean",
-        JsonValue::Number(_) => "number",
-        JsonValue::String(_) => "string",
-        JsonValue::Array(_) => "array",
-        JsonValue::Object(_) => "object",
-    }
 }
 
 fn is_valid_cursor_agent_name(name: &str) -> bool {

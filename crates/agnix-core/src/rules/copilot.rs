@@ -24,7 +24,7 @@ use crate::{
     FileType,
     config::LintConfig,
     diagnostics::{Diagnostic, Fix},
-    rules::{Validator, ValidatorMetadata},
+    rules::{Validator, ValidatorMetadata, json_type_name},
     schemas::{
         copilot::{is_body_empty, is_content_empty, parse_frontmatter, validate_glob_pattern},
         copilot_agent::parse_agent_frontmatter,
@@ -634,17 +634,6 @@ fn is_copilot_plugin_manifest(path: &Path) -> bool {
     path.file_name().and_then(|n| n.to_str()) == Some("plugin.json")
 }
 
-/// Check if content looks like a Copilot plugin manifest by checking for
-/// Copilot-specific top-level keys.
-fn looks_like_copilot_plugin(value: &serde_json::Value) -> bool {
-    let obj = match value.as_object() {
-        Some(o) => o,
-        None => return false,
-    };
-    const COPILOT_KEYS: &[&str] = &["agents", "skills", "hooks", "mcpServers"];
-    COPILOT_KEYS.iter().any(|key| obj.contains_key(*key))
-}
-
 fn validate_plugin_manifest(path: &Path, content: &str, config: &LintConfig) -> Vec<Diagnostic> {
     let mut diagnostics = Vec::new();
 
@@ -653,14 +642,16 @@ fn validate_plugin_manifest(path: &Path, content: &str, config: &LintConfig) -> 
         Err(_) => return diagnostics,
     };
 
-    if !looks_like_copilot_plugin(&value) {
-        return diagnostics;
-    }
-
     let obj = match value.as_object() {
         Some(o) => o,
         None => return diagnostics,
     };
+
+    // Copilot plugin manifests must contain at least one Copilot-specific key
+    const COPILOT_KEYS: &[&str] = &["agents", "skills", "hooks", "mcpServers"];
+    if !COPILOT_KEYS.iter().any(|key| obj.contains_key(*key)) {
+        return diagnostics;
+    }
 
     // COP-019: Plugin manifest missing required fields (HIGH)
     if config.is_rule_enabled("COP-019") {
@@ -720,25 +711,6 @@ fn validate_plugin_manifest(path: &Path, content: &str, config: &LintConfig) -> 
     }
 
     diagnostics
-}
-
-/// Quick content-based check for plugin manifest without full parse.
-fn looks_like_copilot_plugin_content(content: &str) -> bool {
-    match serde_json::from_str::<serde_json::Value>(content) {
-        Ok(v) => looks_like_copilot_plugin(&v),
-        Err(_) => false,
-    }
-}
-
-fn json_type_name(value: &serde_json::Value) -> &'static str {
-    match value {
-        serde_json::Value::Null => "null",
-        serde_json::Value::Bool(_) => "boolean",
-        serde_json::Value::Number(_) => "number",
-        serde_json::Value::String(_) => "string",
-        serde_json::Value::Array(_) => "array",
-        serde_json::Value::Object(_) => "object",
-    }
 }
 
 /// Check if a path is a SKILL.md under a Copilot CLI skills directory.
@@ -1079,7 +1051,7 @@ impl Validator for CopilotValidator {
         }
 
         // Path-based checks that work regardless of FileType dispatch
-        if is_copilot_plugin_manifest(path) && looks_like_copilot_plugin_content(content) {
+        if is_copilot_plugin_manifest(path) {
             return validate_plugin_manifest(path, content, config);
         }
         if is_copilot_skill_md(path) {
